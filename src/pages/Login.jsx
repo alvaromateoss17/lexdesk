@@ -93,7 +93,7 @@ export default function Login() {
               Haz clic en él para activar tu cuenta.
             </div>
           )}
-          <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, display: confirm ? 'none' : 'flex' }}>
+          <form onSubmit={handleSubmit} style={{ padding: 24, flexDirection: 'column', gap: 14, display: confirm ? 'none' : 'flex' }}>
             {tab === 'register' && (
               <>
                 <Field label="Tu nombre" value={form.nombre} onChange={v => set('nombre', v)} placeholder="Lucía Romero" />

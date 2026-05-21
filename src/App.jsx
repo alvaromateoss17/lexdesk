@@ -9,6 +9,10 @@ import ExpedienteDetalle from './pages/ExpedienteDetalle'
 import Documentos from './pages/Documentos'
 import Calendario from './pages/Calendario'
 import AsistenteIA from './pages/AsistenteIA'
+import ConvenioRegulador from './pages/ConvenioRegulador'
+import Calculadoras from './pages/Calculadoras'
+import Mediacion from './pages/Mediacion'
+import PortalCliente from './pages/PortalCliente'
 
 function EmptyScreen({ name }) {
   return (
@@ -49,8 +53,12 @@ export default function App() {
       <Route path="/documentos" element={<PrivateRoute><Layout><Documentos /></Layout></PrivateRoute>} />
       <Route path="/calendario" element={<PrivateRoute><Layout><Calendario /></Layout></PrivateRoute>} />
       <Route path="/asistente" element={<PrivateRoute><Layout fullHeight><AsistenteIA /></Layout></PrivateRoute>} />
-      <Route path="/clientes" element={<PrivateRoute><Layout><EmptyScreen name="Clientes" /></Layout></PrivateRoute>} />
-      <Route path="/configuracion" element={<PrivateRoute><Layout><EmptyScreen name="Configuración" /></Layout></PrivateRoute>} />
+      <Route path="/clientes"           element={<PrivateRoute><Layout><EmptyScreen name="Clientes" /></Layout></PrivateRoute>} />
+      <Route path="/convenio-regulador" element={<PrivateRoute><Layout><ConvenioRegulador /></Layout></PrivateRoute>} />
+      <Route path="/calculadoras"       element={<PrivateRoute><Layout><Calculadoras /></Layout></PrivateRoute>} />
+      <Route path="/mediacion"          element={<PrivateRoute><Layout><Mediacion /></Layout></PrivateRoute>} />
+      <Route path="/portal-cliente"     element={<PrivateRoute><Layout><PortalCliente /></Layout></PrivateRoute>} />
+      <Route path="/configuracion"      element={<PrivateRoute><Layout><EmptyScreen name="Configuración" /></Layout></PrivateRoute>} />
     </Routes>
   )
 }

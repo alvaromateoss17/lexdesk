@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Send, FileText, Pencil, Search, Calendar, Sparkles } from 'lucide-react'
+import { Plus, Send, FileText, Pencil, Search, Calendar, Sparkles, Heart, Scale, Baby, Home, ScrollText, MessageCircle } from 'lucide-react'
 
 function buildReply(msg) {
   const lower = msg.toLowerCase()
@@ -12,8 +12,48 @@ function buildReply(msg) {
   if (lower.includes('documento') || lower.includes('pdf')) {
     return 'Para subir documentos ve a **Documentos** o al detalle de un expediente. Acepto PDF, DOCX y XLSX hasta 50 MB.'
   }
-  return 'Puedo ayudarte con tus expedientes, plazos procesales, documentos y más. ¿Qué necesitas?'
+  if (lower.includes('custodia')) {
+    return 'En España la custodia compartida es cada vez más frecuente. Los tribunales valoran el interés superior del menor, la disponibilidad de cada progenitor y la vivienda. Puedes calcular la pensión de alimentos en la sección **Calculadoras**.'
+  }
+  if (lower.includes('pensión') || lower.includes('pension') || lower.includes('alimento')) {
+    return 'La pensión de alimentos se calcula según las tablas orientadoras del CGPJ, en función de los ingresos del obligado y el número de hijos. Accede a **Calculadoras → Pensión de Alimentos** para obtener una estimación.'
+  }
+  if (lower.includes('convenio') || lower.includes('regulador')) {
+    return 'El convenio regulador regula la custodia, pensiones, uso de la vivienda y bienes. Usa el asistente en **Convenio Regulador** para generar un borrador paso a paso.'
+  }
+  if (lower.includes('divorcio') || lower.includes('separaci')) {
+    return 'Para el divorcio de mutuo acuerdo ambos cónyuges deben firmar el convenio regulador. Si hay hijos menores, el Ministerio Fiscal debe aprobar el convenio. El trámite puede durar entre 2 y 6 meses.'
+  }
+  if (lower.includes('mediaci')) {
+    return 'La mediación familiar es voluntaria y confidencial. Un mediador ayuda a las partes a alcanzar acuerdos sobre custodia, pensiones y uso del domicilio. Gestiona tus sesiones en **Mediación**.'
+  }
+  if (lower.includes('ganancial') || lower.includes('bien') || lower.includes('patrimonio')) {
+    return 'La liquidación de gananciales divide el patrimonio común al 50% tras deducir las deudas. Usa **Calculadoras → División de Gananciales** para calcular el haber de cada cónyuge.'
+  }
+  if (lower.includes('menor') || lower.includes('hijo') || lower.includes('régimen de visitas') || lower.includes('visita')) {
+    return 'El régimen de visitas del progenitor no custodio suele ser fines de semana alternos y la mitad de las vacaciones. En custodia compartida se organiza por semanas o quincenas.'
+  }
+  if (lower.includes('compensatoria')) {
+    return 'La pensión compensatoria (art. 97 CC) compensa el desequilibrio económico causado por el matrimonio. Puede ser temporal o indefinida según la edad y circunstancias. Usa la **Calculadora de Pensión Compensatoria**.'
+  }
+  if (lower.includes('vivienda') || lower.includes('domicilio') || lower.includes('uso de la casa')) {
+    return 'El uso del domicilio familiar se asigna habitualmente al cónyuge custodio mientras los hijos sean menores. Si no hay hijos, el juez pondera las necesidades de cada parte y el título de propiedad.'
+  }
+  return 'Puedo ayudarte con tus expedientes, plazos procesales, documentos y derecho de familia. ¿Qué necesitas?'
 }
+
+const FAMILIA_PROMPTS = [
+  { icon: Baby,       t: '¿Cómo se calcula la pensión de alimentos?' },
+  { icon: Heart,      t: '¿Qué es el divorcio de mutuo acuerdo?' },
+  { icon: Scale,      t: 'Custodia compartida vs exclusiva' },
+  { icon: ScrollText, t: '¿Qué incluye el convenio regulador?' },
+  { icon: Home,       t: 'Uso de la vivienda familiar tras divorcio' },
+  { icon: MessageCircle, t: '¿En qué consiste la mediación familiar?' },
+  { icon: Scale,      t: 'Pensión compensatoria: ¿cuándo procede?' },
+  { icon: Home,       t: '¿Cómo se liquidan los gananciales?' },
+  { icon: Baby,       t: 'Régimen de visitas: ¿qué es habitual?' },
+  { icon: Heart,      t: 'Modificación de medidas: motivos y proceso' },
+]
 
 function TypingDots() {
   return (
@@ -70,10 +110,35 @@ export default function AsistenteIA() {
             <Plus size={14} /> Nueva conversación
           </button>
         </div>
-        <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 24 }}>
-          <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
-            <Sparkles size={22} style={{ marginBottom: 10, opacity: 0.4 }} />
-            <div>El historial de conversaciones estará disponible próximamente.</div>
+        {/* Familia prompts */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600, marginBottom: 8, paddingLeft: 4 }}>
+            Consultas de familia
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {FAMILIA_PROMPTS.map((p, i) => (
+              <button
+                key={i}
+                onClick={() => { setInput(p.t) }}
+                style={{
+                  width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '7px 8px', borderRadius: 6, fontFamily: 'inherit', fontSize: 12,
+                  color: 'var(--text-2)', display: 'flex', alignItems: 'flex-start', gap: 7,
+                  transition: 'background 0.12s, color 0.12s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-2)' }}
+              >
+                <p.icon size={13} style={{ marginTop: 1, flexShrink: 0, color: '#A78BFA' }} strokeWidth={1.5} />
+                <span style={{ lineHeight: 1.4 }}>{p.t}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 11 }}>
+            <Sparkles size={12} style={{ marginRight: 4, opacity: 0.4, verticalAlign: 'middle' }} />
+            Historial próximamente
           </div>
         </div>
       </div>

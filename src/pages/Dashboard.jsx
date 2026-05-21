@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Plus, ChevronRight, MoreHorizontal, Sparkles, Upload } from 'lucide-react'
+import { Download, Plus, ChevronRight, MoreHorizontal, Sparkles, Upload, Heart, AlertTriangle } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import { useAuth } from '../contexts/AuthContext'
 import { getKPIs, getProximosPlazos, getActividad } from '../services/dashboard'
+import { expedientesFamilia } from '../data/mock'
 
 const ICON_MAP = {
   FileText: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>,
@@ -54,11 +55,14 @@ export default function Dashboard() {
 
   const nombre = profile?.nombre?.split(' ')[0] ?? 'abogado'
 
+  const casosFamilia = expedientesFamilia.filter(e => e.estado === 'activo').length
+
   const kpiCards = kpis ? [
     { label: 'Expedientes activos',  value: kpis.expedientesActivos, delta: '—' },
     { label: 'Plazos esta semana',   value: kpis.plazos, badge: kpis.plazosCriticos > 0 ? `${kpis.plazosCriticos} críticos` : undefined },
     { label: 'Documentos subidos',   value: kpis.documentos, delta: '—' },
     { label: 'Clientes activos',     value: kpis.clientes, delta: '—' },
+    { label: 'Casos Familia',        value: casosFamilia, icon: Heart, iconColor: '#A78BFA' },
   ] : []
 
   if (loading) return <LoadingSkeleton />
@@ -78,7 +82,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 22 }}>
         {kpiCards.map((k, i) => <KPICard key={i} {...k} />)}
       </div>
 
@@ -160,6 +164,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Widgets familia */}
+      <FamiliaWidgets nav={nav} />
+
       {/* Quick actions */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
         {[
@@ -190,6 +197,87 @@ export default function Dashboard() {
             <ChevronRight size={16} style={{ color: 'var(--text-3)' }} />
           </button>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function diasHasta(fecha) {
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+  const f = new Date(fecha + 'T00:00:00')
+  return Math.round((f - hoy) / 86400000)
+}
+
+function FamiliaWidgets({ nav }) {
+  const urgentes = expedientesFamilia.filter(e => e.prioridad === 'urgente')
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+  const en7 = new Date(hoy.getTime() + 7 * 86400000)
+
+  const plazosProximos = expedientesFamilia.flatMap(e =>
+    (e.plazosCriticos || [])
+      .map(p => ({ ...p, ref: e.ref, cliente: e.cliente, expId: e.id }))
+      .filter(p => {
+        const f = new Date(p.fecha + 'T00:00:00')
+        return f >= hoy && f <= en7
+      })
+  ).sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 22 }}>
+      {/* Alertas urgentes */}
+      <div style={{ background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)', borderLeft: '3px solid #F87171', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertTriangle size={15} style={{ color: '#F87171', flexShrink: 0 }} />
+          <div style={{ fontSize: 13, fontWeight: 500 }}>Alertas de Familia</div>
+        </div>
+        {urgentes.length === 0 ? (
+          <div style={{ padding: '10px 18px 16px', fontSize: 13, color: '#34D399', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', flexShrink: 0 }} />
+            Sin alertas urgentes
+          </div>
+        ) : urgentes.map(e => {
+          const dias = diasHasta(e.proximaActuacion)
+          return (
+            <div key={e.id} onClick={() => nav(`/expedientes`)} style={{ padding: '8px 18px', cursor: 'pointer', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, transition: 'background 0.15s' }}
+              onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
+              onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{e.cliente}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-2)' }}><span className="mono">{e.ref}</span> · {e.tipo}</div>
+              </div>
+              <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'rgba(248,113,113,0.10)', color: '#FCA5A5', border: '1px solid rgba(248,113,113,0.25)', flexShrink: 0 }}>
+                {dias <= 0 ? 'Hoy' : `en ${dias}d`}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Plazos próximos 7 días */}
+      <div style={{ background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 13, fontWeight: 500 }}>Plazos críticos — próximos 7 días</div>
+          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border-2)' }}>{plazosProximos.length}</span>
+        </div>
+        {plazosProximos.length === 0 ? (
+          <div style={{ padding: '16px 18px', fontSize: 13, color: 'var(--text-2)' }}>Sin plazos en los próximos 7 días.</div>
+        ) : plazosProximos.slice(0, 5).map((p, i) => {
+          const dias = diasHasta(p.fecha)
+          return (
+            <div key={i} onClick={() => nav('/expedientes')} style={{ padding: '9px 18px', borderBottom: i < plazosProximos.length - 1 ? '1px solid var(--border)' : 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.15s' }}
+              onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
+              onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.urgente ? '#F87171' : '#FBBF24', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.descripcion}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-2)' }}><span className="mono">{p.ref}</span> · {p.cliente}</div>
+              </div>
+              <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: p.urgente ? 'rgba(248,113,113,0.10)' : 'rgba(251,191,36,0.10)', color: p.urgente ? '#FCA5A5' : '#FCD34D', border: `1px solid ${p.urgente ? 'rgba(248,113,113,0.25)' : 'rgba(251,191,36,0.25)'}` }}>
+                {dias === 0 ? 'Hoy' : `${dias}d`}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

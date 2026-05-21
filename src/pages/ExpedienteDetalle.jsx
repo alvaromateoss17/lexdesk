@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Pin, Sparkles, Upload, Clock, Download, MoreHorizontal, Filter, FileText } from 'lucide-react'
+import { ChevronLeft, Pin, Sparkles, Upload, Clock, Download, MoreHorizontal, Filter, FileText, Send, Baby, Home, Car, Building } from 'lucide-react'
 import Badge from '../components/Badge'
 import AIPanel from '../components/AIPanel'
+import TimelineExpediente from '../components/TimelineExpediente'
 import { useAuth } from '../contexts/AuthContext'
 import { getExpediente } from '../services/expedientes'
 import { getDocumentosExpediente, uploadDocumento, getDownloadUrl } from '../services/documentos'
 import { getPlazosExpediente } from '../services/plazos'
 import { formatCuantia } from '../utils/format'
+import { expedientesFamilia, mensajesCliente } from '../data/mock'
 
 function KV({ label, value }) {
   return (
@@ -84,7 +86,14 @@ export default function ExpedienteDetalle() {
   }
 
   const proximoPlazo = plazos.find(p => !p.completado)
-  const TABS = ['Documentos', 'Notas', 'Plazos', 'Historial']
+
+  // Buscar si hay datos de familia para este expediente (por ref o por id)
+  const expFam = expedientesFamilia.find(f => f.ref === exp?.ref || String(f.id) === String(id))
+  const chatFam = mensajesCliente.find(m => m.expedienteRef === exp?.ref)
+
+  const TABS = expFam
+    ? ['Documentos', 'Plazos', 'Datos Familia', 'Mensajes', 'Historial']
+    : ['Documentos', 'Notas', 'Plazos', 'Historial']
 
   if (loading) return (
     <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-2)' }}>Cargando expediente…</div>
@@ -188,7 +197,15 @@ export default function ExpedienteDetalle() {
             </div>
           )}
 
-          {tab !== 'Documentos' && tab !== 'Plazos' && (
+          {tab === 'Datos Familia' && expFam && (
+            <TabDatosFamilia exp={expFam} nav={nav} />
+          )}
+
+          {tab === 'Mensajes' && (
+            <TabMensajes chat={chatFam} />
+          )}
+
+          {(tab === 'Notas' || tab === 'Historial') && (
             <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-2)' }}>
               Pestaña <b style={{ color: 'var(--text)' }}>{tab}</b> — próximamente disponible.
             </div>
@@ -252,6 +269,154 @@ export default function ExpedienteDetalle() {
         expRef={exp.ref}
         expName={exp.cliente}
       />
+    </div>
+  )
+}
+
+function calcEdad(fechaNac) {
+  const hoy = new Date()
+  const n = new Date(fechaNac)
+  let edad = hoy.getFullYear() - n.getFullYear()
+  if (hoy.getMonth() < n.getMonth() || (hoy.getMonth() === n.getMonth() && hoy.getDate() < n.getDate())) edad--
+  return edad
+}
+
+function SeccionLabel({ children }) {
+  return <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 12, marginTop: 20 }}>{children}</div>
+}
+
+function TabDatosFamilia({ exp, nav }) {
+  const totalBienes = (exp.bienes || []).reduce((s, b) => s + (b.valor || b.saldo || 0), 0)
+  const bienIcons = { Inmueble: Home, Vehículo: Car, default: Building }
+
+  return (
+    <div style={{ padding: 20 }}>
+      {/* Partes */}
+      <SeccionLabel>Partes</SeccionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 4 }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: 14 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6 }}>CLIENTE</div>
+          <div style={{ fontWeight: 500 }}>{exp.cliente}</div>
+        </div>
+        {exp.contraparte && (
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: 14 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6 }}>CONTRAPARTE</div>
+            <div style={{ fontWeight: 500 }}>{exp.contraparte}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Menores */}
+      {exp.hijos?.length > 0 && (
+        <>
+          <SeccionLabel>Menores ({exp.hijos.length})</SeccionLabel>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {exp.hijos.map((h, i) => (
+              <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Baby size={16} style={{ color: '#A78BFA' }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{h.nombre}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{calcEdad(h.fechaNacimiento)} años</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Régimen económico */}
+      <SeccionLabel>Régimen económico</SeccionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {exp.pensionAlimentos && (
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: 14 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 8 }}>PENSIÓN DE ALIMENTOS</div>
+            <div className="num" style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 4 }}>{exp.pensionAlimentos.importe.toLocaleString('es-ES')} €<span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 400 }}>/{exp.pensionAlimentos.periodicidad}</span></div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Pagador: {exp.pensionAlimentos.pagador}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Beneficiario: {exp.pensionAlimentos.beneficiario}</div>
+            <button onClick={() => nav('/calculadoras')} style={{ marginTop: 10, fontSize: 12, color: 'var(--blue)', background: 'transparent', border: 0, cursor: 'pointer', padding: 0 }}>Calcular con herramienta →</button>
+          </div>
+        )}
+        {exp.pensionCompensatoria?.solicitada && (
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: 14 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 8 }}>PENSIÓN COMPENSATORIA</div>
+            <div className="num" style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 4 }}>{exp.pensionCompensatoria.importe?.toLocaleString('es-ES')} €<span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 400 }}>/mes</span></div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Duración: {exp.pensionCompensatoria.duracion}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Estado: {exp.pensionCompensatoria.estado}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Bienes */}
+      {exp.bienes?.length > 0 && (
+        <>
+          <SeccionLabel>Bienes ({exp.bienes.length}) · Total estimado: <span className="num">{totalBienes.toLocaleString('es-ES')} €</span></SeccionLabel>
+          <div style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
+            {exp.bienes.map((b, i) => {
+              const IconComp = bienIcons[b.tipo] || bienIcons.default
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderBottom: i < exp.bienes.length - 1 ? '1px solid var(--border)' : 0, background: 'var(--surface-2)' }}>
+                  <IconComp size={15} style={{ color: 'var(--text-2)', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13 }}>{b.descripcion}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{b.tipo}</div>
+                  </div>
+                  <div className="num" style={{ fontSize: 13, fontWeight: 500 }}>{(b.valor || b.saldo || 0).toLocaleString('es-ES')} €</div>
+                  <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border-2)' }}>{b.estado}</span>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Timeline plazos */}
+      <SeccionLabel>Plazos críticos</SeccionLabel>
+      <TimelineExpediente actuaciones={exp.plazosCriticos || []} />
+    </div>
+  )
+}
+
+function TabMensajes({ chat }) {
+  const [msgs,  setMsgs]  = useState(chat?.mensajes || [])
+  const [input, setInput] = useState('')
+
+  function send() {
+    const t = input.trim()
+    if (!t) return
+    setMsgs(prev => [...prev, { id: Date.now(), autor: 'abogado', texto: t, fecha: new Date().toLocaleString('es-ES'), leido: true }])
+    setInput('')
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: 480 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {msgs.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-2)', fontSize: 13, marginTop: 40 }}>Sin mensajes con el cliente.</div>}
+        {msgs.map(m => (
+          <div key={m.id} style={{ display: 'flex', justifyContent: m.autor === 'abogado' ? 'flex-end' : 'flex-start' }}>
+            <div style={{
+              maxWidth: '70%', padding: '10px 14px', borderRadius: m.autor === 'abogado' ? '8px 8px 2px 8px' : '8px 8px 8px 2px',
+              background: m.autor === 'abogado' ? 'var(--blue)' : 'var(--surface-2)',
+              border: m.autor === 'abogado' ? 'none' : '1px solid var(--border)',
+              color: m.autor === 'abogado' ? '#fff' : 'var(--text)',
+              fontSize: 13.5, lineHeight: 1.5,
+            }}>
+              <div>{m.texto}</div>
+              <div style={{ fontSize: 11, marginTop: 5, opacity: 0.6 }}>{m.fecha}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+        <input
+          value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') send() }}
+          placeholder="Escribe un mensaje al cliente…"
+          style={{ flex: 1, height: 36, borderRadius: 6, background: 'var(--bg)', border: '1px solid var(--border-2)', color: 'var(--text)', fontFamily: 'inherit', fontSize: 13, padding: '0 12px', outline: 0 }}
+        />
+        <button onClick={send} style={{ width: 36, height: 36, borderRadius: '50%', border: 0, cursor: 'pointer', background: 'var(--blue)', color: '#fff', display: 'grid', placeItems: 'center' }}>
+          <Send size={14} />
+        </button>
+      </div>
     </div>
   )
 }

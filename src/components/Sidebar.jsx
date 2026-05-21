@@ -1,9 +1,9 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, Scale, LogOut } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, Scale, LogOut, ScrollText, Calculator, MessageCircle, UserCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
 
-const NAV = [
+const NAV_PRINCIPAL = [
   { to: '/',            icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/expedientes', icon: FolderOpen,       label: 'Expedientes' },
   { to: '/documentos',  icon: FileText,         label: 'Documentos' },
@@ -12,9 +12,47 @@ const NAV = [
   { to: '/asistente',   icon: Sparkles,         label: 'Asistente IA' },
 ]
 
-export default function Sidebar() {
+const NAV_FAMILIA = [
+  { to: '/convenio-regulador', icon: ScrollText,    label: 'Convenio Regulador' },
+  { to: '/calculadoras',       icon: Calculator,    label: 'Calculadoras' },
+  { to: '/mediacion',          icon: MessageCircle, label: 'Mediación' },
+  { to: '/portal-cliente',     icon: UserCircle,    label: 'Portal Cliente' },
+]
+
+function NavItem({ to, icon: Icon, label, end }) {
   const location = useLocation()
-  const nav      = useNavigate()
+  const isExpedienteDetail = location.pathname.startsWith('/expedientes/') && to === '/expedientes'
+
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      style={({ isActive }) => ({
+        position: 'relative',
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '8px 12px', margin: '1px 0',
+        borderRadius: 6, textDecoration: 'none',
+        color: (isActive || isExpedienteDetail) ? 'var(--text)' : 'var(--text-2)',
+        fontSize: 13.5,
+        background: (isActive || isExpedienteDetail) ? 'rgba(79,126,255,0.08)' : 'transparent',
+        transition: 'background 0.15s, color 0.15s',
+      })}
+    >
+      {({ isActive }) => (
+        <>
+          {(isActive || isExpedienteDetail) && (
+            <span style={{ position: 'absolute', left: -12, top: 6, bottom: 6, width: 3, background: 'var(--blue)', borderRadius: '0 3px 3px 0' }} />
+          )}
+          <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{label}</span>
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+export default function Sidebar() {
+  const nav = useNavigate()
   const { profile, signOut } = useAuth()
 
   const despachoNombre = profile?.despachos?.nombre ?? 'Mi despacho'
@@ -51,38 +89,20 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
-      {NAV.map(({ to, icon: Icon, label }) => {
-        const isExpedienteDetail = location.pathname.startsWith('/expedientes/') && to === '/expedientes'
-        const active = location.pathname === to || isExpedienteDetail
-        return (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            style={({ isActive }) => ({
-              position: 'relative',
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 12px', margin: '1px 0',
-              borderRadius: 6, textDecoration: 'none',
-              color: (isActive || active) ? 'var(--text)' : 'var(--text-2)',
-              fontSize: 13.5,
-              background: (isActive || active) ? 'rgba(79,126,255,0.08)' : 'transparent',
-              transition: 'background 0.15s, color 0.15s',
-            })}
-          >
-            {({ isActive }) => (
-              <>
-                {(isActive || active) && (
-                  <span style={{ position: 'absolute', left: -12, top: 6, bottom: 6, width: 3, background: 'var(--blue)', borderRadius: '0 3px 3px 0' }} />
-                )}
-                <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />
-                <span style={{ flex: 1 }}>{label}</span>
-              </>
-            )}
-          </NavLink>
-        )
-      })}
+      {/* Nav principal */}
+      {NAV_PRINCIPAL.map(item => (
+        <NavItem key={item.to} {...item} end={item.to === '/'} />
+      ))}
+
+      {/* Separador familia */}
+      <div style={{ padding: '14px 10px 4px' }}>
+        <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Familia</div>
+      </div>
+
+      {/* Nav familia */}
+      {NAV_FAMILIA.map(item => (
+        <NavItem key={item.to} {...item} />
+      ))}
 
       <div style={{ height: 1, background: 'var(--border)', margin: '10px 8px' }} />
 

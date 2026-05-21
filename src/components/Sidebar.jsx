@@ -2,13 +2,14 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, Scale, LogOut, ScrollText, Calculator, MessageCircle, UserCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
+import { clientes } from '../data/mock'
 
 const NAV_PRINCIPAL = [
   { to: '/',            icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/expedientes', icon: FolderOpen,       label: 'Expedientes' },
   { to: '/documentos',  icon: FileText,         label: 'Documentos' },
   { to: '/calendario',  icon: Calendar,         label: 'Calendario' },
-  { to: '/clientes',    icon: Users,            label: 'Clientes' },
+  { to: '/clientes',    icon: Users,            label: 'Clientes',   badge: true },
   { to: '/asistente',   icon: Sparkles,         label: 'Asistente IA' },
 ]
 
@@ -19,9 +20,10 @@ const NAV_FAMILIA = [
   { to: '/portal-cliente',     icon: UserCircle,    label: 'Portal Cliente' },
 ]
 
-function NavItem({ to, icon: Icon, label, end }) {
+function NavItem({ to, icon: Icon, label, end, badge, badgeCount, badgeColor }) {
   const location = useLocation()
   const isExpedienteDetail = location.pathname.startsWith('/expedientes/') && to === '/expedientes'
+  const isClienteDetail = location.pathname.startsWith('/clientes/') && to === '/clientes'
 
   return (
     <NavLink
@@ -32,19 +34,30 @@ function NavItem({ to, icon: Icon, label, end }) {
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '8px 12px', margin: '1px 0',
         borderRadius: 6, textDecoration: 'none',
-        color: (isActive || isExpedienteDetail) ? 'var(--text)' : 'var(--text-2)',
+        color: (isActive || isExpedienteDetail || isClienteDetail) ? 'var(--text)' : 'var(--text-2)',
         fontSize: 13.5,
-        background: (isActive || isExpedienteDetail) ? 'rgba(79,126,255,0.08)' : 'transparent',
+        background: (isActive || isExpedienteDetail || isClienteDetail) ? 'rgba(79,126,255,0.08)' : 'transparent',
         transition: 'background 0.15s, color 0.15s',
       })}
     >
       {({ isActive }) => (
         <>
-          {(isActive || isExpedienteDetail) && (
+          {(isActive || isExpedienteDetail || isClienteDetail) && (
             <span style={{ position: 'absolute', left: -12, top: 6, bottom: 6, width: 3, background: 'var(--blue)', borderRadius: '0 3px 3px 0' }} />
           )}
           <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{label}</span>
+          {badge && badgeCount !== undefined && (
+            <span style={{
+              fontSize: 10, padding: '1px 6px', borderRadius: 10, fontWeight: 600,
+              background: badgeColor ? badgeColor + '20' : 'rgba(138,138,138,0.15)',
+              color: badgeColor || 'var(--text-3)',
+              border: `1px solid ${badgeColor ? badgeColor + '35' : 'var(--border)'}`,
+              lineHeight: 1.4,
+            }}>
+              {badgeCount}
+            </span>
+          )}
         </>
       )}
     </NavLink>
@@ -54,6 +67,9 @@ function NavItem({ to, icon: Icon, label, end }) {
 export default function Sidebar() {
   const nav = useNavigate()
   const { profile, signOut } = useAuth()
+
+  const clientesActivos    = clientes.filter(c => c.estado === 'activo').length
+  const clientesSinLeer    = clientes.filter(c => c.mensajes?.some(m => !m.leido && m.autor === 'cliente')).length
 
   const despachoNombre = profile?.despachos?.nombre ?? 'Mi despacho'
   const plan           = profile?.despachos?.plan   ?? 'estudio'
@@ -91,7 +107,11 @@ export default function Sidebar() {
 
       {/* Nav principal */}
       {NAV_PRINCIPAL.map(item => (
-        <NavItem key={item.to} {...item} end={item.to === '/'} />
+        <NavItem
+          key={item.to} {...item} end={item.to === '/'}
+          badgeCount={item.badge ? clientesActivos : undefined}
+          badgeColor={item.badge && clientesSinLeer > 0 ? '#FBBF24' : undefined}
+        />
       ))}
 
       {/* Separador familia */}

@@ -43,23 +43,9 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { nombre } },
+      options: { data: { nombre, nombreDespacho } },
     })
-    if (error) return { error }
-
-    const { data: despacho, error: errDespacho } = await supabase
-      .from('despachos')
-      .insert({ nombre: nombreDespacho })
-      .select()
-      .single()
-    if (errDespacho) return { error: errDespacho }
-
-    await supabase
-      .from('profiles')
-      .update({ despacho_id: despacho.id, nombre, rol: 'admin' })
-      .eq('id', data.user.id)
-
-    return { data }
+    return { data, error }
   }
 
   async function signOut() {

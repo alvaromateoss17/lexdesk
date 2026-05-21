@@ -23,16 +23,21 @@ export default function Login() {
     setError('')
     setLoading(true)
 
-    if (tab === 'login') {
-      const { error: err } = await signIn(form.email, form.password)
-      if (err) { setError(err.message); setLoading(false); return }
-      nav('/')
-    } else {
-      if (!form.nombre.trim())        { setError('Introduce tu nombre.'); setLoading(false); return }
-      if (!form.nombreDespacho.trim()) { setError('Introduce el nombre del despacho.'); setLoading(false); return }
-      const { error: err } = await signUp(form)
-      if (err) { setError(err.message); setLoading(false); return }
-      nav('/')
+    try {
+      if (tab === 'login') {
+        const { error: err } = await signIn(form.email, form.password)
+        if (err) { setError(err.message); setLoading(false); return }
+        nav('/')
+      } else {
+        if (!form.nombre.trim())        { setError('Introduce tu nombre.'); setLoading(false); return }
+        if (!form.nombreDespacho.trim()) { setError('Introduce el nombre del despacho.'); setLoading(false); return }
+        const { error: err } = await signUp(form)
+        if (err) { setError(err.message); setLoading(false); return }
+        nav('/')
+      }
+    } catch (ex) {
+      setError('Error inesperado. Inténtalo de nuevo.')
+      setLoading(false)
     }
   }
 

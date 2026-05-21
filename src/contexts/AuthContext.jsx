@@ -46,6 +46,7 @@ export function AuthProvider({ children }) {
       options: { data: { nombre, nombreDespacho } },
     })
     if (error) return { error }
+    if (!data.user) return { error: { message: 'Este correo ya está registrado. Inicia sesión.' } }
 
     const { error: setupError } = await supabase.rpc('setup_new_user', {
       p_user_id: data.user.id,

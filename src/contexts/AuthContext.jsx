@@ -55,7 +55,8 @@ export function AuthProvider({ children }) {
     })
     if (setupError) return { error: setupError }
 
-    return { data }
+    // needsConfirmation: email confirmation required, no session yet
+    return { data, needsConfirmation: !data.session }
   }
 
   async function signOut() {

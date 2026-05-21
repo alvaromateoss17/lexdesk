@@ -11,6 +11,7 @@ export default function Login() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [showPass, setShowPass] = useState(false)
+  const [confirm,  setConfirm]  = useState(false)
 
   const [form, setForm] = useState({
     email: '', password: '', nombre: '', nombreDespacho: '',
@@ -31,8 +32,9 @@ export default function Login() {
       } else {
         if (!form.nombre.trim())        { setError('Introduce tu nombre.'); setLoading(false); return }
         if (!form.nombreDespacho.trim()) { setError('Introduce el nombre del despacho.'); setLoading(false); return }
-        const { error: err } = await signUp(form)
+        const { error: err, needsConfirmation } = await signUp(form)
         if (err) { setError(err.message); setLoading(false); return }
+        if (needsConfirmation) { setConfirm(true); setLoading(false); return }
         nav('/')
       }
     } catch (ex) {
@@ -83,7 +85,15 @@ export default function Login() {
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {confirm && (
+            <div style={{ padding: '20px 24px', textAlign: 'center', color: 'var(--text-2)', fontSize: 13, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 28, marginBottom: 10 }}>📧</div>
+              <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 4 }}>Revisa tu correo</strong>
+              Hemos enviado un enlace de confirmación a <strong>{form.email}</strong>.<br />
+              Haz clic en él para activar tu cuenta.
+            </div>
+          )}
+          <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, display: confirm ? 'none' : 'flex' }}>
             {tab === 'register' && (
               <>
                 <Field label="Tu nombre" value={form.nombre} onChange={v => set('nombre', v)} placeholder="Lucía Romero" />

@@ -45,7 +45,16 @@ export function AuthProvider({ children }) {
       password,
       options: { data: { nombre, nombreDespacho } },
     })
-    return { data, error }
+    if (error) return { error }
+
+    const { error: setupError } = await supabase.rpc('setup_new_user', {
+      p_user_id: data.user.id,
+      p_nombre: nombre,
+      p_despacho_nombre: nombreDespacho,
+    })
+    if (setupError) return { error: setupError }
+
+    return { data }
   }
 
   async function signOut() {

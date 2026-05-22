@@ -15,7 +15,7 @@ export default function Login() {
   const [confirm,  setConfirm]  = useState(false)
 
   const [form, setForm] = useState({
-    email: '', password: '', nombre: '', nombreDespacho: '',
+    email: '', password: '', nombre: '', nombreDespacho: '', codigo: '',
   })
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -33,6 +33,11 @@ export default function Login() {
       } else {
         if (!form.nombre.trim())        { setError('Introduce tu nombre.'); setLoading(false); return }
         if (!form.nombreDespacho.trim()) { setError('Introduce el nombre del despacho.'); setLoading(false); return }
+        if (form.codigo.trim() !== import.meta.env.VITE_INVITE_CODE) {
+          setError('Código de invitación incorrecto.')
+          setLoading(false)
+          return
+        }
         const { error: err, needsConfirmation } = await signUp(form)
         if (err) { setError(err.message); setLoading(false); return }
         if (needsConfirmation) { setConfirm(true); setLoading(false); return }
@@ -94,6 +99,23 @@ export default function Login() {
               <>
                 <Field label="Tu nombre" value={form.nombre} onChange={v => set('nombre', v)} placeholder="Lucía Romero" />
                 <Field label="Nombre del despacho" value={form.nombreDespacho} onChange={v => set('nombreDespacho', v)} placeholder="Romero & Asociados" />
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, fontWeight: 500 }}>
+                    Código de invitación
+                  </div>
+                  <input
+                    type="text"
+                    value={form.codigo}
+                    onChange={e => set('codigo', e.target.value.toUpperCase())}
+                    placeholder="XXXXXX"
+                    required
+                    autoComplete="off"
+                    style={{ ...inputStyle, letterSpacing: '0.12em', fontWeight: 500 }}
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 5 }}>
+                    Contacta con Vincla para obtener tu código de acceso.
+                  </div>
+                </div>
               </>
             )}
 

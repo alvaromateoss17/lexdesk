@@ -17,6 +17,8 @@ import Mediacion from './pages/Mediacion'
 import PortalCliente from './pages/PortalCliente'
 import Facturacion from './pages/Facturacion'
 import FacturaDetalle from './pages/FacturaDetalle'
+import Tareas from './pages/Tareas'
+import Configuracion from './pages/Configuracion'
 import InstallPrompt from './components/InstallPrompt'
 
 function EmptyScreen({ name }) {
@@ -68,7 +70,8 @@ export default function App() {
       <Route path="/portal-cliente"     element={<PrivateRoute><Layout><PortalCliente /></Layout></PrivateRoute>} />
       <Route path="/facturacion"         element={<PrivateRoute><Layout><Facturacion /></Layout></PrivateRoute>} />
       <Route path="/facturacion/:id"     element={<PrivateRoute><Layout><FacturaDetalle /></Layout></PrivateRoute>} />
-      <Route path="/configuracion"      element={<PrivateRoute><Layout><EmptyScreen name="Configuración" /></Layout></PrivateRoute>} />
+      <Route path="/tareas"             element={<PrivateRoute><Layout><Tareas /></Layout></PrivateRoute>} />
+      <Route path="/configuracion"      element={<PrivateRoute><Layout fullHeight><Configuracion /></Layout></PrivateRoute>} />
     </Routes>
     </>
   )

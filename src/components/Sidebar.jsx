@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, LogOut, ScrollText, Calculator, MessageCircle, UserCircle, Receipt } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, LogOut, ScrollText, Calculator, MessageCircle, UserCircle, Receipt, ListTodo } from 'lucide-react'
 import VinclaLogo from './VinclaLogo'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
@@ -10,6 +10,7 @@ const NAV_PRINCIPAL = [
   { to: '/expedientes',  icon: FolderOpen,       label: 'Expedientes' },
   { to: '/documentos',   icon: FileText,         label: 'Documentos' },
   { to: '/calendario',   icon: Calendar,         label: 'Calendario' },
+  { to: '/tareas',       icon: ListTodo,         label: 'Tareas' },
   { to: '/clientes',     icon: Users,            label: 'Clientes',      badge: true },
   { to: '/facturacion',  icon: Receipt,          label: 'Facturación' },
   { to: '/asistente',    icon: Sparkles,         label: 'Asistente IA' },
@@ -86,7 +87,7 @@ export default function Sidebar() {
 
   return (
     <aside style={{
-      background: '#0C0E14',
+      background: 'var(--sidebar-bg)',
       borderRight: '1px solid var(--border)',
       padding: '18px 12px',
       display: 'flex', flexDirection: 'column', gap: 2,

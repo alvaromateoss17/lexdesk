@@ -72,9 +72,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Cache the app shell and all static assets
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        // Network-first for API/Supabase calls, cache-first for assets
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

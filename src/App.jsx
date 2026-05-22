@@ -17,6 +17,7 @@ import Mediacion from './pages/Mediacion'
 import PortalCliente from './pages/PortalCliente'
 import Facturacion from './pages/Facturacion'
 import FacturaDetalle from './pages/FacturaDetalle'
+import InstallPrompt from './components/InstallPrompt'
 
 function EmptyScreen({ name }) {
   return (
@@ -48,6 +49,8 @@ function Layout({ children, fullHeight }) {
 
 export default function App() {
   return (
+    <>
+    <InstallPrompt />
     <Routes>
       <Route path="/login" element={<Login />} />
 
@@ -67,5 +70,6 @@ export default function App() {
       <Route path="/facturacion/:id"     element={<PrivateRoute><Layout><FacturaDetalle /></Layout></PrivateRoute>} />
       <Route path="/configuracion"      element={<PrivateRoute><Layout><EmptyScreen name="Configuración" /></Layout></PrivateRoute>} />
     </Routes>
+    </>
   )
 }

@@ -1,16 +1,17 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, Scale, LogOut, ScrollText, Calculator, MessageCircle, UserCircle } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, Scale, LogOut, ScrollText, Calculator, MessageCircle, UserCircle, Receipt } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
 import { clientes } from '../data/mock'
 
 const NAV_PRINCIPAL = [
-  { to: '/',            icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/expedientes', icon: FolderOpen,       label: 'Expedientes' },
-  { to: '/documentos',  icon: FileText,         label: 'Documentos' },
-  { to: '/calendario',  icon: Calendar,         label: 'Calendario' },
-  { to: '/clientes',    icon: Users,            label: 'Clientes',   badge: true },
-  { to: '/asistente',   icon: Sparkles,         label: 'Asistente IA' },
+  { to: '/',             icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/expedientes',  icon: FolderOpen,       label: 'Expedientes' },
+  { to: '/documentos',   icon: FileText,         label: 'Documentos' },
+  { to: '/calendario',   icon: Calendar,         label: 'Calendario' },
+  { to: '/clientes',     icon: Users,            label: 'Clientes',      badge: true },
+  { to: '/facturacion',  icon: Receipt,          label: 'Facturación' },
+  { to: '/asistente',    icon: Sparkles,         label: 'Asistente IA' },
 ]
 
 const NAV_FAMILIA = [
@@ -22,8 +23,9 @@ const NAV_FAMILIA = [
 
 function NavItem({ to, icon: Icon, label, end, badge, badgeCount, badgeColor }) {
   const location = useLocation()
-  const isExpedienteDetail = location.pathname.startsWith('/expedientes/') && to === '/expedientes'
-  const isClienteDetail = location.pathname.startsWith('/clientes/') && to === '/clientes'
+  const isExpedienteDetail  = location.pathname.startsWith('/expedientes/') && to === '/expedientes'
+  const isClienteDetail     = location.pathname.startsWith('/clientes/') && to === '/clientes'
+  const isFacturaDetail     = location.pathname.startsWith('/facturacion/') && to === '/facturacion'
 
   return (
     <NavLink
@@ -34,15 +36,15 @@ function NavItem({ to, icon: Icon, label, end, badge, badgeCount, badgeColor }) 
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '8px 12px', margin: '1px 0',
         borderRadius: 6, textDecoration: 'none',
-        color: (isActive || isExpedienteDetail || isClienteDetail) ? 'var(--text)' : 'var(--text-2)',
+        color: (isActive || isExpedienteDetail || isClienteDetail || isFacturaDetail) ? 'var(--text)' : 'var(--text-2)',
         fontSize: 13.5,
-        background: (isActive || isExpedienteDetail || isClienteDetail) ? 'rgba(79,126,255,0.08)' : 'transparent',
+        background: (isActive || isExpedienteDetail || isClienteDetail || isFacturaDetail) ? 'rgba(79,126,255,0.08)' : 'transparent',
         transition: 'background 0.15s, color 0.15s',
       })}
     >
       {({ isActive }) => (
         <>
-          {(isActive || isExpedienteDetail || isClienteDetail) && (
+          {(isActive || isExpedienteDetail || isClienteDetail || isFacturaDetail) && (
             <span style={{ position: 'absolute', left: -12, top: 6, bottom: 6, width: 3, background: 'var(--blue)', borderRadius: '0 3px 3px 0' }} />
           )}
           <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />

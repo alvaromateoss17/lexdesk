@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell } from 'lucide-react'
 import { getPlazosMes } from '../services/plazos'
+import Modal from '../components/Modal'
+import { eventosMock, tiposEvento, clientes, expedientesFamilia, abogadosDespacho } from '../data/mock'
 
 const DOW = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
 const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+const RECORDATORIOS = [
+  { valor: '', label: 'Sin recordatorio' },
+  { valor: '15_min', label: '15 minutos antes' },
+  { valor: '30_min', label: '30 minutos antes' },
+  { valor: '1_hora', label: '1 hora antes' },
+  { valor: '1_dia', label: '1 día antes' },
+  { valor: '2_dias', label: '2 días antes' },
+]
 
 function urgColor(urgencia) {
   if (urgencia === 'Urgente') return { bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.30)', text: '#FCA5A5', dot: '#F87171' }
@@ -18,6 +29,29 @@ function CalEvent({ plazo }) {
     <div style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text, borderRadius: 4, padding: '3px 6px', fontSize: 11.5, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5, lineHeight: 1.3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
       <span style={{ width: 4, height: 4, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{plazo.tipo}</span>
+    </div>
+  )
+}
+
+function CalEvento({ evento, onClick }) {
+  const hex = evento.color || '#4F7EFF'
+  const hexRgb = hex.replace('#','')
+  const r = parseInt(hexRgb.slice(0,2),16), g = parseInt(hexRgb.slice(2,4),16), b = parseInt(hexRgb.slice(4,6),16)
+  return (
+    <div
+      onClick={e => { e.stopPropagation(); onClick(evento) }}
+      style={{
+        background: `rgba(${r},${g},${b},0.15)`,
+        border: `1px solid rgba(${r},${g},${b},0.35)`,
+        color: hex,
+        borderRadius: 4, padding: '3px 6px', fontSize: 11.5, marginBottom: 3,
+        display: 'flex', alignItems: 'center', gap: 5,
+        lineHeight: 1.3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+        cursor: 'pointer',
+      }}
+    >
+      <span style={{ width: 4, height: 4, borderRadius: '50%', background: hex, flexShrink: 0 }} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{evento.titulo}</span>
     </div>
   )
 }
@@ -40,6 +74,194 @@ function SidePanelEvent({ plazo, onOpenExpediente }) {
   )
 }
 
+function SidePanelEvento({ evento, onEditar }) {
+  const hex = evento.color || '#4F7EFF'
+  const tipoLabel = tiposEvento.find(t => t.valor === evento.tipo)?.label ?? evento.tipo
+  return (
+    <div style={{ padding: 12, marginBottom: 8, border: `1px solid ${hex}40`, borderRadius: 6, background: `${hex}12` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: hex, flexShrink: 0 }} />
+        <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 4, background: `${hex}20`, color: hex, border: `1px solid ${hex}35` }}>{tipoLabel}</span>
+        {evento.hora && <span className="num" style={{ fontSize: 12, color: hex, marginLeft: 'auto' }}>{evento.hora}</span>}
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, lineHeight: 1.35 }}>{evento.titulo}</div>
+      {evento.ubicacion && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>{evento.ubicacion}</div>}
+      {evento.cliente && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>{evento.cliente}</div>}
+      <button onClick={() => onEditar(evento)} style={{ ...smallBtn, color: hex, borderColor: `${hex}40` }}>
+        <Pencil size={11} /> Editar
+      </button>
+    </div>
+  )
+}
+
+function ModalEvento({ evento, onClose, onGuardar }) {
+  const isEdit = !!evento
+  const fechaDefault = evento?.fecha ?? new Date().toISOString().slice(0, 10)
+
+  const [form, setForm] = useState({
+    titulo:       evento?.titulo       ?? '',
+    tipo:         evento?.tipo         ?? '',
+    fecha:        fechaDefault,
+    hora:         evento?.hora         ?? '',
+    clienteNombre:evento?.cliente      ?? '',
+    expedienteId: evento?.expedienteId ?? '',
+    abogado:      evento?.abogado      ?? '',
+    ubicacion:    evento?.ubicacion    ?? '',
+    descripcion:  evento?.descripcion  ?? '',
+    recordatorio: evento?.recordatorio ?? '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const tipoSeleccionado = tiposEvento.find(t => t.valor === form.tipo)
+  const colorEvento = tipoSeleccionado?.color ?? '#4F7EFF'
+
+  const expedientesFiltrados = form.clienteNombre
+    ? expedientesFamilia.filter(e =>
+        e.cliente.toLowerCase().includes(form.clienteNombre.toLowerCase()) ||
+        e.contraparte?.toLowerCase().includes(form.clienteNombre.toLowerCase())
+      )
+    : expedientesFamilia
+
+  function handleGuardar() {
+    if (!form.titulo.trim() || !form.tipo || !form.fecha) return
+    onGuardar({
+      id: evento?.id ?? Date.now(),
+      ...form,
+      cliente: form.clienteNombre,
+      color: colorEvento,
+    })
+  }
+
+  return (
+    <Modal title={isEdit ? 'Editar evento' : 'Nuevo evento'} onClose={onClose} size="md">
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Tipo */}
+        <div>
+          <Label>Tipo de evento *</Label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {tiposEvento.map(t => (
+              <button
+                key={t.valor}
+                onClick={() => set('tipo', t.valor)}
+                style={{
+                  padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  background: form.tipo === t.valor ? `${t.color}18` : 'var(--bg)',
+                  border: `1px solid ${form.tipo === t.valor ? t.color + '50' : 'var(--border-2)'}`,
+                  color: form.tipo === t.valor ? t.color : 'var(--text-2)',
+                  transition: 'all 0.1s',
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.color, flexShrink: 0 }} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Título */}
+        <div>
+          <Label>Título *</Label>
+          <input
+            value={form.titulo}
+            onChange={e => set('titulo', e.target.value)}
+            placeholder="Ej. Vista oral — García vs López"
+            style={inputStyle}
+            autoFocus
+          />
+        </div>
+
+        {/* Fecha y hora */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <Label>Fecha *</Label>
+            <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <Label>Hora <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(opcional)</span></Label>
+            <input type="time" value={form.hora} onChange={e => set('hora', e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+
+        {/* Cliente y expediente */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <Label>Cliente</Label>
+            <input
+              value={form.clienteNombre}
+              onChange={e => set('clienteNombre', e.target.value)}
+              placeholder="Nombre del cliente"
+              list="clientes-list"
+              style={inputStyle}
+            />
+            <datalist id="clientes-list">
+              {clientes.map(c => <option key={c.id} value={c.nombre} />)}
+            </datalist>
+          </div>
+          <div>
+            <Label>Expediente</Label>
+            <select value={form.expedienteId} onChange={e => set('expedienteId', e.target.value)} style={inputStyle}>
+              <option value="">Sin expediente</option>
+              {expedientesFiltrados.map(e => (
+                <option key={e.id} value={e.id}>{e.ref} — {e.cliente}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Abogado y ubicación */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <Label>Abogado</Label>
+            <select value={form.abogado} onChange={e => set('abogado', e.target.value)} style={inputStyle}>
+              <option value="">Sin asignar</option>
+              {abogadosDespacho.map(a => (
+                <option key={a.id} value={a.nombre}>{a.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label>Ubicación</Label>
+            <input value={form.ubicacion} onChange={e => set('ubicacion', e.target.value)} placeholder="Sala, juzgado…" style={inputStyle} />
+          </div>
+        </div>
+
+        {/* Descripción */}
+        <div>
+          <Label>Descripción</Label>
+          <textarea
+            value={form.descripcion}
+            onChange={e => set('descripcion', e.target.value)}
+            placeholder="Notas adicionales sobre el evento…"
+            rows={3}
+            style={{ ...inputStyle, height: 'auto', padding: '8px 10px', resize: 'vertical', lineHeight: 1.5 }}
+          />
+        </div>
+
+        {/* Recordatorio */}
+        <div>
+          <Label><Bell size={11} style={{ display: 'inline', marginRight: 4 }} />Recordatorio</Label>
+          <select value={form.recordatorio} onChange={e => set('recordatorio', e.target.value)} style={inputStyle}>
+            {RECORDATORIOS.map(r => <option key={r.valor} value={r.valor}>{r.label}</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+          <button onClick={onClose} style={btnStyle()}>Cancelar</button>
+          <button
+            onClick={handleGuardar}
+            disabled={!form.titulo.trim() || !form.tipo || !form.fecha}
+            style={{ ...btnStyle(true), opacity: (!form.titulo.trim() || !form.tipo || !form.fecha) ? 0.5 : 1 }}
+          >
+            {isEdit ? 'Guardar cambios' : 'Crear evento'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 function buildGrid(year, month) {
   const firstDay = new Date(year, month - 1, 1).getDay()
   const offset   = firstDay === 0 ? 6 : firstDay - 1
@@ -53,6 +275,10 @@ function buildGrid(year, month) {
   return cells
 }
 
+function Label({ children }) {
+  return <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 5, fontWeight: 500 }}>{children}</div>
+}
+
 export default function Calendario() {
   const nav = useNavigate()
   const today = new Date()
@@ -61,6 +287,16 @@ export default function Calendario() {
   const [selected, setSelected] = useState(today.getDate())
   const [plazos,   setPlazos]   = useState([])
   const [loading,  setLoading]  = useState(true)
+  const [eventos,  setEventos]  = useState(eventosMock)
+  const [modalEvento,    setModalEvento]    = useState(false)
+  const [eventoEditando, setEventoEditando] = useState(null)
+  const [toast,    setToast]    = useState(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3000)
+    return () => clearTimeout(t)
+  }, [toast])
 
   useEffect(() => {
     setLoading(true)
@@ -81,18 +317,72 @@ export default function Calendario() {
     setSelected(1)
   }
 
-  const cells         = buildGrid(year, month)
-  const byDay         = {}
+  function abrirNuevo() {
+    setEventoEditando(null)
+    setModalEvento(true)
+  }
+
+  function abrirEditar(evento) {
+    setEventoEditando(evento)
+    setModalEvento(true)
+  }
+
+  function handleGuardarEvento(data) {
+    if (eventoEditando) {
+      setEventos(evs => evs.map(e => e.id === data.id ? data : e))
+      setToast('Evento actualizado correctamente.')
+    } else {
+      setEventos(evs => [...evs, data])
+      setToast('Evento creado correctamente.')
+    }
+    setModalEvento(false)
+    setEventoEditando(null)
+    // Select the day of the new event
+    const eventoFecha = new Date(data.fecha + 'T00:00:00')
+    if (eventoFecha.getFullYear() === year && eventoFecha.getMonth() + 1 === month) {
+      setSelected(eventoFecha.getDate())
+    }
+  }
+
+  const cells    = buildGrid(year, month)
+  const byDay    = {}
   plazos.forEach(p => {
     const d = new Date(p.fecha + 'T00:00:00').getDate()
     if (!byDay[d]) byDay[d] = []
     byDay[d].push(p)
   })
-  const selectedPlazos = byDay[selected] ?? []
-  const criticos       = plazos.filter(p => p.urgencia === 'Urgente').length
+
+  const eventosByDay = {}
+  eventos.forEach(ev => {
+    const evDate = new Date(ev.fecha + 'T00:00:00')
+    if (evDate.getFullYear() === year && evDate.getMonth() + 1 === month) {
+      const d = evDate.getDate()
+      if (!eventosByDay[d]) eventosByDay[d] = []
+      eventosByDay[d].push(ev)
+    }
+  })
+
+  const selectedPlazos  = byDay[selected] ?? []
+  const selectedEventos = eventosByDay[selected] ?? []
+  const totalSelected   = selectedPlazos.length + selectedEventos.length
+  const criticos        = plazos.filter(p => p.urgencia === 'Urgente').length
 
   return (
     <div className="fade-in">
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
+          background: '#1a2235', border: '1px solid rgba(52,211,153,0.35)',
+          color: '#6EE7B7', borderRadius: 8, padding: '12px 18px',
+          fontSize: 13, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', flexShrink: 0 }} />
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -111,7 +401,7 @@ export default function Calendario() {
           <div className="serif" style={{ fontSize: 17, padding: '0 6px', letterSpacing: '-0.005em', minWidth: 160, textAlign: 'center' }}>{MESES_LARGO[month - 1]} {year}</div>
           <button style={iconBtn} onClick={nextMonth}><ChevronRight size={14} /></button>
           <button style={baseBtn()} onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth() + 1); setSelected(today.getDate()) }}>Hoy</button>
-          <button style={baseBtn(true)}><Plus size={14} /> Nuevo evento</button>
+          <button style={baseBtn(true)} onClick={abrirNuevo}><Plus size={14} /> Nuevo evento</button>
         </div>
       </div>
 
@@ -131,6 +421,8 @@ export default function Calendario() {
               const isSelected = !c.other && c.day === selected
               const isToday    = !c.other && c.day === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()
               const dayPlazos  = c.other ? [] : (byDay[c.day] ?? [])
+              const dayEventos = c.other ? [] : (eventosByDay[c.day] ?? [])
+              const totalItems = dayPlazos.length + dayEventos.length
               return (
                 <div key={i} onClick={() => !c.other && setSelected(c.day)} style={{
                   padding: '8px 10px', overflow: 'hidden',
@@ -149,8 +441,13 @@ export default function Calendario() {
                       <div className="num" style={{ fontSize: 13, color: c.other ? 'var(--text-3)' : isWeekend ? 'var(--text-2)' : 'var(--text)', fontWeight: isSelected ? 600 : 400, padding: '1px 4px' }}>{c.day}</div>
                     )}
                   </div>
-                  {dayPlazos.slice(0, 3).map((p, ei) => <CalEvent key={ei} plazo={p} />)}
-                  {dayPlazos.length > 3 && <div style={{ fontSize: 11, color: 'var(--text-2)', padding: '2px 4px' }}>+{dayPlazos.length - 3} más</div>}
+                  {/* Plazos primero */}
+                  {dayPlazos.slice(0, 2).map((p, ei) => <CalEvent key={`p-${ei}`} plazo={p} />)}
+                  {/* Luego eventos */}
+                  {dayEventos.slice(0, Math.max(0, 3 - Math.min(2, dayPlazos.length))).map((ev, ei) => (
+                    <CalEvento key={`ev-${ei}`} evento={ev} onClick={abrirEditar} />
+                  ))}
+                  {totalItems > 3 && <div style={{ fontSize: 11, color: 'var(--text-2)', padding: '2px 4px' }}>+{totalItems - 3} más</div>}
                 </div>
               )
             })}
@@ -166,29 +463,51 @@ export default function Calendario() {
               <div style={{ color: 'var(--text-2)', fontSize: 13 }}>{MESES_LARGO[month - 1].toLowerCase()} {year}</div>
             </div>
             <div style={{ color: 'var(--text-2)', fontSize: 12, marginTop: 6 }}>
-              {loading ? 'Cargando…' : `${selectedPlazos.length} ${selectedPlazos.length === 1 ? 'evento' : 'eventos'} programados`}
+              {loading ? 'Cargando…' : `${totalSelected} ${totalSelected === 1 ? 'evento' : 'eventos'} programados`}
             </div>
           </div>
 
           <div style={{ padding: '12px 12px 14px' }}>
-            {selectedPlazos.length === 0 && !loading && (
-              <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>Sin plazos este día.</div>
+            {totalSelected === 0 && !loading && (
+              <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>
+                Sin eventos este día.
+                <div style={{ marginTop: 12 }}>
+                  <button onClick={abrirNuevo} style={{ ...btnStyle(true), fontSize: 12, height: 28, padding: '0 10px' }}>
+                    <Plus size={12} /> Añadir evento
+                  </button>
+                </div>
+              </div>
             )}
+            {selectedEventos.map((ev, i) => (
+              <SidePanelEvento key={i} evento={ev} onEditar={abrirEditar} />
+            ))}
             {selectedPlazos.map((p, i) => (
               <SidePanelEvent key={i} plazo={p} onOpenExpediente={expId => nav(`/expedientes/${expId}`)} />
             ))}
           </div>
 
-          {selectedPlazos.length > 0 && (
+          {totalSelected > 0 && (
             <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
-              <button style={{ ...baseBtn(), flex: 1, justifyContent: 'center' }}><Pencil size={13} /> Editar</button>
-              <button style={{ ...baseBtn(true), flex: 1, justifyContent: 'center' }} onClick={() => nav(`/expedientes/${selectedPlazos[0].expediente_id}`)}>
-                Abrir expediente
+              <button style={{ ...baseBtn(), flex: 1, justifyContent: 'center' }} onClick={abrirNuevo}>
+                <Plus size={13} /> Nuevo
               </button>
+              {selectedPlazos.length > 0 && (
+                <button style={{ ...baseBtn(true), flex: 1, justifyContent: 'center' }} onClick={() => nav(`/expedientes/${selectedPlazos[0].expediente_id}`)}>
+                  Abrir expediente
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {modalEvento && (
+        <ModalEvento
+          evento={eventoEditando}
+          onClose={() => { setModalEvento(false); setEventoEditando(null) }}
+          onGuardar={handleGuardarEvento}
+        />
+      )}
     </div>
   )
 }
@@ -197,6 +516,12 @@ const iconBtn = {
   height: 32, padding: '0 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
   display: 'inline-flex', alignItems: 'center', gap: 7,
   background: 'transparent', border: '1px solid transparent', color: 'var(--text-2)',
+}
+
+const smallBtn = {
+  height: 26, padding: '0 8px', borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  background: 'transparent', border: '1px solid var(--border-2)', color: 'var(--text-2)',
 }
 
 function baseBtn(primary) {
@@ -208,4 +533,22 @@ function baseBtn(primary) {
     color: primary ? '#fff' : 'var(--text)',
     transition: 'background 0.15s',
   }
+}
+
+function btnStyle(primary) {
+  return {
+    height: 32, padding: '0 12px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+    display: 'inline-flex', alignItems: 'center', gap: 7,
+    background: primary ? 'var(--blue)' : 'var(--surface)',
+    border: `1px solid ${primary ? 'var(--blue)' : 'var(--border-2)'}`,
+    color: primary ? '#fff' : 'var(--text)',
+    transition: 'background 0.15s',
+  }
+}
+
+const inputStyle = {
+  width: '100%', height: 34, borderRadius: 6,
+  background: 'var(--bg)', border: '1px solid var(--border-2)',
+  color: 'var(--text)', fontFamily: 'inherit', fontSize: 13,
+  padding: '0 10px', outline: 0, boxSizing: 'border-box',
 }

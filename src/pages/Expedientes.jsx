@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Baby, X } from 'lucide-react'
+import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Baby, X, Eye, Pencil, Activity, Trash2 } from 'lucide-react'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { getExpedientes } from '../services/expedientes'
@@ -190,6 +190,63 @@ function ModalNuevoExpedienteFamilia({ onClose }) {
   )
 }
 
+function AccionesDropdown({ expediente, onEliminar }) {
+  const nav = useNavigate()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const acciones = [
+    { icon: Eye,      label: 'Ver expediente',   onClick: () => nav(`/expedientes/${expediente.id}`) },
+    { icon: Pencil,   label: 'Editar',            onClick: () => nav(`/expedientes/${expediente.id}`) },
+    { icon: Activity, label: 'Nueva actuación',   onClick: () => nav(`/expedientes/${expediente.id}`) },
+    { icon: Trash2,   label: 'Eliminar',          onClick: () => onEliminar(expediente.id), danger: true },
+  ]
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        style={ghostBtnStyle}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', right: 0, top: 36, zIndex: 100,
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 8, boxShadow: 'var(--shadow-md)',
+          padding: 4, minWidth: 190,
+        }}>
+          {acciones.map((a, i) => (
+            <div
+              key={i}
+              onClick={e => { e.stopPropagation(); setOpen(false); a.onClick() }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 9,
+                padding: '8px 12px', borderRadius: 5, cursor: 'pointer',
+                fontSize: 13, color: a.danger ? 'var(--red)' : 'var(--text)',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = a.danger ? 'rgba(248,113,113,0.08)' : 'var(--surface-2)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <a.icon size={14} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+              {a.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Toggle({ value, onChange }) {
   return (
     <button onClick={() => onChange(!value)} style={{ width: 36, height: 20, borderRadius: 10, border: 0, cursor: 'pointer', background: value ? 'var(--blue)' : 'var(--border-2)', position: 'relative', transition: 'background 0.15s' }}>
@@ -211,6 +268,7 @@ export default function Expedientes() {
   const [rows,          setRows]          = useState([])
   const [loading,       setLoading]       = useState(true)
   const [showModalFam,  setShowModalFam]  = useState(false)
+  const [famList,       setFamList]       = useState(expedientesFamilia)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -221,7 +279,7 @@ export default function Expedientes() {
 
   useEffect(() => { load() }, [load])
 
-  const famRows = expedientesFamilia.filter(e => {
+  const famRows = famList.filter(e => {
     const matchEstado = estado === 'Todos' || e.estado === estado.toLowerCase()
     const matchQ = !q || e.cliente.toLowerCase().includes(q.toLowerCase()) || e.ref.toLowerCase().includes(q.toLowerCase()) || (e.contraparte || '').toLowerCase().includes(q.toLowerCase())
     return matchEstado && matchQ
@@ -237,7 +295,7 @@ export default function Expedientes() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={btnStyle()}><Download size={14} /> Exportar CSV</button>
           <button onClick={() => setShowModalFam(true)} style={btnStyle()}><Plus size={14} /> Nuevo familia</button>
-          <button style={btnStyle(true)}><Plus size={14} /> Nuevo expediente</button>
+          <button onClick={() => setShowModalFam(true)} style={btnStyle(true)}><Plus size={14} /> Nuevo expediente</button>
         </div>
       </div>
       <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>{rows.length + famRows.length} expedientes cargados.</div>
@@ -331,7 +389,7 @@ export default function Expedientes() {
               ) : famRows.map((e) => {
                 const dias = diasHasta(e.proximaActuacion)
                 return (
-                  <tr key={e.id} onClick={() => nav('/expedientes')} style={{ cursor: 'pointer' }}
+                  <tr key={e.id} onClick={() => nav(`/expedientes/${e.id}`)} style={{ cursor: 'pointer' }}
                     onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
                     onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
                     <td style={td}><span className="mono" style={{ fontSize: 12 }}>{e.ref}</span></td>
@@ -353,7 +411,12 @@ export default function Expedientes() {
                       </span>
                     </td>
                     <td style={td}><PrioridadBadge prioridad={e.prioridad} /></td>
-                    <td style={td}><button style={ghostBtnStyle} onClick={ev => ev.stopPropagation()}><MoreHorizontal size={16} /></button></td>
+                    <td style={td} onClick={ev => ev.stopPropagation()}>
+                      <AccionesDropdown
+                        expediente={e}
+                        onEliminar={id => setFamList(l => l.filter(x => x.id !== id))}
+                      />
+                    </td>
                   </tr>
                 )
               })}

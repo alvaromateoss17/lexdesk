@@ -462,3 +462,82 @@ export const categoriasDocumento = [
   { valor: "adopcion",       label: "Adopción" },
   { valor: "otro",           label: "Otro" },
 ]
+
+// ============================================================
+// EVENTOS DE CALENDARIO
+// ============================================================
+export const eventosMock = [
+  { id: 1, titulo: "Vista oral — Sánchez vs Martínez", tipo: "vista_oral", color: "#F87171", fecha: "2025-06-02", horaInicio: "10:30", horaFin: "12:00", todoDia: false, clienteId: 1, clienteNombre: "Laura Sánchez Moreno", expedienteRef: "EXP-2025-FAM-001", abogado: "Ana López", ubicacion: "Juzgado de Primera Instancia nº5, Madrid", descripcion: "Vista oral principal del procedimiento de divorcio contencioso.", recordatorio: "1 día antes" },
+  { id: 2, titulo: "Firma convenio regulador", tipo: "firma", color: "#34D399", fecha: "2025-05-30", horaInicio: "11:00", horaFin: "11:30", todoDia: false, clienteId: 2, clienteNombre: "Roberto Iglesias Vega", expedienteRef: "EXP-2025-FAM-002", abogado: "Carlos Mendoza", ubicacion: "Despacho — Sala de reuniones", descripcion: "Firma del borrador final del convenio regulador por ambas partes.", recordatorio: "1 hora antes" },
+  { id: 3, titulo: "Cita urgente — Marta Fernández", tipo: "cita_cliente", color: "#4F7EFF", fecha: "2025-05-26", horaInicio: "09:00", horaFin: "10:00", todoDia: false, clienteId: 5, clienteNombre: "Marta Fernández López", expedienteRef: "EXP-2025-FAM-005", abogado: "Ana López", ubicacion: "Videollamada", descripcion: "Revisión urgente de la orden de alejamiento y preparación del juicio.", recordatorio: "15 minutos antes" },
+  { id: 4, titulo: "Plazo: contestación demanda Torres", tipo: "plazo_procesal", color: "#FBBF24", fecha: "2025-05-27", horaInicio: null, horaFin: null, todoDia: true, clienteId: 3, clienteNombre: "Isabel Torres Medina", expedienteRef: "EXP-2025-FAM-003", abogado: "Ana López", ubicacion: null, descripcion: "Plazo máximo para presentar contestación a la demanda de modificación.", recordatorio: "2 días antes" },
+  { id: 5, titulo: "Sesión mediación nº3 — Iglesias/Díaz", tipo: "mediacion", color: "#A78BFA", fecha: "2025-05-29", horaInicio: "17:00", horaFin: "18:30", todoDia: false, clienteId: 2, clienteNombre: "Roberto Iglesias Vega", expedienteRef: "EXP-2025-FAM-002", abogado: "Carlos Mendoza", ubicacion: "Centro de Mediación C/ Génova 12", descripcion: "Tercera sesión de mediación. Pendiente valoración definitiva vivienda.", recordatorio: "1 día antes" },
+]
+
+export const tiposEvento = [
+  { valor: "vista_oral",      label: "Vista oral",            color: "#F87171" },
+  { valor: "juicio",          label: "Juicio",                color: "#F87171" },
+  { valor: "cita_cliente",    label: "Cita con cliente",      color: "#4F7EFF" },
+  { valor: "plazo_procesal",  label: "Plazo procesal",        color: "#FBBF24" },
+  { valor: "mediacion",       label: "Sesión de mediación",   color: "#A78BFA" },
+  { valor: "firma",           label: "Firma de documentos",   color: "#34D399" },
+  { valor: "reunion_interna", label: "Reunión interna",       color: "#8A8A8A" },
+  { valor: "notificacion",    label: "Notificación judicial", color: "#FBBF24" },
+  { valor: "otro",            label: "Otro",                  color: "#8A8A8A" },
+]
+
+// ============================================================
+// FACTURACIÓN
+// ============================================================
+export const seriesFacturacion = [
+  { id: 1, codigo: "FAM", nombre: "Derecho de Familia",     prefijo: "FAM", año: 2025, ultimoNumero: 12 },
+  { id: 2, codigo: "GEN", nombre: "General",                prefijo: "GEN", año: 2025, ultimoNumero: 4  },
+  { id: 3, codigo: "PRV", nombre: "Provisiones de fondos",  prefijo: "PRV", año: 2025, ultimoNumero: 8  },
+]
+
+export const conceptosFacturables = [
+  { id: 1,  categoria: "honorarios", descripcion: "Honorarios divorcio contencioso",        precioBase: 2500, unidad: "asunto",     iva: 21 },
+  { id: 2,  categoria: "honorarios", descripcion: "Honorarios divorcio mutuo acuerdo",      precioBase: 1500, unidad: "asunto",     iva: 21 },
+  { id: 3,  categoria: "honorarios", descripcion: "Honorarios modificación de medidas",     precioBase: 1800, unidad: "asunto",     iva: 21 },
+  { id: 4,  categoria: "honorarios", descripcion: "Honorarios custodia y alimentos",        precioBase: 2000, unidad: "asunto",     iva: 21 },
+  { id: 5,  categoria: "honorarios", descripcion: "Honorarios adopción nacional",           precioBase: 3000, unidad: "asunto",     iva: 21 },
+  { id: 6,  categoria: "honorarios", descripcion: "Honorarios violencia de género",         precioBase: 0,    unidad: "asunto",     iva: 21 },
+  { id: 7,  categoria: "provision",  descripcion: "Provisión de fondos inicial",            precioBase: 800,  unidad: "provisión",  iva: 21 },
+  { id: 8,  categoria: "provision",  descripcion: "Provisión para juicio oral",             precioBase: 600,  unidad: "provisión",  iva: 21 },
+  { id: 9,  categoria: "provision",  descripcion: "Provisión para recurso",                precioBase: 500,  unidad: "provisión",  iva: 21 },
+  { id: 10, categoria: "servicio",   descripcion: "Redacción convenio regulador",           precioBase: 400,  unidad: "documento",  iva: 21 },
+  { id: 11, categoria: "servicio",   descripcion: "Redacción demanda",                     precioBase: 350,  unidad: "documento",  iva: 21 },
+  { id: 12, categoria: "servicio",   descripcion: "Escrito de contestación",               precioBase: 300,  unidad: "documento",  iva: 21 },
+  { id: 13, categoria: "servicio",   descripcion: "Gestión diligencias notariales",        precioBase: 200,  unidad: "gestión",    iva: 21 },
+  { id: 14, categoria: "servicio",   descripcion: "Consulta jurídica (por hora)",          precioBase: 150,  unidad: "hora",       iva: 21 },
+  { id: 15, categoria: "servicio",   descripcion: "Mediación familiar (sesión)",           precioBase: 180,  unidad: "sesión",     iva: 21 },
+  { id: 16, categoria: "suplido",    descripcion: "Tasas judiciales",                      precioBase: 0,    unidad: "importe real", iva: 0 },
+  { id: 17, categoria: "suplido",    descripcion: "Registro Civil — certificados",         precioBase: 0,    unidad: "importe real", iva: 0 },
+  { id: 18, categoria: "suplido",    descripcion: "Procurador",                            precioBase: 0,    unidad: "importe real", iva: 0 },
+  { id: 19, categoria: "suplido",    descripcion: "Perito / informe psicológico",          precioBase: 0,    unidad: "importe real", iva: 0 },
+  { id: 20, categoria: "suplido",    descripcion: "Notaría",                               precioBase: 0,    unidad: "importe real", iva: 0 },
+]
+
+export const facturasMock = [
+  { id: 1, numero: "FAM-2025-001", serie: "FAM", fecha: "2025-02-10", fechaVto: "2025-02-25", clienteId: 1, cliente: "Laura Sánchez Moreno", clienteDni: "47823651K", clienteDireccion: "C/ Gran Vía 42, 3ºB, 28013 Madrid", expediente: "EXP-2025-FAM-001", expedienteId: 101, abogado: "Ana López", estado: "cobrada", metodoPago: "Transferencia", fechaCobro: "2025-02-12", lineas: [{ id: 1, concepto: "Provisión de fondos inicial — Divorcio contencioso", cantidad: 1, precioUnitario: 1500, descuento: 0, iva: 21 }], notas: "Provisión de fondos para inicio del procedimiento.", subtotal: 1500, iva: 315, total: 1815 },
+  { id: 2, numero: "FAM-2025-002", serie: "FAM", fecha: "2025-04-01", fechaVto: "2025-04-16", clienteId: 1, cliente: "Laura Sánchez Moreno", clienteDni: "47823651K", clienteDireccion: "C/ Gran Vía 42, 3ºB, 28013 Madrid", expediente: "EXP-2025-FAM-001", expedienteId: 101, abogado: "Ana López", estado: "cobrada", metodoPago: "Transferencia", fechaCobro: "2025-04-03", lineas: [{ id: 1, concepto: "Honorarios primer trimestre — Divorcio contencioso", cantidad: 1, precioUnitario: 900, descuento: 0, iva: 21 }, { id: 2, concepto: "Redacción demanda divorcio", cantidad: 1, precioUnitario: 350, descuento: 0, iva: 21 }], notas: "", subtotal: 1250, iva: 262.50, total: 1512.50 },
+  { id: 3, numero: "FAM-2025-003", serie: "FAM", fecha: "2025-05-20", fechaVto: "2025-06-04", clienteId: 1, cliente: "Laura Sánchez Moreno", clienteDni: "47823651K", clienteDireccion: "C/ Gran Vía 42, 3ºB, 28013 Madrid", expediente: "EXP-2025-FAM-001", expedienteId: 101, abogado: "Ana López", estado: "emitida", metodoPago: null, fechaCobro: null, lineas: [{ id: 1, concepto: "Provisión para vista oral — Juzgado nº5", cantidad: 1, precioUnitario: 600, descuento: 0, iva: 21 }], notas: "Provisión necesaria para la vista oral del 2 de junio.", subtotal: 600, iva: 126, total: 726 },
+  { id: 4, numero: "FAM-2025-004", serie: "FAM", fecha: "2025-03-05", fechaVto: "2025-03-20", clienteId: 2, cliente: "Roberto Iglesias Vega", clienteDni: "52341987P", clienteDireccion: "Avda. de la Castellana 120, 5ºA, 28046 Madrid", expediente: "EXP-2025-FAM-002", expedienteId: 102, abogado: "Carlos Mendoza", estado: "cobrada", metodoPago: "Tarjeta", fechaCobro: "2025-03-06", lineas: [{ id: 1, concepto: "Provisión inicial — Divorcio mutuo acuerdo", cantidad: 1, precioUnitario: 1200, descuento: 0, iva: 21 }], notas: "", subtotal: 1200, iva: 252, total: 1452 },
+  { id: 5, numero: "FAM-2025-005", serie: "FAM", fecha: "2025-05-01", fechaVto: "2025-05-16", clienteId: 2, cliente: "Roberto Iglesias Vega", clienteDni: "52341987P", clienteDireccion: "Avda. de la Castellana 120, 5ºA, 28046 Madrid", expediente: "EXP-2025-FAM-002", expedienteId: 102, abogado: "Carlos Mendoza", estado: "cobrada", metodoPago: "Transferencia", fechaCobro: "2025-05-04", lineas: [{ id: 1, concepto: "Honorarios tramitación convenio regulador", cantidad: 1, precioUnitario: 800, descuento: 0, iva: 21 }, { id: 2, concepto: "Redacción convenio regulador v2", cantidad: 1, precioUnitario: 400, descuento: 10, iva: 21 }], notas: "Descuento 10% aplicado en redacción convenio por ser cliente fidelizado.", subtotal: 1160, iva: 243.60, total: 1403.60 },
+  { id: 6, numero: "FAM-2025-006", serie: "FAM", fecha: "2025-04-01", fechaVto: "2025-04-16", clienteId: 3, cliente: "Isabel Torres Medina", clienteDni: "39012456T", clienteDireccion: "C/ Fuencarral 88, 1ºC, 28004 Madrid", expediente: "EXP-2025-FAM-003", expedienteId: 103, abogado: "Ana López", estado: "cobrada", metodoPago: "Bizum", fechaCobro: "2025-04-02", lineas: [{ id: 1, concepto: "Provisión urgente — Modificación de medidas", cantidad: 1, precioUnitario: 800, descuento: 0, iva: 21 }, { id: 2, concepto: "Honorarios demanda modificación", cantidad: 1, precioUnitario: 1100, descuento: 0, iva: 21 }], notas: "Caso urgente.", subtotal: 1900, iva: 399, total: 2299 },
+  { id: 7, numero: "FAM-2025-007", serie: "FAM", fecha: "2025-05-27", fechaVto: "2025-06-11", clienteId: 3, cliente: "Isabel Torres Medina", clienteDni: "39012456T", clienteDireccion: "C/ Fuencarral 88, 1ºC, 28004 Madrid", expediente: "EXP-2025-FAM-003", expedienteId: 103, abogado: "Ana López", estado: "emitida", metodoPago: null, fechaCobro: null, lineas: [{ id: 1, concepto: "Provisión para juicio oral — Custodia Mateo", cantidad: 1, precioUnitario: 700, descuento: 0, iva: 21 }], notas: "", subtotal: 700, iva: 147, total: 847 },
+  { id: 8, numero: "GEN-2025-001", serie: "GEN", fecha: "2025-01-20", fechaVto: "2025-02-04", clienteId: 4, cliente: "Familia Herrero García", clienteDni: "Varios titulares", clienteDireccion: "C/ Velázquez 56, 7ºD, 28001 Madrid", expediente: "EXP-2025-FAM-004", expedienteId: 104, abogado: "Carlos Mendoza", estado: "cobrada", metodoPago: "Transferencia", fechaCobro: "2025-01-22", lineas: [{ id: 1, concepto: "Honorarios tramitación adopción nacional — Fase 1", cantidad: 1, precioUnitario: 2000, descuento: 0, iva: 21 }], notas: "", subtotal: 2000, iva: 420, total: 2420 },
+]
+
+export const gastosMock = [
+  { id: 1,  categoria: "personal",   descripcion: "Nómina Ana López — mayo 2025",         importe: 3200, fecha: "2025-05-31", proveedor: "Ana López",              recurrente: true  },
+  { id: 2,  categoria: "personal",   descripcion: "Nómina Carlos Mendoza — mayo 2025",    importe: 2900, fecha: "2025-05-31", proveedor: "Carlos Mendoza",         recurrente: true  },
+  { id: 3,  categoria: "oficina",    descripcion: "Alquiler despacho mayo 2025",          importe: 1800, fecha: "2025-05-01", proveedor: "Inmobiliaria Centro",     recurrente: true  },
+  { id: 4,  categoria: "oficina",    descripcion: "Suministros (luz, internet)",          importe: 180,  fecha: "2025-05-05", proveedor: "Endesa / Movistar",      recurrente: true  },
+  { id: 5,  categoria: "tecnologia", descripcion: "Suscripción LexDesk SaaS",             importe: 149,  fecha: "2025-05-01", proveedor: "LexDesk SL",             recurrente: true  },
+  { id: 6,  categoria: "tecnologia", descripcion: "Aranzadi — base jurisprudencia",       importe: 89,   fecha: "2025-05-01", proveedor: "Thomson Reuters",        recurrente: true  },
+  { id: 7,  categoria: "marketing",  descripcion: "Publicidad Google Ads — mayo",         importe: 350,  fecha: "2025-05-15", proveedor: "Google Ireland Ltd",     recurrente: false },
+  { id: 8,  categoria: "formacion",  descripcion: "Curso mediación familiar Ana López",   importe: 450,  fecha: "2025-05-10", proveedor: "Centro Mediación Madrid", recurrente: false },
+  { id: 9,  categoria: "suplidos",   descripcion: "Tasas judiciales expediente FAM-001",  importe: 215,  fecha: "2025-03-20", proveedor: "Agencia Tributaria",     expedienteRef: "EXP-2025-FAM-001", recurrente: false },
+  { id: 10, categoria: "suplidos",   descripcion: "Perito psicológico FAM-001",           importe: 800,  fecha: "2025-04-15", proveedor: "Psic. Ramírez & Asoc.",  expedienteRef: "EXP-2025-FAM-001", recurrente: false },
+]

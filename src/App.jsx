@@ -15,6 +15,8 @@ import ConvenioRegulador from './pages/ConvenioRegulador'
 import Calculadoras from './pages/Calculadoras'
 import Mediacion from './pages/Mediacion'
 import PortalCliente from './pages/PortalCliente'
+import Facturacion from './pages/Facturacion'
+import FacturaDetalle from './pages/FacturaDetalle'
 
 function EmptyScreen({ name }) {
   return (
@@ -61,6 +63,8 @@ export default function App() {
       <Route path="/calculadoras"       element={<PrivateRoute><Layout><Calculadoras /></Layout></PrivateRoute>} />
       <Route path="/mediacion"          element={<PrivateRoute><Layout><Mediacion /></Layout></PrivateRoute>} />
       <Route path="/portal-cliente"     element={<PrivateRoute><Layout><PortalCliente /></Layout></PrivateRoute>} />
+      <Route path="/facturacion"         element={<PrivateRoute><Layout><Facturacion /></Layout></PrivateRoute>} />
+      <Route path="/facturacion/:id"     element={<PrivateRoute><Layout><FacturaDetalle /></Layout></PrivateRoute>} />
       <Route path="/configuracion"      element={<PrivateRoute><Layout><EmptyScreen name="Configuración" /></Layout></PrivateRoute>} />
     </Routes>
   )

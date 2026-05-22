@@ -11,7 +11,7 @@ const iconsDir  = join(publicDir, 'icons')
 mkdirSync(iconsDir, { recursive: true })
 
 // Wrap the favicon SVG in a square canvas with the app background color
-const svgRaw = readFileSync(join(publicDir, 'favicon.svg'), 'utf-8')
+const svgRaw = readFileSync(join(publicDir, 'vincla-icon.svg'), 'utf-8')
 
 function wrapSvg(size, iconSize) {
   const padding = Math.round((size - iconSize) / 2)

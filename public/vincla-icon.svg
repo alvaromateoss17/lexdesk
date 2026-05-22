@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4F7EFF"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4F7EFF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.10"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#0F1117"/>
+  <!-- Subtle glow bg -->
+  <rect width="512" height="512" rx="112" fill="url(#g2)"/>
+  <!-- Connection path between nodes -->
+  <path d="M172 256 Q256 148 340 256" stroke="url(#g1)" stroke-width="22" stroke-linecap="round" fill="none"/>
+  <!-- Straight line segment -->
+  <line x1="172" y1="256" x2="340" y2="256" stroke="url(#g1)" stroke-width="22" stroke-linecap="round" opacity="0.35"/>
+  <!-- Left node -->
+  <circle cx="172" cy="256" r="44" fill="url(#g1)"/>
+  <!-- Right node -->
+  <circle cx="340" cy="256" r="44" fill="url(#g1)"/>
+  <!-- Center connection dot -->
+  <circle cx="256" cy="202" r="22" fill="url(#g1)" opacity="0.85"/>
+</svg>

@@ -32,7 +32,7 @@ export default function TopBar() {
       position: 'sticky', top: 0, zIndex: 5,
     }}>
       <div style={{ fontSize: 13, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>LexDesk</span>
+        <span>Vincla</span>
         <ChevronRight size={12} style={{ color: 'var(--text-3)' }} />
         <b style={{ color: 'var(--text)', fontWeight: 500 }}>{crumb || '—'}</b>
       </div>

@@ -49,7 +49,7 @@ export default function InstallPrompt() {
     return (
       <div style={toastStyle('#34D399', 'rgba(52,211,153,0.15)', 'rgba(52,211,153,0.3)')}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', flexShrink: 0 }} />
-        LexDesk instalado correctamente. Búscalo en tu escritorio.
+        Vincla instalado correctamente. Búscalo en tu escritorio.
       </div>
     )
   }
@@ -77,11 +77,11 @@ export default function InstallPrompt() {
           display: 'grid', placeItems: 'center',
           boxShadow: '0 4px 14px rgba(79,126,255,0.3)',
         }}>
-          <img src="/icons/icon-72.png" alt="LexDesk" width={40} height={40} style={{ borderRadius: 10 }} />
+          <img src="/icons/icon-72.png" alt="Vincla" width={40} height={40} style={{ borderRadius: 10 }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>
-            Instalar LexDesk
+            Instalar Vincla
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.45 }}>
             Accede desde tu {isMobile ? 'pantalla de inicio' : 'escritorio'} sin abrir el navegador. Funciona igual que una app nativa.

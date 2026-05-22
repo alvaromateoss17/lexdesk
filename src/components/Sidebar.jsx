@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, Scale, LogOut, ScrollText, Calculator, MessageCircle, UserCircle, Receipt } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, LogOut, ScrollText, Calculator, MessageCircle, UserCircle, Receipt } from 'lucide-react'
+import VinclaLogo from './VinclaLogo'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
 import { clientes } from '../data/mock'
@@ -93,18 +94,8 @@ export default function Sidebar() {
       overflowY: 'auto',
     }}>
       {/* Brand */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px 18px' }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 7,
-          background: 'linear-gradient(135deg, #4F7EFF 0%, #A78BFA 100%)',
-          display: 'grid', placeItems: 'center',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 14px rgba(79,126,255,0.25)',
-        }}>
-          <Scale size={16} color="#fff" />
-        </div>
-        <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 18, letterSpacing: '-0.01em' }}>
-          Lex<span style={{ color: 'var(--text-2)', fontWeight: 400 }}>Desk</span>
-        </div>
+      <div style={{ padding: '6px 10px 18px' }}>
+        <VinclaLogo />
       </div>
 
       {/* Nav principal */}

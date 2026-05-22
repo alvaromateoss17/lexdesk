@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Scale, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import VinclaLogo from '../components/VinclaLogo'
 
 export default function Login() {
   const { signIn, signUp } = useAuth()
@@ -50,18 +51,13 @@ export default function Login() {
       backgroundImage: 'radial-gradient(ellipse 60% 50% at 50% -10%, rgba(79,126,255,0.12), transparent)',
     }}>
       <div style={{ width: '100%', maxWidth: 400, padding: '0 20px' }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 36 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 9,
-            background: 'linear-gradient(135deg, #4F7EFF 0%, #A78BFA 100%)',
-            display: 'grid', placeItems: 'center',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 6px 20px rgba(79,126,255,0.30)',
-          }}>
-            <Scale size={18} color="#fff" />
+        {/* Logo + tagline */}
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <VinclaLogo />
           </div>
-          <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 22, letterSpacing: '-0.01em' }}>
-            Lex<span style={{ color: 'var(--text-2)', fontWeight: 400 }}>Desk</span>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', letterSpacing: '0.01em' }}>
+            El despacho organizado. La justicia, más cerca.
           </div>
         </div>
 
@@ -149,6 +145,10 @@ export default function Login() {
               </div>
             )}
           </form>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 11.5, color: 'var(--text-3)' }}>
+          © 2025 Vincla · Todos los derechos reservados
         </div>
       </div>
     </div>

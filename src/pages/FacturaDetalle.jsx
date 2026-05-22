@@ -88,11 +88,11 @@ export default function FacturaDetalle() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Emisor</div>
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>Despacho LexDesk</div>
+                <div style={{ fontWeight: 500, marginBottom: 2 }}>Despacho Vincla</div>
                 <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
                   C/ Velázquez 22, 3ºA · 28001 Madrid<br />
                   CIF: B-87654321<br />
-                  info@lexdesk.es
+                  info@vincla.es
                 </div>
               </div>
               <div>

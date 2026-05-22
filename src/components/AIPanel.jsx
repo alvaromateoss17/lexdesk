@@ -52,7 +52,7 @@ export default function AIPanel({ visible, onClose, isLoading, content, expRef, 
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500, fontSize: 14 }}>Resumen del expediente</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>Generado por LexDesk IA · hace 2 segundos</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>Generado por Vincla IA · hace 2 segundos</div>
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 6, background: 'transparent', border: '1px solid transparent', color: 'var(--text-2)', cursor: 'pointer' }}>
             <X size={16} />

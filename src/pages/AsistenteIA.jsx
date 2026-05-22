@@ -146,7 +146,7 @@ export default function AsistenteIA() {
       {/* Chat */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', minWidth: 0 }}>
         <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)' }}>
-          <div className="serif" style={{ fontSize: 16, letterSpacing: '-0.005em' }}>Asistente LexDesk</div>
+          <div className="serif" style={{ fontSize: 16, letterSpacing: '-0.005em' }}>Asistente Vincla</div>
           <div style={{ color: 'var(--text-2)', fontSize: 12 }}>Consultas sobre expedientes, plazos y documentos</div>
         </div>
 

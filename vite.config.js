@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'LexDesk — Gestión de Despacho',
-        short_name: 'LexDesk',
+        name: 'Vincla — Gestión de Despacho',
+        short_name: 'Vincla',
         description: 'Plataforma de gestión para despachos de abogados. Expedientes, facturación, calendario y más.',
         theme_color: '#0C0E14',
         background_color: '#0C0E14',

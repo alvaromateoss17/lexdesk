@@ -534,7 +534,7 @@ export const gastosMock = [
   { id: 2,  categoria: "personal",   descripcion: "Nómina Carlos Mendoza — mayo 2025",    importe: 2900, fecha: "2025-05-31", proveedor: "Carlos Mendoza",         recurrente: true  },
   { id: 3,  categoria: "oficina",    descripcion: "Alquiler despacho mayo 2025",          importe: 1800, fecha: "2025-05-01", proveedor: "Inmobiliaria Centro",     recurrente: true  },
   { id: 4,  categoria: "oficina",    descripcion: "Suministros (luz, internet)",          importe: 180,  fecha: "2025-05-05", proveedor: "Endesa / Movistar",      recurrente: true  },
-  { id: 5,  categoria: "tecnologia", descripcion: "Suscripción LexDesk SaaS",             importe: 149,  fecha: "2025-05-01", proveedor: "LexDesk SL",             recurrente: true  },
+  { id: 5,  categoria: "tecnologia", descripcion: "Suscripción Vincla SaaS",              importe: 149,  fecha: "2025-05-01", proveedor: "Vincla SL",              recurrente: true  },
   { id: 6,  categoria: "tecnologia", descripcion: "Aranzadi — base jurisprudencia",       importe: 89,   fecha: "2025-05-01", proveedor: "Thomson Reuters",        recurrente: true  },
   { id: 7,  categoria: "marketing",  descripcion: "Publicidad Google Ads — mayo",         importe: 350,  fecha: "2025-05-15", proveedor: "Google Ireland Ltd",     recurrente: false },
   { id: 8,  categoria: "formacion",  descripcion: "Curso mediación familiar Ana López",   importe: 450,  fecha: "2025-05-10", proveedor: "Centro Mediación Madrid", recurrente: false },

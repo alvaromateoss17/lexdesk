@@ -1,7 +1,7 @@
-// Comunicación con la API de Anthropic Claude vía proxy serverless
+// Comunicación con Groq (LLaMA) vía proxy serverless
 
-const ANTHROPIC_API_URL = '/api/chat';
-const MODEL = 'claude-sonnet-4-5';
+const API_URL = '/api/chat';
+const MODEL = 'llama-3.3-70b-versatile';
 const MAX_TOKENS = 2048;
 
 export function buildSystemPrompt(contextoDespacho = {}) {
@@ -84,32 +84,18 @@ export async function sendMessageStream({
   onError,
   attachments = [],
 }) {
-  const apiMessages = messages.map((msg, index) => {
-    if (index === messages.length - 1 && msg.role === 'user' && attachments.length > 0) {
-      const content = [];
-      attachments.forEach(att => {
-        if (att.type === 'image') {
-          content.push({ type: 'image', source: { type: 'base64', media_type: att.mediaType, data: att.data } });
-        } else if (att.type === 'document') {
-          content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: att.data } });
-        }
-      });
-      content.push({ type: 'text', text: msg.content });
-      return { role: 'user', content };
-    }
-    return { role: msg.role, content: msg.content };
-  });
+  const apiMessages = [
+    { role: 'system', content: buildSystemPrompt(contextoDespacho) },
+    ...messages.map(msg => ({ role: msg.role, content: msg.content })),
+  ];
 
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
+    const response = await fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: buildSystemPrompt(contextoDespacho),
         messages: apiMessages,
         stream: true,
       }),
@@ -136,20 +122,16 @@ export async function sendMessageStream({
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
+        if (data === '[DONE]') { onDone(); return; }
         try {
           const parsed = JSON.parse(data);
-          if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-            onChunk(parsed.delta.text);
-          }
-          if (parsed.type === 'message_stop') {
-            onDone();
-          }
+          const text = parsed.choices?.[0]?.delta?.content;
+          if (text) onChunk(text);
         } catch { /* ignorar líneas mal formadas del stream */ }
       }
     }
     onDone();
   } catch (err) {
-    onError(err.message || 'Error de conexión con la API de Anthropic');
+    onError(err.message || 'Error de conexión');
   }
 }

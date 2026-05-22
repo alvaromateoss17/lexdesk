@@ -16,10 +16,10 @@ export default async function handler(req) {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return new Response(
-      JSON.stringify({ error: { message: 'ANTHROPIC_API_KEY no configurada en Vercel.' } }),
+      JSON.stringify({ error: { message: 'GROQ_API_KEY no configurada en Vercel.' } }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
@@ -34,12 +34,11 @@ export default async function handler(req) {
     });
   }
 
-  const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+  const upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
   });

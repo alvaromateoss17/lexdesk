@@ -4,6 +4,22 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api/chat': {
+        target: 'https://api.anthropic.com',
+        changeOrigin: true,
+        rewrite: () => '/v1/messages',
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('x-api-key', process.env.ANTHROPIC_API_KEY || '');
+            proxyReq.setHeader('anthropic-version', '2023-06-01');
+            proxyReq.removeHeader('origin');
+          });
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

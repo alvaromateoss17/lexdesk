@@ -1,6 +1,6 @@
-// Comunicación con la API de Anthropic Claude vía streaming
+// Comunicación con la API de Anthropic Claude vía proxy serverless
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_API_URL = '/api/chat';
 const MODEL = 'claude-sonnet-4-5';
 const MAX_TOKENS = 2048;
 
@@ -84,13 +84,6 @@ export async function sendMessageStream({
   onError,
   attachments = [],
 }) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-
-  if (!apiKey || apiKey === 'tu_api_key_aqui') {
-    onError('API key no configurada. Añade VITE_ANTHROPIC_API_KEY en .env.local y en Vercel.');
-    return;
-  }
-
   const apiMessages = messages.map((msg, index) => {
     if (index === messages.length - 1 && msg.role === 'user' && attachments.length > 0) {
       const content = [];
@@ -112,9 +105,6 @@ export async function sendMessageStream({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
       },
       body: JSON.stringify({
         model: MODEL,

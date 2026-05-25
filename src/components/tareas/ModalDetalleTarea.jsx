@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Check, XCircle, ArrowRight, Trash2 } from 'lucide-react';
+import { X, Check, XCircle, ArrowRight, Trash2, User } from 'lucide-react';
 
 const DIAS_ES   = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MESES_ES  = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -73,7 +73,7 @@ export default function ModalDetalleTarea({ dateKey, task, onClose, onSetStatus,
           {formatDate(dateKey)}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: task.clienteNombre ? 12 : 18, flexWrap: 'wrap' }}>
           <span style={{ background: pri.bg, color: pri.color, fontSize: 12, padding: '3px 10px', borderRadius: 20, fontWeight: 500 }}>
             {pri.label}
           </span>
@@ -81,6 +81,22 @@ export default function ModalDetalleTarea({ dateKey, task, onClose, onSetStatus,
             {status.icon} {status.label}
           </span>
         </div>
+
+        {task.clienteNombre && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', marginBottom: 16, borderRadius: 8,
+            background: 'rgba(79,126,255,0.06)', border: '1px solid rgba(79,126,255,0.18)',
+          }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(79,126,255,0.15)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <User size={12} color="#93AFFF" />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 1 }}>Cliente</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#93AFFF' }}>{task.clienteNombre}</div>
+            </div>
+          </div>
+        )}
 
         {task.desc && (
           <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 18px', lineHeight: 1.55, borderLeft: '2px solid var(--border-2)', paddingLeft: 12 }}>

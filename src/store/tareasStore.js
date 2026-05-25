@@ -14,7 +14,7 @@ export function useTareas() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks]);
 
-  const addTask = (dateKey, { text, desc, prioridad }) => {
+  const addTask = (dateKey, { text, desc, prioridad, clienteId, clienteNombre }) => {
     setTasks(prev => ({
       ...prev,
       [dateKey]: [
@@ -24,6 +24,8 @@ export function useTareas() {
           text,
           desc: desc || '',
           prioridad,
+          clienteId:     clienteId     || null,
+          clienteNombre: clienteNombre || null,
           status: 'pending',
           creadaEn: new Date().toISOString(),
         },

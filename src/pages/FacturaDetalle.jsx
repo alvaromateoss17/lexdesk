@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Download, Send, Pencil, CheckCircle2, Clock, AlertCircle, Ban, Receipt } from 'lucide-react'
-import { facturasMock } from '../data/mock'
 import FacturaForm from '../components/FacturaForm'
 
 const ESTADO_MAP = {
@@ -25,7 +24,7 @@ function EstadoBadge({ estado }) {
 export default function FacturaDetalle() {
   const { id } = useParams()
   const nav    = useNavigate()
-  const [facturas, setFacturas] = useState(facturasMock)
+  const [facturas, setFacturas] = useState([])
   const [editando, setEditando] = useState(false)
 
   const factura = facturas.find(f => String(f.id) === id)

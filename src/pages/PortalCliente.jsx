@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { UserCircle, FileText, MessageSquare, CheckCircle, Clock, AlertCircle, Download, Send, Eye, Lock } from 'lucide-react'
-import { expedientesFamilia, mensajesCliente } from '../data/mock'
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 
@@ -184,10 +183,10 @@ export default function PortalCliente() {
   const [tab, setTab] = useState('estado')
   const [clienteIdx, setClienteIdx] = useState(0)
 
-  const clientesUnicos = [...new Map(expedientesFamilia.map(e => [e.cliente, { nombre: e.cliente, ref: e.ref }])).values()]
-  const cliente = clientesUnicos[clienteIdx]
-  const expCliente = expedientesFamilia.filter(e => e.cliente === cliente?.nombre)
-  const hiloCliente = mensajesCliente.find(m => m.cliente === cliente?.nombre)
+  const clientesUnicos = []
+  const cliente = clientesUnicos[clienteIdx] ?? null
+  const expCliente = []
+  const hiloCliente = null
 
   return (
     <div style={{ padding: '28px 32px' }} className="fade-in">

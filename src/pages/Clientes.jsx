@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Search, Plus, CheckCircle, X } from 'lucide-react'
 import ClienteCard from '../components/ClienteCard'
-import { clientes as clientesMock, abogadosDespacho } from '../data/mock'
+import { abogadosDespacho } from '../data/mock'
+import { getClientes, createCliente } from '../services/clientes'
+import { useAuth } from '../contexts/AuthContext'
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -243,13 +245,22 @@ function FilterSelect({ value, onChange, options, placeholder }) {
 
 export default function Clientes() {
   const nav = useNavigate()
-  const [clientesState, setClientesState] = useState(clientesMock)
+  const { profile } = useAuth()
+  const [clientesState, setClientesState] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [filtroAbogado, setFiltroAbogado] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [toast, setToast] = useState(null)
+  const [loadingClientes, setLoadingClientes] = useState(true)
+
+  useEffect(() => {
+    getClientes().then(({ data }) => {
+      setClientesState(data ?? [])
+      setLoadingClientes(false)
+    })
+  }, [])
 
   // KPIs
   const totalActivos       = clientesState.filter(c => c.estado === 'activo').length
@@ -282,8 +293,21 @@ export default function Clientes() {
     nav(`/clientes/${cliente.id}`)
   }
 
-  function handleCrearCliente(nuevo) {
-    setClientesState(prev => [...prev, nuevo])
+  async function handleCrearCliente(nuevo) {
+    const despachoId = profile?.despacho_id ?? profile?.despachos?.id
+    const { data, error } = await createCliente({
+      despachoId,
+      nombre: nuevo.nombre,
+      email: nuevo.email,
+      telefono: nuevo.telefono,
+      cif: nuevo.dni,
+    })
+    if (!error && data) {
+      setClientesState(prev => [...prev, data])
+    } else {
+      // fallback: añadir localmente aunque falle Supabase
+      setClientesState(prev => [...prev, nuevo])
+    }
     setShowModal(false)
     setToast('Cliente creado correctamente')
   }

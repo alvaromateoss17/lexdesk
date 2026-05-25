@@ -9,7 +9,6 @@ import { getExpediente } from '../services/expedientes'
 import { getDocumentosExpediente, uploadDocumento, getDownloadUrl } from '../services/documentos'
 import { getPlazosExpediente } from '../services/plazos'
 import { formatCuantia } from '../utils/format'
-import { expedientesFamilia, mensajesCliente } from '../data/mock'
 
 function KV({ label, value }) {
   return (
@@ -87,9 +86,9 @@ export default function ExpedienteDetalle() {
 
   const proximoPlazo = plazos.find(p => !p.completado)
 
-  // Buscar si hay datos de familia para este expediente (por ref o por id)
-  const expFam = expedientesFamilia.find(f => f.ref === exp?.ref || String(f.id) === String(id))
-  const chatFam = mensajesCliente.find(m => m.expedienteRef === exp?.ref)
+  // Sin datos de familia para nuevos usuarios (se conectará a Supabase en el futuro)
+  const expFam = null
+  const chatFam = null
 
   const TABS = expFam
     ? ['Documentos', 'Plazos', 'Datos Familia', 'Mensajes', 'Historial']

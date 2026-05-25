@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { MessageCircle, Plus, Calendar, Clock, CheckCircle, Circle, FileText, User, Download, ChevronRight } from 'lucide-react'
-import { sesionesMediacion } from '../data/mock'
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 
@@ -224,11 +223,12 @@ const ESTADOS_PROCESO = {
 }
 
 export default function Mediacion() {
-  const [selectedSesion, setSelectedSesion] = useState(sesionesMediacion[0]?.sesiones?.[0] ?? null)
-  const [selectedProceso, setSelectedProceso] = useState(sesionesMediacion[0] ?? null)
+  const [selectedSesion, setSelectedSesion] = useState(null)
+  const [selectedProceso, setSelectedProceso] = useState(null)
   const [showModal, setShowModal] = useState(false)
 
-  const proceso = selectedProceso || sesionesMediacion[0]
+  const [procesos, setProcesos] = useState([])
+  const proceso = selectedProceso || procesos[0] || null
   const est = proceso ? (ESTADOS_PROCESO[proceso.estado] || ESTADOS_PROCESO.activo) : null
 
   const completadas = proceso?.sesiones?.filter(s => s.estado === 'completada').length ?? 0
@@ -252,7 +252,7 @@ export default function Mediacion() {
         </button>
       </div>
 
-      {sesionesMediacion.length === 0 ? (
+      {procesos.length === 0 ? (
         <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-2)', fontSize: 14 }}>
           No hay procesos de mediación activos.
         </div>
@@ -260,7 +260,7 @@ export default function Mediacion() {
         <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20 }}>
           {/* Panel izquierdo */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {sesionesMediacion.map(proc => (
+            {procesos.map(proc => (
               <div key={proc.id} style={{ background: 'var(--surface)', border: `1px solid ${selectedProceso?.id === proc.id ? 'rgba(79,126,255,0.35)' : 'var(--border)'}`, borderRadius: 10, overflow: 'hidden' }}>
                 {/* Cabecera proceso */}
                 <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>

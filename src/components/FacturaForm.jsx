@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus, X, ChevronDown, Check } from 'lucide-react'
 import Modal from './Modal'
-import { seriesFacturacion, conceptosFacturables, clientes, expedientesFamilia, abogadosDespacho } from '../data/mock'
+import { seriesFacturacion, conceptosFacturables, abogadosDespacho } from '../data/mock'
 
 const IVA_OPCIONES = [0, 4, 10, 21]
 
@@ -161,8 +161,8 @@ export default function FacturaForm({ factura, onClose, onGuardar }) {
   const total    = subtotal + ivaTotal
 
   function handleGuardar(estado = 'borrador') {
-    const cliente = clientes.find(c => c.id === form.clienteId)
-    const expediente = expedientesFamilia.find(e => e.id === form.expedienteId)
+    const cliente = null
+    const expediente = null
     onGuardar({
       id:           factura?.id ?? Date.now(),
       ...form,
@@ -175,11 +175,8 @@ export default function FacturaForm({ factura, onClose, onGuardar }) {
     })
   }
 
-  const clienteOpts = clientes.map(c => ({ value: c.id, label: c.nombre, sublabel: c.email }))
-  const expOpts = (form.clienteId
-    ? expedientesFamilia.filter(e => e.clienteId === form.clienteId || clientes.find(c => c.id === form.clienteId)?.nombre?.includes(e.cliente))
-    : expedientesFamilia
-  ).map(e => ({ value: e.id, label: e.ref, sublabel: e.cliente }))
+  const clienteOpts = []
+  const expOpts = []
 
   return (
     <Modal title={isEdit ? `Editar ${factura.numero}` : 'Nueva factura'} onClose={onClose} size="lg">

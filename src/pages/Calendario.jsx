@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell } from 'lucide-react'
 import { getPlazosMes } from '../services/plazos'
 import Modal from '../components/Modal'
-import { eventosMock, tiposEvento, clientes, expedientesFamilia, abogadosDespacho } from '../data/mock'
+import { tiposEvento, abogadosDespacho } from '../data/mock'
 
 const DOW = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
 const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -115,12 +115,7 @@ function ModalEvento({ evento, onClose, onGuardar }) {
   const tipoSeleccionado = tiposEvento.find(t => t.valor === form.tipo)
   const colorEvento = tipoSeleccionado?.color ?? '#4F7EFF'
 
-  const expedientesFiltrados = form.clienteNombre
-    ? expedientesFamilia.filter(e =>
-        e.cliente.toLowerCase().includes(form.clienteNombre.toLowerCase()) ||
-        e.contraparte?.toLowerCase().includes(form.clienteNombre.toLowerCase())
-      )
-    : expedientesFamilia
+  const expedientesFiltrados = []
 
   function handleGuardar() {
     if (!form.titulo.trim() || !form.tipo || !form.fecha) return
@@ -196,7 +191,6 @@ function ModalEvento({ evento, onClose, onGuardar }) {
               style={inputStyle}
             />
             <datalist id="clientes-list">
-              {clientes.map(c => <option key={c.id} value={c.nombre} />)}
             </datalist>
           </div>
           <div>
@@ -287,7 +281,7 @@ export default function Calendario() {
   const [selected, setSelected] = useState(today.getDate())
   const [plazos,   setPlazos]   = useState([])
   const [loading,  setLoading]  = useState(true)
-  const [eventos,  setEventos]  = useState(eventosMock)
+  const [eventos,  setEventos]  = useState([])
   const [modalEvento,    setModalEvento]    = useState(false)
   const [eventoEditando, setEventoEditando] = useState(null)
   const [toast,    setToast]    = useState(null)

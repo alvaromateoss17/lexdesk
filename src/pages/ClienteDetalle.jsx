@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import ChatMensajes from '../components/ChatMensajes'
 import HistorialPagos from '../components/HistorialPagos'
-import { clientes as clientesMock, expedientesFamilia, categoriasDocumento } from '../data/mock'
+import { categoriasDocumento } from '../data/mock'
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 
@@ -87,14 +87,19 @@ function Toast({ mensaje, onClose }) {
 // ─── TAB Resumen ──────────────────────────────────────────────────────────────
 
 function TabResumen({ cliente, expedientes }) {
-  const totalFacturado = cliente.pagos.reduce((s, p) => s + p.importe, 0)
-  const totalCobrado   = cliente.pagos.filter(p => p.estado === 'cobrado').reduce((s, p) => s + p.importe, 0)
+  const pagos = cliente.pagos ?? []
+  const notas = cliente.notas ?? []
+  const mensajes = cliente.mensajes ?? []
+  const documentos = cliente.documentos ?? []
+
+  const totalFacturado = pagos.reduce((s, p) => s + p.importe, 0)
+  const totalCobrado   = pagos.filter(p => p.estado === 'cobrado').reduce((s, p) => s + p.importe, 0)
   const pendiente      = totalFacturado - totalCobrado
 
   const ultimaActividad = [
-    ...cliente.notas.map(n => ({ tipo: 'nota', texto: `Nota: ${n.texto.slice(0, 60)}...`, fecha: n.fecha, icono: Edit2 })),
-    ...cliente.mensajes.map(m => ({ tipo: 'mensaje', texto: `Mensaje ${m.autor === 'cliente' ? 'recibido' : 'enviado'}: ${m.texto.slice(0, 50)}...`, fecha: m.fecha?.split('T')[0] || '', icono: MessageSquare })),
-    ...cliente.documentos.map(d => ({ tipo: 'doc', texto: `Documento: ${d.nombre}`, fecha: d.fecha, icono: FileText })),
+    ...notas.map(n => ({ tipo: 'nota', texto: `Nota: ${n.texto.slice(0, 60)}...`, fecha: n.fecha, icono: Edit2 })),
+    ...mensajes.map(m => ({ tipo: 'mensaje', texto: `Mensaje ${m.autor === 'cliente' ? 'recibido' : 'enviado'}: ${m.texto.slice(0, 50)}...`, fecha: m.fecha?.split('T')[0] || '', icono: MessageSquare })),
+    ...documentos.map(d => ({ tipo: 'doc', texto: `Documento: ${d.nombre}`, fecha: d.fecha, icono: FileText })),
   ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 5)
 
   return (
@@ -534,7 +539,23 @@ export default function ClienteDetalle() {
   const [tab, setTab] = useState(searchParams.get('tab') || 'resumen')
   const [toast, setToast] = useState(null)
 
-  const cliente = clientesMock.find(c => c.id === parseInt(id))
+  const [cliente, setCliente] = useState(null)
+  const [loadingCliente, setLoadingCliente] = useState(true)
+
+  useEffect(() => {
+    // Carga el cliente desde Supabase por id
+    import('../services/clientes').then(({ getClientes }) => {
+      getClientes().then(({ data }) => {
+        const found = (data ?? []).find(c => String(c.id) === String(id))
+        setCliente(found ?? null)
+        setLoadingCliente(false)
+      })
+    })
+  }, [id])
+
+  if (loadingCliente) {
+    return <div style={{ padding: '60px 32px', textAlign: 'center', color: 'var(--text-2)' }}>Cargando…</div>
+  }
 
   if (!cliente) {
     return (
@@ -545,8 +566,8 @@ export default function ClienteDetalle() {
     )
   }
 
-  const expedientes = expedientesFamilia.filter(e => cliente.expedientesIds.includes(e.id))
-  const mensajesSinLeer = cliente.mensajes.filter(m => !m.leido && m.autor === 'cliente').length
+  const expedientes = []
+  const mensajesSinLeer = (cliente.mensajes ?? []).filter(m => !m.leido && m.autor === 'cliente').length
 
   return (
     <div style={{ padding: '20px 32px' }} className="fade-in">

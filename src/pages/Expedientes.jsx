@@ -4,7 +4,7 @@ import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, Chevro
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { getExpedientes } from '../services/expedientes'
-import { expedientesFamilia, tiposFamilia } from '../data/mock'
+import { tiposFamilia } from '../data/mock'
 
 const HUES = { L: 220, D: 270, P: 160, I: 30, M: 340, A: 200 }
 function AvatarMini({ name }) {
@@ -268,7 +268,7 @@ export default function Expedientes() {
   const [rows,          setRows]          = useState([])
   const [loading,       setLoading]       = useState(true)
   const [showModalFam,  setShowModalFam]  = useState(false)
-  const [famList,       setFamList]       = useState(expedientesFamilia)
+  const [famList,       setFamList]       = useState([])
 
   const load = useCallback(async () => {
     setLoading(true)

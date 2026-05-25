@@ -3,7 +3,6 @@ import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Setti
 import VinclaLogo from './VinclaLogo'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
-import { clientes } from '../data/mock'
 
 const NAV_PRINCIPAL = [
   { to: '/',             icon: LayoutDashboard, label: 'Dashboard' },
@@ -72,8 +71,8 @@ export default function Sidebar() {
   const nav = useNavigate()
   const { profile, signOut } = useAuth()
 
-  const clientesActivos    = clientes.filter(c => c.estado === 'activo').length
-  const clientesSinLeer    = clientes.filter(c => c.mensajes?.some(m => !m.leido && m.autor === 'cliente')).length
+  const clientesActivos    = 0
+  const clientesSinLeer    = 0
 
   const despachoNombre = profile?.despachos?.nombre ?? 'Mi despacho'
   const plan           = profile?.despachos?.plan   ?? 'estudio'

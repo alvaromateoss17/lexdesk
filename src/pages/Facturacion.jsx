@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, TrendingUp, Receipt, AlertCircle, CheckCircle2, Clock, Trash2, Pencil } from 'lucide-react'
-import { facturasMock, gastosMock, abogadosDespacho, expedientesFamilia } from '../data/mock'
+import { abogadosDespacho } from '../data/mock'
 import TablaFacturas from '../components/TablaFacturas'
 import FacturaForm from '../components/FacturaForm'
 
@@ -29,8 +29,8 @@ const CATEGORIA_COLOR = {
 
 export default function Facturacion() {
   const [tab, setTab] = useState('facturas')
-  const [facturas, setFacturas] = useState(facturasMock)
-  const [gastos,   setGastos]   = useState(gastosMock)
+  const [facturas, setFacturas] = useState([])
+  const [gastos,   setGastos]   = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState(null)
 

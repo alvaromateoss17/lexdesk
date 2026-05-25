@@ -4,7 +4,6 @@ import { Download, Plus, ChevronRight, MoreHorizontal, Sparkles, Upload, Heart, 
 import KPICard from '../components/KPICard'
 import { useAuth } from '../contexts/AuthContext'
 import { getKPIs, getProximosPlazos, getActividad } from '../services/dashboard'
-import { expedientesFamilia } from '../data/mock'
 
 const ICON_MAP = {
   FileText: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>,
@@ -55,14 +54,11 @@ export default function Dashboard() {
 
   const nombre = profile?.nombre?.split(' ')[0] ?? 'abogado'
 
-  const casosFamilia = expedientesFamilia.filter(e => e.estado === 'activo').length
-
   const kpiCards = kpis ? [
     { label: 'Expedientes activos',  value: kpis.expedientesActivos, delta: '—' },
     { label: 'Plazos esta semana',   value: kpis.plazos, badge: kpis.plazosCriticos > 0 ? `${kpis.plazosCriticos} críticos` : undefined },
     { label: 'Documentos subidos',   value: kpis.documentos, delta: '—' },
     { label: 'Clientes activos',     value: kpis.clientes, delta: '—' },
-    { label: 'Casos Familia',        value: casosFamilia, icon: Heart, iconColor: '#A78BFA' },
   ] : []
 
   if (loading) return <LoadingSkeleton />
@@ -82,7 +78,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 22 }}>
         {kpiCards.map((k, i) => <KPICard key={i} {...k} />)}
       </div>
 
@@ -209,18 +205,8 @@ function diasHasta(fecha) {
 }
 
 function FamiliaWidgets({ nav }) {
-  const urgentes = expedientesFamilia.filter(e => e.prioridad === 'urgente')
-  const hoy = new Date(); hoy.setHours(0,0,0,0)
-  const en7 = new Date(hoy.getTime() + 7 * 86400000)
-
-  const plazosProximos = expedientesFamilia.flatMap(e =>
-    (e.plazosCriticos || [])
-      .map(p => ({ ...p, ref: e.ref, cliente: e.cliente, expId: e.id }))
-      .filter(p => {
-        const f = new Date(p.fecha + 'T00:00:00')
-        return f >= hoy && f <= en7
-      })
-  ).sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+  const urgentes = []
+  const plazosProximos = []
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 22 }}>

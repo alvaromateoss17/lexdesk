@@ -9,6 +9,7 @@ import {
 import ChatMensajes from '../components/ChatMensajes'
 import HistorialPagos from '../components/HistorialPagos'
 import { categoriasDocumento } from '../data/mock'
+import DocumentDropzone from '../components/DocumentDropzone'
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 
@@ -297,7 +298,7 @@ function ModalSubirDoc({ onClose, onGuardar }) {
 }
 
 function TabDocumentos({ docsIniciales, clienteNombre, onToast }) {
-  const [docs, setDocs] = useState(docsIniciales)
+  const [docs, setDocs] = useState(docsIniciales ?? [])
   const [busqueda, setBusqueda] = useState('')
   const [filtroCat, setFiltroCat] = useState('')
   const [filtroSubido, setFiltroSubido] = useState('')
@@ -339,6 +340,16 @@ function TabDocumentos({ docsIniciales, clienteNombre, onToast }) {
           <option value="cliente">Cliente</option>
         </select>
         <button onClick={() => setShowModal(true)} style={btnPri}><Plus size={13} /> Subir documento</button>
+      </div>
+
+      {/* Drag & drop masivo */}
+      <div style={{ marginBottom: 16 }}>
+        <DocumentDropzone
+          onDocumentos={nuevos => {
+            setDocs(prev => [...prev, ...nuevos])
+            onToast?.(`${nuevos.length} documento${nuevos.length > 1 ? 's' : ''} añadido${nuevos.length > 1 ? 's' : ''} correctamente`)
+          }}
+        />
       </div>
 
       {filtrados.length === 0 ? (

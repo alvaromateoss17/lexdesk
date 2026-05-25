@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Baby, X, Eye, Pencil, Activity, Trash2 } from 'lucide-react'
+import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Baby, X, Eye, Pencil, Activity, Trash2, Upload } from 'lucide-react'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { getExpedientes } from '../services/expedientes'
 import { tiposFamilia } from '../data/mock'
+import ImportarExpedientesModal from '../components/ImportarExpedientesModal'
+import { useAuth } from '../contexts/AuthContext'
 
 const HUES = { L: 220, D: 270, P: 160, I: 30, M: 340, A: 200 }
 function AvatarMini({ name }) {
@@ -261,6 +263,7 @@ function Label({ children }) {
 
 export default function Expedientes() {
   const nav = useNavigate()
+  const { profile } = useAuth()
   const [estado,        setEstado]        = useState('Todos')
   const [tipo,          setTipo]          = useState('Todos')
   const [q,             setQ]             = useState('')
@@ -269,6 +272,8 @@ export default function Expedientes() {
   const [loading,       setLoading]       = useState(true)
   const [showModalFam,  setShowModalFam]  = useState(false)
   const [famList,       setFamList]       = useState([])
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [toastMsg,      setToastMsg]      = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -294,6 +299,7 @@ export default function Expedientes() {
         <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Expedientes</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={btnStyle()}><Download size={14} /> Exportar CSV</button>
+          <button onClick={() => setShowImportModal(true)} style={btnStyle()}><Upload size={14} /> Importar</button>
           <button onClick={() => setShowModalFam(true)} style={btnStyle()}><Plus size={14} /> Nuevo familia</button>
           <button onClick={() => setShowModalFam(true)} style={btnStyle(true)}><Plus size={14} /> Nuevo expediente</button>
         </div>
@@ -426,6 +432,29 @@ export default function Expedientes() {
       )}
 
       {showModalFam && <ModalNuevoExpedienteFamilia onClose={() => setShowModalFam(false)} />}
+      {showImportModal && (
+        <ImportarExpedientesModal
+          onClose={() => setShowImportModal(false)}
+          expedientesExistentes={rows}
+          profile={profile}
+          onImportados={importados => {
+            setRows(prev => [...prev, ...importados])
+            setToastMsg(`Se importaron ${importados.length} expedientes correctamente`)
+            setTimeout(() => setToastMsg(''), 3500)
+          }}
+        />
+      )}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
+          background: 'var(--surface)', border: '1px solid rgba(52,211,153,0.4)',
+          borderRadius: 8, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', gap: 10,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)', fontSize: 13,
+        }}>
+          <span style={{ color: '#34D399' }}>✓</span> {toastMsg}
+        </div>
+      )}
     </div>
   )
 }

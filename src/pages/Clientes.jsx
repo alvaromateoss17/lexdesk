@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Search, Plus, CheckCircle, X } from 'lucide-react'
+import { Users, Search, Plus, CheckCircle, X, Upload } from 'lucide-react'
+import ImportarClientesModal from '../components/ImportarClientesModal'
 import ClienteCard from '../components/ClienteCard'
 import { abogadosDespacho } from '../data/mock'
 import { getClientes, createCliente } from '../services/clientes'
@@ -252,6 +253,7 @@ export default function Clientes() {
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [toast, setToast] = useState(null)
   const [loadingClientes, setLoadingClientes] = useState(true)
 
@@ -331,9 +333,14 @@ export default function Clientes() {
             </div>
           </div>
         </div>
-        <button onClick={() => setShowModal(true)} style={btnPri}>
-          <Plus size={13} /> Nuevo cliente
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowImportModal(true)} style={btnSec}>
+            <Upload size={13} /> Importar
+          </button>
+          <button onClick={() => setShowModal(true)} style={btnPri}>
+            <Plus size={13} /> Nuevo cliente
+          </button>
+        </div>
       </div>
 
       <div style={{ height: 1, background: 'var(--border)', margin: '20px 0 18px' }} />
@@ -386,6 +393,17 @@ export default function Clientes() {
       )}
 
       {showModal && <ModalNuevoCliente onClose={() => setShowModal(false)} onCrear={handleCrearCliente} />}
+      {showImportModal && (
+        <ImportarClientesModal
+          onClose={() => setShowImportModal(false)}
+          clientesExistentes={clientesState}
+          profile={profile}
+          onImportados={importados => {
+            setClientesState(prev => [...prev, ...importados])
+            setToast(`Se importaron ${importados.length} clientes correctamente`)
+          }}
+        />
+      )}
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}
     </div>
   )

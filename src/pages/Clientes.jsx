@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Search, Plus, CheckCircle, X, Upload } from 'lucide-react'
+import { Users, Search, Plus, CheckCircle, X, Upload, Archive } from 'lucide-react'
 import ImportarClientesModal from '../components/ImportarClientesModal'
 import ClienteCard from '../components/ClienteCard'
 import { storageService } from '../services/storageService'
@@ -254,8 +254,8 @@ export default function Clientes() {
   const [clientesState, setClientesState] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [filtroAbogado, setFiltroAbogado] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('')
+  const [verArchivados, setVerArchivados] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [toast, setToast] = useState(null)
@@ -264,16 +264,19 @@ export default function Clientes() {
     setClientesState(storageService.getAll('clientes'))
   }, [])
 
-  // KPIs
-  const totalActivos       = clientesState.filter(c => c.estado === 'activo').length
-  const conMensajesSinLeer = clientesState.filter(c => c.mensajes?.some(m => !m.leido && m.autor === 'cliente')).length
-  const conPagosPendientes = clientesState.filter(c => c.pagos?.some(p => p.estado === 'pendiente')).length
+  // KPIs (solo activos)
+  const clientesActivos    = clientesState.filter(c => !c.archivado)
+  const clientesArchivados = clientesState.filter(c => c.archivado)
+  const totalActivos       = clientesActivos.length
+  const conMensajesSinLeer = clientesActivos.filter(c => c.mensajes?.some(m => !m.leido && m.autor === 'cliente')).length
+  const conPagosPendientes = clientesActivos.filter(c => c.pagos?.some(p => p.estado === 'pendiente')).length
 
   // Etiquetas únicas para el filtro
   const etiquetasUnicas = [...new Set(clientesState.flatMap(c => c.etiquetas ?? []))].sort()
 
-  // Filtrado
-  const clientesFiltrados = clientesState
+  // Filtrado — por defecto solo activos; si verArchivados solo los archivados
+  const baseList = verArchivados ? clientesArchivados : clientesActivos
+  const clientesFiltrados = baseList
     .filter(c => {
       if (busqueda) {
         const q = busqueda.toLowerCase()
@@ -282,7 +285,6 @@ export default function Clientes() {
       return true
     })
     .filter(c => !filtroAbogado || c.abogadoAsignado === filtroAbogado)
-    .filter(c => !filtroEstado || c.estado === filtroEstado)
     .filter(c => !filtroEtiqueta || c.etiquetas?.includes(filtroEtiqueta))
     .sort((a, b) => {
       const aSinLeer = a.mensajes?.some(m => !m.leido && m.autor === 'cliente') ? -1 : 0
@@ -313,15 +315,21 @@ export default function Clientes() {
           <div>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Clientes</h1>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
-              <span>{clientesState.length} total</span>
-              <span style={{ margin: '0 6px' }}>|</span>
               <span>{totalActivos} activos</span>
+              {clientesArchivados.length > 0 && <><span style={{ margin: '0 6px' }}>|</span><span>{clientesArchivados.length} archivados</span></>}
               {conMensajesSinLeer > 0 && <><span style={{ margin: '0 6px' }}>|</span><span style={{ color: '#FBBF24' }}>{conMensajesSinLeer} con mensajes sin leer</span></>}
               {conPagosPendientes > 0 && <><span style={{ margin: '0 6px' }}>|</span><span style={{ color: '#FBBF24' }}>{conPagosPendientes} con pagos pendientes</span></>}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setVerArchivados(v => !v)}
+            style={{ ...btnSec, color: verArchivados ? '#F59E0B' : undefined, borderColor: verArchivados ? 'rgba(245,158,11,0.4)' : undefined }}
+          >
+            <Archive size={13} />
+            {verArchivados ? 'Ver activos' : `Archivados (${clientesArchivados.length})`}
+          </button>
           <button onClick={() => setShowImportModal(true)} style={btnSec}>
             <Upload size={13} /> Importar
           </button>
@@ -345,28 +353,39 @@ export default function Clientes() {
         </div>
         <FilterSelect value={filtroAbogado} onChange={setFiltroAbogado} placeholder="Todos los abogados"
           options={[...new Set(clientesState.map(c => c.abogadoAsignado).filter(Boolean))].map(a => ({ value: a, label: a }))} />
-        <FilterSelect value={filtroEstado} onChange={setFiltroEstado} placeholder="Todos los estados"
-          options={[{ value: 'activo', label: 'Activo' }, { value: 'archivado', label: 'Archivado' }]} />
         <FilterSelect value={filtroEtiqueta} onChange={setFiltroEtiqueta} placeholder="Todas las etiquetas"
           options={etiquetasUnicas.map(e => ({ value: e, label: e }))} />
-        {(busqueda || filtroAbogado || filtroEstado || filtroEtiqueta) && (
-          <button onClick={() => { setBusqueda(''); setFiltroAbogado(''); setFiltroEstado(''); setFiltroEtiqueta('') }}
+        {(busqueda || filtroAbogado || filtroEtiqueta) && (
+          <button onClick={() => { setBusqueda(''); setFiltroAbogado(''); setFiltroEtiqueta('') }}
             style={{ height: 32, padding: '0 10px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <X size={12} /> Limpiar
           </button>
         )}
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 20 }}>
-        Mostrando {clientesFiltrados.length} de {clientesState.length} clientes
+        {verArchivados
+          ? `Mostrando ${clientesFiltrados.length} clientes archivados`
+          : `Mostrando ${clientesFiltrados.length} de ${totalActivos} clientes activos`}
       </div>
 
       {/* Grid */}
       {clientesFiltrados.length === 0 ? (
         <div style={{ padding: '80px 0', textAlign: 'center', color: 'var(--text-3)' }}>
-          <Users size={42} style={{ marginBottom: 14, opacity: 0.3 }} />
-          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6, color: 'var(--text-2)' }}>No se encontraron clientes</div>
-          <div style={{ fontSize: 13, marginBottom: 20 }}>Prueba con otros filtros o añade un nuevo cliente</div>
-          <button onClick={() => setShowModal(true)} style={btnPri}><Plus size={13} /> Nuevo cliente</button>
+          {verArchivados ? (
+            <>
+              <Archive size={42} style={{ marginBottom: 14, opacity: 0.3 }} />
+              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6, color: 'var(--text-2)' }}>No hay clientes archivados</div>
+              <div style={{ fontSize: 13, marginBottom: 20 }}>Los clientes archivados aparecerán aquí</div>
+              <button onClick={() => setVerArchivados(false)} style={btnSec}>← Ver clientes activos</button>
+            </>
+          ) : (
+            <>
+              <Users size={42} style={{ marginBottom: 14, opacity: 0.3 }} />
+              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6, color: 'var(--text-2)' }}>No se encontraron clientes</div>
+              <div style={{ fontSize: 13, marginBottom: 20 }}>Prueba con otros filtros o añade un nuevo cliente</div>
+              <button onClick={() => setShowModal(true)} style={btnPri}><Plus size={13} /> Nuevo cliente</button>
+            </>
+          )}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>

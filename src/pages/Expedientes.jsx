@@ -60,7 +60,6 @@ function diasHasta(fecha) {
 }
 
 function ModalNuevoExpedienteFamilia({ onClose, onCrear }) {
-  const { profile } = useAuth()
   const [form, setForm] = useState({
     tipo: '', cliente: '', contraparte: '',
     seccionTribunal: '', numeroProcedimiento: '', fechaApertura: '',

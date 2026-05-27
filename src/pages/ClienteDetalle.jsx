@@ -501,9 +501,44 @@ function TabNotas({ notasIniciales, onToast }) {
   )
 }
 
+// ─── Modal eliminar cliente ───────────────────────────────────────────────────
+
+function ModalEliminarCliente({ nombreCliente, onConfirm, onClose }) {
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={{ ...modalBoxStyle, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <Trash2 size={20} color="#EF4444" />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Eliminar cliente</h3>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>Esta acción no se puede deshacer</p>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, margin: '0 0 10px' }}>
+          Vas a eliminar permanentemente a <strong style={{ color: 'var(--text)' }}>{nombreCliente}</strong> y todos sus datos asociados.
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, margin: '0 0 20px' }}>
+          Si solo quieres ocultarlo de la lista principal, usa <strong style={{ color: 'var(--text)' }}>Archivar cliente</strong> en su lugar.
+        </p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={btnSec}>Cancelar</button>
+          <button
+            onClick={onConfirm}
+            style={{ height: 30, padding: '0 14px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, background: '#EF4444', border: 'none', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+          >
+            Sí, eliminar permanentemente
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Dropdown acciones ────────────────────────────────────────────────────────
 
-function AccionesDropdown({ onArchivar }) {
+function AccionesDropdown({ cliente, onArchivar, onEliminar, onNuevoExpediente }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -514,17 +549,27 @@ function AccionesDropdown({ onArchivar }) {
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'absolute', top: 36, right: 0, zIndex: 50, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px', minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+          <div style={{ position: 'absolute', top: 36, right: 0, zIndex: 50, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px', minWidth: 210, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
             {[
-              { icon: Edit2, label: 'Editar datos', action: () => { setOpen(false); alert('Editar cliente') } },
-              { icon: FolderPlus, label: 'Nuevo expediente', action: () => { setOpen(false); alert('Nuevo expediente') } },
+              { icon: Edit2, label: 'Editar datos', action: () => { setOpen(false) } },
+              { icon: FolderPlus, label: 'Nuevo expediente', action: () => { setOpen(false); onNuevoExpediente?.() } },
               { icon: MessageSquare, label: 'Enviar mensaje', action: () => { setOpen(false) } },
             ].map(({ icon: Ic, label, action }) => (
               <button key={label} onClick={action} style={dropItem}><Ic size={14} /> {label}</button>
             ))}
             <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
-            <button onClick={() => { setOpen(false); onArchivar?.() }} style={{ ...dropItem, color: '#F87171' }}>
-              <Archive size={14} /> Archivar cliente
+            {cliente?.archivado ? (
+              <button onClick={() => { setOpen(false); onArchivar?.() }} style={{ ...dropItem, color: '#10B981' }}>
+                <Archive size={14} /> Restaurar cliente
+              </button>
+            ) : (
+              <button onClick={() => { setOpen(false); onArchivar?.() }} style={{ ...dropItem, color: '#F59E0B' }}>
+                <Archive size={14} /> Archivar cliente
+              </button>
+            )}
+            <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+            <button onClick={() => { setOpen(false); onEliminar?.() }} style={{ ...dropItem, color: '#EF4444' }}>
+              <Trash2 size={14} /> Eliminar cliente
             </button>
           </div>
         </>
@@ -550,6 +595,7 @@ export default function ClienteDetalle() {
   const nav = useNavigate()
   const [tab, setTab] = useState(searchParams.get('tab') || 'resumen')
   const [toast, setToast] = useState(null)
+  const [showModalEliminar, setShowModalEliminar] = useState(false)
 
   const [cliente, setCliente] = useState(null)
   const [loadingCliente, setLoadingCliente] = useState(true)
@@ -559,6 +605,27 @@ export default function ClienteDetalle() {
     setCliente(found ?? null)
     setLoadingCliente(false)
   }, [id])
+
+  function handleArchivar() {
+    if (!cliente) return
+    if (cliente.archivado) {
+      // Restaurar
+      const actualizado = storageService.update('clientes', cliente.id, { archivado: false, estado: 'activo', fechaArchivado: null })
+      setCliente(actualizado)
+      setToast('Cliente restaurado correctamente')
+    } else {
+      // Archivar
+      const actualizado = storageService.update('clientes', cliente.id, { archivado: true, estado: 'archivado', fechaArchivado: new Date().toISOString() })
+      setCliente(actualizado)
+      setToast('Cliente archivado correctamente')
+    }
+  }
+
+  function handleEliminar() {
+    if (!cliente) return
+    storageService.delete('clientes', cliente.id)
+    nav('/clientes')
+  }
 
   if (loadingCliente) {
     return <div style={{ padding: '60px 32px', textAlign: 'center', color: 'var(--text-2)' }}>Cargando…</div>
@@ -585,6 +652,21 @@ export default function ClienteDetalle() {
         <span style={{ color: 'var(--text)' }}>{cliente.nombre}</span>
       </div>
 
+      {/* Banner archivado */}
+      {cliente.archivado && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Archive size={15} color="#F59E0B" />
+            <span style={{ fontSize: 13, color: '#F59E0B' }}>
+              Este cliente está archivado{cliente.fechaArchivado ? ` desde ${new Date(cliente.fechaArchivado).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
+            </span>
+          </div>
+          <button onClick={handleArchivar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F59E0B', fontSize: 13, textDecoration: 'underline' }}>
+            Restaurar
+          </button>
+        </div>
+      )}
+
       {/* Header cliente */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -597,7 +679,7 @@ export default function ClienteDetalle() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-2)' }}>
                 <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(79,126,255,0.15)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 9, fontWeight: 700 }}>
-                  {cliente.abogadoAsignado.split(' ').map(p => p[0]).join('').slice(0, 2)}
+                  {(cliente.abogadoAsignado || '?').split(' ').map(p => p[0]).join('').slice(0, 2)}
                 </div>
                 {cliente.abogadoAsignado}
               </div>
@@ -606,13 +688,26 @@ export default function ClienteDetalle() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 10px', borderRadius: 10, background: cliente.estado === 'activo' ? 'rgba(52,211,153,0.1)' : 'rgba(138,138,138,0.1)', color: cliente.estado === 'activo' ? '#34D399' : '#8A8A8A' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 10px', borderRadius: 10, background: cliente.archivado ? 'rgba(245,158,11,0.1)' : 'rgba(52,211,153,0.1)', color: cliente.archivado ? '#F59E0B' : '#34D399' }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
-            {cliente.estado === 'activo' ? 'Activo' : 'Archivado'}
+            {cliente.archivado ? 'Archivado' : 'Activo'}
           </div>
-          <AccionesDropdown />
+          <AccionesDropdown
+            cliente={cliente}
+            onArchivar={handleArchivar}
+            onEliminar={() => setShowModalEliminar(true)}
+            onNuevoExpediente={() => nav('/expedientes')}
+          />
         </div>
       </div>
+
+      {showModalEliminar && (
+        <ModalEliminarCliente
+          nombreCliente={cliente.nombre}
+          onConfirm={handleEliminar}
+          onClose={() => setShowModalEliminar(false)}
+        />
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 22 }}>

@@ -78,6 +78,17 @@ function EtiquetaInput({ etiquetas, onChange }) {
 const ESTADOS_CIVILES = ['Soltero/a', 'Casado/a', 'En proceso de divorcio', 'Divorciado/a', 'Separado/a', 'Viudo/a', 'Pareja de hecho']
 const COLORS_AVATAR = ['#4F7EFF', '#A78BFA', '#34D399', '#FBBF24', '#F87171', '#FB923C']
 
+// ✅ Campo definido FUERA del modal para evitar re-creación en cada render (fix bug foco)
+function CampoFormulario({ label, error, children, col }) {
+  return (
+    <div style={col === 2 ? { gridColumn: '1 / -1' } : {}}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+      {error && <div style={errStyle}>{error}</div>}
+    </div>
+  )
+}
+
 function ModalNuevoCliente({ onClose, onCrear }) {
   const [form, setForm] = useState({
     nombre: '', dni: '', fechaNacimiento: '', nacionalidad: 'Española',
@@ -127,15 +138,8 @@ function ModalNuevoCliente({ onClose, onCrear }) {
     onCrear(nuevoCliente)
   }
 
-  function Campo({ label, error, children, col }) {
-    return (
-      <div style={col === 2 ? { gridColumn: '1 / -1' } : {}}>
-        <label style={labelStyle}>{label}</label>
-        {children}
-        {error && <div style={errStyle}>{error}</div>}
-      </div>
-    )
-  }
+  // Alias local para no cambiar todos los usos en el JSX
+  const Campo = CampoFormulario
 
   return (
     <div style={overlayStyle} onClick={onClose}>

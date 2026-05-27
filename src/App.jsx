@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import PrivateRoute from './components/PrivateRoute'
@@ -70,7 +70,7 @@ export default function App() {
       <Route path="/portal-cliente"     element={<PrivateRoute><Layout><PortalCliente /></Layout></PrivateRoute>} />
       <Route path="/facturacion"         element={<PrivateRoute><Layout><Facturacion /></Layout></PrivateRoute>} />
       <Route path="/facturacion/:id"     element={<PrivateRoute><Layout><FacturaDetalle /></Layout></PrivateRoute>} />
-      <Route path="/tareas"             element={<PrivateRoute><Layout><Tareas /></Layout></PrivateRoute>} />
+      <Route path="/tareas"             element={<Navigate to="/calendario" replace />} />
       <Route path="/configuracion"      element={<PrivateRoute><Layout fullHeight><Configuracion /></Layout></PrivateRoute>} />
     </Routes>
     </>

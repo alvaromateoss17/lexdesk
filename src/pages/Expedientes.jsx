@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Baby, X, Eye, Pencil, Activity, Trash2, Upload } from 'lucide-react'
+import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, X, Eye, Pencil, Activity, Trash2, Upload, LayoutGrid, List, Clock, User } from 'lucide-react'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { getExpedientes } from '../services/expedientes'
@@ -60,131 +60,141 @@ function diasHasta(fecha) {
   return Math.round((new Date(fecha + 'T00:00:00') - hoy) / 86400000)
 }
 
-function ModalNuevoExpedienteFamilia({ onClose }) {
-  const [form, setForm] = useState({ tipo: '', cliente: '', contraparte: '', juzgado: '', abogado: '', hijos: [], pensionActiva: false, pensionImporte: '', pensionPeriodic: 'mensual', bienes: [] })
+function ModalNuevoExpedienteFamilia({ onClose, onCrear }) {
+  const { profile } = useAuth()
+  const [form, setForm] = useState({
+    tipo: '', cliente: '', contraparte: '',
+    seccionTribunal: '', numeroProcedimiento: '', fechaApertura: '',
+    abogado: '', procurador: '', notasLibres: '',
+    estado: 'activo',
+    // Mantener campos en estructura de datos para no romper expedientes existentes
+    hijos: [], pensionActiva: false, pensionImporte: '', pensionPeriodic: 'mensual', bienes: []
+  })
+  const [seccionPartes, setSeccionPartes] = useState(false)
+  const [seccionNotas, setSeccionNotas] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  function addHijo() { set('hijos', [...form.hijos, { nombre: '', fechaNacimiento: '' }]) }
-  function updHijo(i, k, v) { const h = [...form.hijos]; h[i] = { ...h[i], [k]: v }; set('hijos', h) }
-  function removeHijo(i) { set('hijos', form.hijos.filter((_, idx) => idx !== i)) }
-
-  function addBien() { set('bienes', [...form.bienes, { tipo: 'Inmueble', descripcion: '', valor: '' }]) }
-  function updBien(i, k, v) { const b = [...form.bienes]; b[i] = { ...b[i], [k]: v }; set('bienes', b) }
-  function removeBien(i) { set('bienes', form.bienes.filter((_, idx) => idx !== i)) }
-
   function handleGuardar() {
-    window.alert('Expediente guardado como borrador (simulado).')
+    if (!form.cliente.trim() || !form.tipo) {
+      window.alert('El cliente y el tipo de procedimiento son obligatorios.')
+      return
+    }
+    const nuevoExp = {
+      ...form,
+      id: Date.now(),
+      ref: `EXP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
+      juzgado: form.seccionTribunal,
+      estado: form.estado,
+      ultimoMov: new Date().toISOString(),
+      prioridad: 'normal',
+    }
+    if (onCrear) onCrear(nuevoExp)
+    else window.alert('Expediente creado correctamente.')
     onClose()
   }
 
+  const ESTADOS = ['activo', 'en_espera', 'cerrado', 'urgente']
+  const ESTADO_LABELS = { activo: 'Activo', en_espera: 'En espera', cerrado: 'Cerrado', urgente: 'Urgente' }
+
   return (
-    <Modal title="Nuevo expediente de familia" onClose={onClose} size="lg">
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <div>
-            <Label>Tipo de asunto *</Label>
-            <select value={form.tipo} onChange={e => set('tipo', e.target.value)} style={inputStyle}>
-              <option value="">Seleccionar...</option>
-              {tiposFamilia.map(t => <option key={t.valor} value={t.valor}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label>Abogado asignado</Label>
-            <input value={form.abogado} onChange={e => set('abogado', e.target.value)} placeholder="Ana López" style={inputStyle} />
-          </div>
-        </div>
+    <Modal title="Nuevo expediente" onClose={onClose} size="lg">
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, maxHeight: '75vh', overflowY: 'auto' }}>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <div>
-            <Label>Cliente *</Label>
-            <input value={form.cliente} onChange={e => set('cliente', e.target.value)} placeholder="Nombre del cliente" style={inputStyle} />
-          </div>
-          <div>
-            <Label>Contraparte</Label>
-            <input value={form.contraparte} onChange={e => set('contraparte', e.target.value)} placeholder="Nombre de la contraparte" style={inputStyle} />
-          </div>
-        </div>
-
+        {/* Sección 1 — Información básica */}
         <div>
-          <Label>Juzgado</Label>
-          <input value={form.juzgado} onChange={e => set('juzgado', e.target.value)} placeholder="Juzgado de Primera Instancia nº..." style={inputStyle} />
-        </div>
-
-        {/* Menores */}
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>Menores implicados</div>
-            <button onClick={addHijo} style={smallBtn}><Plus size={12} /> Añadir menor</button>
-          </div>
-          {form.hijos.map((h, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 28px', gap: 8, marginBottom: 8, alignItems: 'end' }}>
-              <div>
-                {i === 0 && <Label>Nombre completo</Label>}
-                <input value={h.nombre} onChange={e => updHijo(i, 'nombre', e.target.value)} placeholder="Nombre del menor" style={inputStyle} />
-              </div>
-              <div>
-                {i === 0 && <Label>Fecha nacimiento</Label>}
-                <input type="date" value={h.fechaNacimiento} onChange={e => updHijo(i, 'fechaNacimiento', e.target.value)} style={inputStyle} />
-              </div>
-              <button onClick={() => removeHijo(i)} style={{ ...smallBtn, border: 0, color: 'var(--red)', marginTop: i === 0 ? 18 : 0 }}><X size={14} /></button>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600, marginBottom: 14 }}>Información básica</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Label>Cliente *</Label>
+              <input value={form.cliente} onChange={e => set('cliente', e.target.value)} placeholder="Nombre del cliente" style={inputStyle} />
             </div>
-          ))}
-          {form.hijos.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin menores registrados.</div>}
+            <div>
+              <Label>Tipo de procedimiento *</Label>
+              <select value={form.tipo} onChange={e => set('tipo', e.target.value)} style={inputStyle}>
+                <option value="">Seleccionar...</option>
+                {tiposFamilia.map(t => <option key={t.valor} value={t.valor}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Estado *</Label>
+              <select value={form.estado} onChange={e => set('estado', e.target.value)} style={inputStyle}>
+                {ESTADOS.map(s => <option key={s} value={s}>{ESTADO_LABELS[s]}</option>)}
+              </select>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Label>Sección del Tribunal de Instancia de CC. Plaza nº</Label>
+              <input value={form.seccionTribunal} onChange={e => set('seccionTribunal', e.target.value)} placeholder="Ej. Sección 24, Plaza de Madrid, nº 5" style={inputStyle} />
+            </div>
+            <div>
+              <Label>Número de procedimiento judicial</Label>
+              <input value={form.numeroProcedimiento} onChange={e => set('numeroProcedimiento', e.target.value)} placeholder="Ej. 1234/2026" style={inputStyle} />
+            </div>
+            <div>
+              <Label>Fecha de apertura</Label>
+              <input type="date" value={form.fechaApertura} onChange={e => set('fechaApertura', e.target.value)} style={inputStyle} />
+            </div>
+          </div>
         </div>
 
-        {/* Pensión */}
+        {/* Sección 2 — Partes implicadas (colapsable) */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>Pensión de alimentos</div>
-            <Toggle value={form.pensionActiva} onChange={v => set('pensionActiva', v)} />
-          </div>
-          {form.pensionActiva && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <button
+            type="button"
+            onClick={() => setSeccionPartes(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-2)', fontSize: 13, fontWeight: 500, padding: 0 }}
+          >
+            <ChevronDown size={14} style={{ transform: seccionPartes ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            Partes implicadas
+            <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 400 }}>(opcional)</span>
+          </button>
+          {seccionPartes && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
               <div>
-                <Label>Importe mensual (€)</Label>
-                <input type="number" value={form.pensionImporte} onChange={e => set('pensionImporte', e.target.value)} placeholder="500" style={inputStyle} />
+                <Label>Parte demandante</Label>
+                <input value={form.cliente} onChange={e => set('cliente', e.target.value)} placeholder="Nombre" style={inputStyle} />
               </div>
               <div>
-                <Label>Periodicidad</Label>
-                <select value={form.pensionPeriodic} onChange={e => set('pensionPeriodic', e.target.value)} style={inputStyle}>
-                  <option value="mensual">Mensual</option>
-                  <option value="trimestral">Trimestral</option>
-                </select>
+                <Label>Parte demandada / Contraparte</Label>
+                <input value={form.contraparte} onChange={e => set('contraparte', e.target.value)} placeholder="Nombre de la contraparte" style={inputStyle} />
+              </div>
+              <div>
+                <Label>Abogado asignado</Label>
+                <input value={form.abogado} onChange={e => set('abogado', e.target.value)} placeholder="Ana López" style={inputStyle} />
+              </div>
+              <div>
+                <Label>Procurador</Label>
+                <input value={form.procurador} onChange={e => set('procurador', e.target.value)} placeholder="Opcional" style={inputStyle} />
               </div>
             </div>
           )}
         </div>
 
-        {/* Bienes */}
+        {/* Sección 3 — Notas (colapsable) */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>Bienes</div>
-            <button onClick={addBien} style={smallBtn}><Plus size={12} /> Añadir bien</button>
-          </div>
-          {form.bienes.map((b, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 110px 28px', gap: 8, marginBottom: 8, alignItems: 'end' }}>
-              <div>
-                {i === 0 && <Label>Tipo</Label>}
-                <select value={b.tipo} onChange={e => updBien(i, 'tipo', e.target.value)} style={inputStyle}>
-                  {['Inmueble','Vehículo','Cuenta bancaria','Inversiones','Otros'].map(t => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                {i === 0 && <Label>Descripción</Label>}
-                <input value={b.descripcion} onChange={e => updBien(i, 'descripcion', e.target.value)} placeholder="Descripción del bien" style={inputStyle} />
-              </div>
-              <div>
-                {i === 0 && <Label>Valor (€)</Label>}
-                <input type="number" value={b.valor} onChange={e => updBien(i, 'valor', e.target.value)} placeholder="0" style={inputStyle} />
-              </div>
-              <button onClick={() => removeBien(i)} style={{ ...smallBtn, border: 0, color: 'var(--red)', marginTop: i === 0 ? 18 : 0 }}><X size={14} /></button>
+          <button
+            type="button"
+            onClick={() => setSeccionNotas(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-2)', fontSize: 13, fontWeight: 500, padding: 0 }}
+          >
+            <ChevronDown size={14} style={{ transform: seccionNotas ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            Notas
+            <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 400 }}>(opcional)</span>
+          </button>
+          {seccionNotas && (
+            <div style={{ marginTop: 14 }}>
+              <textarea
+                value={form.notasLibres}
+                onChange={e => set('notasLibres', e.target.value)}
+                rows={4}
+                placeholder="Notas internas sobre el expediente..."
+                style={{ ...inputStyle, height: 'auto', padding: '8px 10px', resize: 'vertical', lineHeight: 1.5 }}
+              />
             </div>
-          ))}
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
           <button onClick={onClose} style={btnStyle()}>Cancelar</button>
-          <button onClick={handleGuardar} style={btnStyle()}>Guardar borrador</button>
           <button onClick={handleGuardar} style={btnStyle(true)}>Crear expediente</button>
         </div>
       </div>
@@ -261,75 +271,200 @@ function Label({ children }) {
   return <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 5, fontWeight: 500 }}>{children}</div>
 }
 
+// Colores de estado para las cards
+const ESTADO_COLORES = {
+  activo:    { dot: '#10B981', bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.25)', text: '#6EE7B7', label: 'Activo' },
+  en_espera: { dot: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.25)',  text: '#FCD34D', label: 'En espera' },
+  cerrado:   { dot: '#9CA3AF', bg: 'rgba(156,163,175,0.10)', border: 'rgba(156,163,175,0.25)', text: '#D1D5DB', label: 'Cerrado' },
+  urgente:   { dot: '#EF4444', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.25)',   text: '#FCA5A5', label: 'Urgente' },
+  archivado: { dot: '#9CA3AF', bg: 'rgba(156,163,175,0.10)', border: 'rgba(156,163,175,0.25)', text: '#D1D5DB', label: 'Archivado' },
+}
+
+function EstadoBadge({ estado }) {
+  const c = ESTADO_COLORES[estado?.toLowerCase()] ?? ESTADO_COLORES.activo
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 4, background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+      {c.label}
+    </span>
+  )
+}
+
+function ExpedienteCard({ exp, onVer, onEliminar }) {
+  const c = ESTADO_COLORES[exp.estado?.toLowerCase()] ?? ESTADO_COLORES.activo
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: '#161820',
+        border: `1px solid ${hovered ? 'rgba(79,126,255,0.5)' : '#2A2D3E'}`,
+        borderRadius: 12,
+        padding: 20,
+        display: 'flex', flexDirection: 'column', gap: 12,
+        transition: 'border-color 0.15s, background 0.15s',
+        background: hovered ? '#1E2130' : '#161820',
+        cursor: 'default',
+      }}
+    >
+      {/* Cabecera */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <span className="mono" style={{ fontSize: 11, color: '#4F7EFF', fontWeight: 600 }}>{exp.ref}</span>
+        <EstadoBadge estado={exp.estado} />
+      </div>
+
+      {/* Nombre cliente */}
+      <div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: '#E8E9F0', lineHeight: 1.3 }}>{exp.cliente || '—'}</div>
+        {exp.contraparte && <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>vs. {exp.contraparte}</div>}
+        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>{exp.tipo}</div>
+      </div>
+
+      {/* Meta */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {exp.ultMov && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9CA3AF' }}>
+            <Clock size={12} style={{ flexShrink: 0 }} />
+            <span>Últ. movimiento: {exp.ultMov}</span>
+          </div>
+        )}
+        {(exp.abogado && exp.abogado !== '—') && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9CA3AF' }}>
+            <User size={12} style={{ flexShrink: 0 }} />
+            <span>{exp.abogado}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Botón ver expediente */}
+      <button
+        onClick={() => onVer(exp)}
+        style={{
+          marginTop: 4, width: '100%', padding: '7px 0', borderRadius: 6, cursor: 'pointer',
+          background: 'transparent', border: '1px solid #2A2D3E', color: '#9CA3AF',
+          fontSize: 12, fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F7EFF'; e.currentTarget.style.color = '#4F7EFF' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A2D3E'; e.currentTarget.style.color = '#9CA3AF' }}
+      >
+        Ver expediente →
+      </button>
+    </div>
+  )
+}
+
 export default function Expedientes() {
   const nav = useNavigate()
   const { profile } = useAuth()
   const [estado,        setEstado]        = useState('Todos')
   const [tipo,          setTipo]          = useState('Todos')
   const [q,             setQ]             = useState('')
-  const [soloFamilia,   setSoloFamilia]   = useState(false)
   const [rows,          setRows]          = useState([])
   const [loading,       setLoading]       = useState(true)
   const [showModalFam,  setShowModalFam]  = useState(false)
-  const [famList,       setFamList]       = useState([])
   const [showImportModal, setShowImportModal] = useState(false)
   const [toastMsg,      setToastMsg]      = useState('')
+  const [vistaCards,    setVistaCards]    = useState(() => {
+    const saved = localStorage.getItem('vincla_exp_vista')
+    return saved !== 'tabla' // por defecto, cards
+  })
 
   const load = useCallback(async () => {
     setLoading(true)
     const { data } = await getExpedientes({ estado, tipo, q })
-    setRows(data)
+    setRows(data ?? [])
     setLoading(false)
   }, [estado, tipo, q])
 
   useEffect(() => { load() }, [load])
 
-  const famRows = famList.filter(e => {
-    const matchEstado = estado === 'Todos' || e.estado === estado.toLowerCase()
-    const matchQ = !q || e.cliente.toLowerCase().includes(q.toLowerCase()) || e.ref.toLowerCase().includes(q.toLowerCase()) || (e.contraparte || '').toLowerCase().includes(q.toLowerCase())
-    return matchEstado && matchQ
-  })
+  function toggleVista(v) {
+    setVistaCards(v)
+    localStorage.setItem('vincla_exp_vista', v ? 'cards' : 'tabla')
+  }
 
-  const displayRows = soloFamilia ? [] : rows
-  const showFamilia = soloFamilia || famRows.length > 0
+  function exportarCSV() {
+    const cabecera = ['Referencia', 'Cliente', 'Tipo', 'Abogado', 'Estado', 'Último movimiento']
+    const filas = rows.map(r => [r.ref, r.cliente, r.tipo, r.abogado, r.estado, r.ultMov])
+    const csv = [cabecera, ...filas].map(f => f.map(c => `"${(c ?? '').toString().replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `expedientes_${new Date().toISOString().slice(0,10)}.csv`; a.click()
+    URL.revokeObjectURL(url)
+    setToastMsg('CSV exportado correctamente.')
+    setTimeout(() => setToastMsg(''), 3000)
+  }
+
+  const allRows = rows
 
   return (
     <div className="fade-in">
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
         <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Expedientes</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button style={btnStyle()}><Download size={14} /> Exportar CSV</button>
+          <button style={btnStyle()} onClick={exportarCSV}><Download size={14} /> Exportar CSV</button>
           <button onClick={() => setShowImportModal(true)} style={btnStyle()}><Upload size={14} /> Importar</button>
-          <button onClick={() => setShowModalFam(true)} style={btnStyle()}><Plus size={14} /> Nuevo familia</button>
           <button onClick={() => setShowModalFam(true)} style={btnStyle(true)}><Plus size={14} /> Nuevo expediente</button>
         </div>
       </div>
-      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>{rows.length + famRows.length} expedientes cargados.</div>
+      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>{loading ? '…' : `${allRows.length} expedientes`}</div>
 
       {/* Toolbar */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', border: '1px solid var(--border-2)', borderRadius: 6, height: 32, background: 'var(--bg)', flex: 1, maxWidth: 340 }}>
           <Search size={14} style={{ color: 'var(--text-2)', flexShrink: 0 }} />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por cliente, ref, contraparte…"
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por cliente, referencia…"
             style={{ flex: 1, background: 'transparent', border: 0, outline: 0, color: 'var(--text)', fontSize: 13 }} />
         </div>
         <FilterChip label="Estado" value={estado} options={['Todos','Activo','Urgente','Archivado']} onChange={setEstado} />
         <FilterChip label="Tipo" value={tipo} options={['Todos','Mercantil','Civil','Familia','Laboral','Penal','Concursal']} onChange={setTipo} />
-        <button style={ghostBtnStyle}><Filter size={14} /> Más filtros</button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Solo familia</span>
-          <Toggle value={soloFamilia} onChange={setSoloFamilia} />
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+          {/* Toggle vista */}
+          <button
+            onClick={() => toggleVista(true)}
+            title="Vista tarjetas"
+            style={{ ...ghostBtnStyle, background: vistaCards ? 'var(--surface-2)' : 'transparent', border: `1px solid ${vistaCards ? 'var(--border-2)' : 'transparent'}` }}
+          ><LayoutGrid size={14} /></button>
+          <button
+            onClick={() => toggleVista(false)}
+            title="Vista tabla"
+            style={{ ...ghostBtnStyle, background: !vistaCards ? 'var(--surface-2)' : 'transparent', border: `1px solid ${!vistaCards ? 'var(--border-2)' : 'transparent'}` }}
+          ><List size={14} /></button>
+          <div style={{ color: 'var(--text-2)', fontSize: 13, display: 'flex', alignItems: 'center', marginLeft: 6 }}>{loading ? '…' : `${allRows.length} resultados`}</div>
         </div>
-        <div style={{ marginLeft: 'auto', color: 'var(--text-2)', fontSize: 13 }}>{loading ? '…' : `${displayRows.length + famRows.length} resultados`}</div>
       </div>
 
-      {/* Tabla expedientes generales */}
-      {!soloFamilia && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-sm)', marginBottom: 20 }}>
+      {/* Vista Cards */}
+      {vistaCards && (
+        loading ? (
+          <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-2)' }}>Cargando expedientes…</div>
+        ) : allRows.length === 0 ? (
+          <div style={{ padding: '80px 0', textAlign: 'center', color: 'var(--text-2)' }}>
+            <div style={{ fontSize: 15, marginBottom: 12 }}>No se encontraron expedientes.</div>
+            <button onClick={() => setShowModalFam(true)} style={btnStyle(true)}><Plus size={14} /> Nuevo expediente</button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+            {allRows.map(r => (
+              <ExpedienteCard
+                key={r.id}
+                exp={r}
+                onVer={exp => nav(`/expedientes/${exp.id}`)}
+                onEliminar={id => setRows(prev => prev.filter(x => x.id !== id))}
+              />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Vista Tabla */}
+      {!vistaCards && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}>
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
             <thead>
               <tr>
-                {[{ label: 'Referencia', w: 130 }, { label: 'Cliente' }, { label: 'Tipo', w: 110 }, { label: 'Abogado', w: 150 }, { label: 'Último mov.', w: 110 }, { label: 'Estado', w: 120 }, { label: '', w: 50 }].map((h, i) => (
+                {[{ label: 'Referencia', w: 130 }, { label: 'Cliente' }, { label: 'Tipo', w: 140 }, { label: 'Abogado', w: 150 }, { label: 'Último mov.', w: 120 }, { label: 'Estado', w: 120 }, { label: '', w: 50 }].map((h, i) => (
                   <th key={i} style={{ textAlign: 'left', fontWeight: 500, color: 'var(--text-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 14px', borderBottom: '1px solid var(--border)', width: h.w }}>{h.label}</th>
                 ))}
               </tr>
@@ -337,16 +472,16 @@ export default function Expedientes() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)' }}>Cargando expedientes…</td></tr>
-              ) : displayRows.length === 0 ? (
+              ) : allRows.length === 0 ? (
                 <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)' }}>No se encontraron expedientes.</td></tr>
-              ) : displayRows.map((r) => (
+              ) : allRows.map((r) => (
                 <tr key={r.id} onClick={() => nav(`/expedientes/${r.id}`)} style={{ cursor: 'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={td}><span className="mono" style={{ fontSize: 12 }}>{r.ref}</span></td>
                   <td style={td}>
                     <div>{r.cliente}</div>
-                    <div style={{ color: 'var(--text-2)', fontSize: 12 }}>{r.juzgado?.split(',')[1]?.trim() ?? ''}</div>
+                    {r.contraparte && <div style={{ color: 'var(--text-2)', fontSize: 12 }}>vs. {r.contraparte}</div>}
                   </td>
                   <td style={td}><Badge>{r.tipo}</Badge></td>
                   <td style={td}>
@@ -356,14 +491,14 @@ export default function Expedientes() {
                     </div>
                   </td>
                   <td style={td}><span style={{ color: 'var(--text-2)' }}>{r.ultMov}</span></td>
-                  <td style={td}><Badge status={r.estado} /></td>
+                  <td style={td}><EstadoBadge estado={r.estado} /></td>
                   <td style={td}><button style={ghostBtnStyle} onClick={e => e.stopPropagation()}><MoreHorizontal size={16} /></button></td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--border)', fontSize: 13 }}>
-            <div style={{ color: 'var(--text-2)' }}>Mostrando {displayRows.length} resultados</div>
+            <div style={{ color: 'var(--text-2)' }}>Mostrando {allRows.length} resultados</div>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
               <button style={ghostBtnStyle} disabled><ChevronLeft size={14} /></button>
               <button style={{ ...btnStyle(), background: 'var(--surface-2)' }}>1</button>
@@ -373,65 +508,16 @@ export default function Expedientes() {
         </div>
       )}
 
-      {/* Tabla expedientes familia */}
-      {showFamilia && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#A78BFA' }} />
-            <div style={{ fontSize: 13, fontWeight: 500 }}>Expedientes de Familia</div>
-            <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'rgba(167,139,250,0.10)', color: '#C4B5FD', border: '1px solid rgba(167,139,250,0.25)' }}>{famRows.length}</span>
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
-            <thead>
-              <tr>
-                {['Referencia', 'Cliente', 'Tipo de asunto', 'Menores', 'Próxima actuación', 'Prioridad', ''].map((h, i) => (
-                  <th key={i} style={{ textAlign: 'left', fontWeight: 500, color: 'var(--text-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {famRows.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)' }}>No se encontraron expedientes de familia.</td></tr>
-              ) : famRows.map((e) => {
-                const dias = diasHasta(e.proximaActuacion)
-                return (
-                  <tr key={e.id} onClick={() => nav(`/expedientes/${e.id}`)} style={{ cursor: 'pointer' }}
-                    onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
-                    onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
-                    <td style={td}><span className="mono" style={{ fontSize: 12 }}>{e.ref}</span></td>
-                    <td style={td}>
-                      <div>{e.cliente}</div>
-                      {e.contraparte && <div style={{ color: 'var(--text-2)', fontSize: 12 }}>vs. {e.contraparte}</div>}
-                    </td>
-                    <td style={td}><span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: 'rgba(167,139,250,0.10)', color: '#C4B5FD', border: '1px solid rgba(167,139,250,0.25)' }}>{e.tipo}</span></td>
-                    <td style={td}>
-                      {e.hijos.length > 0 ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)' }}>
-                          <Baby size={13} /> {e.hijos.length}
-                        </div>
-                      ) : <span style={{ color: 'var(--text-3)', fontSize: 12 }}>—</span>}
-                    </td>
-                    <td style={td}>
-                      <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: dias <= 3 ? 'rgba(248,113,113,0.10)' : 'rgba(251,191,36,0.10)', color: dias <= 3 ? '#FCA5A5' : '#FCD34D', border: `1px solid ${dias <= 3 ? 'rgba(248,113,113,0.25)' : 'rgba(251,191,36,0.25)'}` }}>
-                        {dias <= 0 ? 'Hoy' : `en ${dias}d`}
-                      </span>
-                    </td>
-                    <td style={td}><PrioridadBadge prioridad={e.prioridad} /></td>
-                    <td style={td} onClick={ev => ev.stopPropagation()}>
-                      <AccionesDropdown
-                        expediente={e}
-                        onEliminar={id => setFamList(l => l.filter(x => x.id !== id))}
-                      />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+      {showModalFam && (
+        <ModalNuevoExpedienteFamilia
+          onClose={() => setShowModalFam(false)}
+          onCrear={nuevo => {
+            setRows(prev => [nuevo, ...prev])
+            setToastMsg('Expediente creado correctamente.')
+            setTimeout(() => setToastMsg(''), 3000)
+          }}
+        />
       )}
-
-      {showModalFam && <ModalNuevoExpedienteFamilia onClose={() => setShowModalFam(false)} />}
       {showImportModal && (
         <ImportarExpedientesModal
           onClose={() => setShowImportModal(false)}

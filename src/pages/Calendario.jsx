@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell, CheckCircle2, AlarmClock } from 'lucide-react'
 import { getPlazosMes } from '../services/plazos'
 import Modal from '../components/Modal'
 import { tiposEvento, abogadosDespacho } from '../data/mock'
+import { useTareas } from '../store/tareasStore'
+import ModalNuevaTarea from '../components/tareas/ModalNuevaTarea'
+import ModalDetalleTarea from '../components/tareas/ModalDetalleTarea'
 
 const DOW = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
 const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -17,10 +20,24 @@ const RECORDATORIOS = [
   { valor: '2_dias', label: '2 días antes' },
 ]
 
+function toDateKey(y, m, d) {
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+}
+
 function urgColor(urgencia) {
   if (urgencia === 'Urgente') return { bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.30)', text: '#FCA5A5', dot: '#F87171' }
   if (urgencia === 'Próximo') return { bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.25)',  text: '#FCD34D', dot: '#FBBF24' }
   return                             { bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.25)',  text: '#6EE7B7', dot: '#34D399' }
+}
+
+function taskColor(task) {
+  if (task.status === 'done') return { dot: '#9CA3AF', bg: 'rgba(156,163,175,0.08)', color: '#6B7280', strike: true }
+  const map = {
+    alta:  { dot: '#EF4444', bg: 'rgba(239,68,68,0.12)',   color: '#FCA5A5', strike: false },
+    media: { dot: '#F59E0B', bg: 'rgba(245,158,11,0.12)', color: '#FCD34D', strike: false },
+    baja:  { dot: '#10B981', bg: 'rgba(16,185,129,0.12)', color: '#6EE7B7', strike: false },
+  }
+  return map[task.prioridad] ?? map.media
 }
 
 function CalEvent({ plazo }) {
@@ -52,6 +69,26 @@ function CalEvento({ evento, onClick }) {
     >
       <span style={{ width: 4, height: 4, borderRadius: '50%', background: hex, flexShrink: 0 }} />
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{evento.titulo}</span>
+    </div>
+  )
+}
+
+function CalTarea({ task, onClick }) {
+  const c = taskColor(task)
+  return (
+    <div
+      onClick={e => { e.stopPropagation(); onClick(task) }}
+      style={{
+        background: c.bg, color: c.color,
+        borderRadius: 4, padding: '3px 6px', fontSize: 11.5, marginBottom: 3,
+        display: 'flex', alignItems: 'center', gap: 5,
+        lineHeight: 1.3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+        cursor: 'pointer',
+        textDecoration: c.strike ? 'line-through' : 'none',
+      }}
+    >
+      <span style={{ width: 4, height: 4, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.text}</span>
     </div>
   )
 }
@@ -94,6 +131,46 @@ function SidePanelEvento({ evento, onEditar }) {
   )
 }
 
+function SidePanelTarea({ task, dateKey, onSetStatus, onDelete, onMoveNext }) {
+  const c = taskColor(task)
+  const PRIORIDAD_LABEL = { alta: 'Alta', media: 'Media', baja: 'Baja' }
+  return (
+    <div style={{ padding: 12, marginBottom: 8, border: `1px solid rgba(79,126,255,0.2)`, borderRadius: 6, background: 'rgba(79,126,255,0.05)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: task.status === 'done' ? 'var(--text-3)' : 'var(--text)', textDecoration: task.status === 'done' ? 'line-through' : 'none', lineHeight: 1.35, flex: 1 }}>
+          {task.text}
+        </div>
+        <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: c.bg, color: c.color, flexShrink: 0 }}>
+          {PRIORIDAD_LABEL[task.prioridad] ?? 'Media'}
+        </span>
+      </div>
+      {task.desc && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>{task.desc}</div>}
+      {task.autoMovida && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#F59E0B', marginBottom: 8 }}>
+          <AlarmClock size={11} />
+          <span>Movida automáticamente · Original: {task.fechaOriginal?.slice(0,10) ?? '—'}</span>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+        {task.status !== 'done' && (
+          <button onClick={() => onSetStatus(dateKey, task.id, 'done')} style={{ ...smallBtn, color: '#10B981', borderColor: 'rgba(16,185,129,0.3)' }}>
+            <CheckCircle2 size={11} /> Completada
+          </button>
+        )}
+        {task.status !== 'pending' && (
+          <button onClick={() => onSetStatus(dateKey, task.id, 'pending')} style={smallBtn}>
+            Pendiente
+          </button>
+        )}
+        <button onClick={() => onMoveNext(dateKey, task.id)} style={smallBtn}>→ Mañana</button>
+        <button onClick={() => onDelete(dateKey, task.id)} style={{ ...smallBtn, color: 'var(--red)', borderColor: 'rgba(248,113,113,0.25)' }}>
+          <X size={11} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ModalEvento({ evento, onClose, onGuardar }) {
   const isEdit = !!evento
   const fechaDefault = evento?.fecha ?? new Date().toISOString().slice(0, 10)
@@ -115,8 +192,6 @@ function ModalEvento({ evento, onClose, onGuardar }) {
   const tipoSeleccionado = tiposEvento.find(t => t.valor === form.tipo)
   const colorEvento = tipoSeleccionado?.color ?? '#4F7EFF'
 
-  const expedientesFiltrados = []
-
   function handleGuardar() {
     if (!form.titulo.trim() || !form.tipo || !form.fecha) return
     onGuardar({
@@ -130,8 +205,6 @@ function ModalEvento({ evento, onClose, onGuardar }) {
   return (
     <Modal title={isEdit ? 'Editar evento' : 'Nuevo evento'} onClose={onClose} size="md">
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-        {/* Tipo */}
         <div>
           <Label>Tipo de evento *</Label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -155,19 +228,11 @@ function ModalEvento({ evento, onClose, onGuardar }) {
           </div>
         </div>
 
-        {/* Título */}
         <div>
           <Label>Título *</Label>
-          <input
-            value={form.titulo}
-            onChange={e => set('titulo', e.target.value)}
-            placeholder="Ej. Vista oral — García vs López"
-            style={inputStyle}
-            autoFocus
-          />
+          <input value={form.titulo} onChange={e => set('titulo', e.target.value)} placeholder="Ej. Vista oral — García vs López" style={inputStyle} autoFocus />
         </div>
 
-        {/* Fecha y hora */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <Label>Fecha *</Label>
@@ -179,61 +244,31 @@ function ModalEvento({ evento, onClose, onGuardar }) {
           </div>
         </div>
 
-        {/* Cliente y expediente */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <Label>Cliente</Label>
-            <input
-              value={form.clienteNombre}
-              onChange={e => set('clienteNombre', e.target.value)}
-              placeholder="Nombre del cliente"
-              list="clientes-list"
-              style={inputStyle}
-            />
-            <datalist id="clientes-list">
-            </datalist>
+            <input value={form.clienteNombre} onChange={e => set('clienteNombre', e.target.value)} placeholder="Nombre del cliente" style={inputStyle} />
           </div>
-          <div>
-            <Label>Expediente</Label>
-            <select value={form.expedienteId} onChange={e => set('expedienteId', e.target.value)} style={inputStyle}>
-              <option value="">Sin expediente</option>
-              {expedientesFiltrados.map(e => (
-                <option key={e.id} value={e.id}>{e.ref} — {e.cliente}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Abogado y ubicación */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <Label>Abogado</Label>
             <select value={form.abogado} onChange={e => set('abogado', e.target.value)} style={inputStyle}>
               <option value="">Sin asignar</option>
-              {abogadosDespacho.map(a => (
-                <option key={a.id} value={a.nombre}>{a.nombre}</option>
-              ))}
+              {abogadosDespacho.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
             </select>
           </div>
-          <div>
-            <Label>Ubicación</Label>
-            <input value={form.ubicacion} onChange={e => set('ubicacion', e.target.value)} placeholder="Sala, juzgado…" style={inputStyle} />
-          </div>
         </div>
 
-        {/* Descripción */}
+        <div>
+          <Label>Ubicación</Label>
+          <input value={form.ubicacion} onChange={e => set('ubicacion', e.target.value)} placeholder="Sala, juzgado…" style={inputStyle} />
+        </div>
+
         <div>
           <Label>Descripción</Label>
-          <textarea
-            value={form.descripcion}
-            onChange={e => set('descripcion', e.target.value)}
-            placeholder="Notas adicionales sobre el evento…"
-            rows={3}
-            style={{ ...inputStyle, height: 'auto', padding: '8px 10px', resize: 'vertical', lineHeight: 1.5 }}
-          />
+          <textarea value={form.descripcion} onChange={e => set('descripcion', e.target.value)} placeholder="Notas adicionales…" rows={3}
+            style={{ ...inputStyle, height: 'auto', padding: '8px 10px', resize: 'vertical', lineHeight: 1.5 }} />
         </div>
 
-        {/* Recordatorio */}
         <div>
           <Label><Bell size={11} style={{ display: 'inline', marginRight: 4 }} />Recordatorio</Label>
           <select value={form.recordatorio} onChange={e => set('recordatorio', e.target.value)} style={inputStyle}>
@@ -285,10 +320,67 @@ export default function Calendario() {
   const [modalEvento,    setModalEvento]    = useState(false)
   const [eventoEditando, setEventoEditando] = useState(null)
   const [toast,    setToast]    = useState(null)
+  const [tabPanel, setTabPanel] = useState('eventos') // 'eventos' | 'tareas'
+
+  // Modal de nueva tarea
+  const [modalTarea,      setModalTarea]      = useState(false)
+  const [modalTareaFecha, setModalTareaFecha] = useState(null)
+  const [detailTask,      setDetailTask]      = useState(null)
+
+  const { tasks, addTask, setStatus, deleteTask, moveToNextDay } = useTareas()
+
+  // Auto-pase de tareas vencidas a hoy
+  useEffect(() => {
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    const hoyKey = toDateKey(hoy.getFullYear(), hoy.getMonth() + 1, hoy.getDate())
+
+    const raw = localStorage.getItem('vincla_tareas')
+    if (!raw) return
+    let tareasObj
+    try { tareasObj = JSON.parse(raw) } catch { return }
+
+    let modificadas = false
+    const nuevasTareas = {}
+
+    Object.entries(tareasObj).forEach(([fechaKey, lista]) => {
+      const fechaTarea = new Date(fechaKey + 'T00:00:00')
+      fechaTarea.setHours(0, 0, 0, 0)
+
+      const mover = fechaTarea < hoy && fechaKey !== hoyKey
+      if (mover) {
+        lista.forEach(tarea => {
+          if (tarea.status === 'done') {
+            // Tareas completadas las dejamos en su fecha original
+            if (!nuevasTareas[fechaKey]) nuevasTareas[fechaKey] = []
+            nuevasTareas[fechaKey].push(tarea)
+          } else {
+            // Tareas pendientes → mover a hoy
+            modificadas = true
+            if (!nuevasTareas[hoyKey]) nuevasTareas[hoyKey] = []
+            nuevasTareas[hoyKey].push({
+              ...tarea,
+              fechaOriginal: tarea.fechaOriginal || fechaKey,
+              autoMovida: true,
+            })
+          }
+        })
+      } else {
+        if (!nuevasTareas[fechaKey]) nuevasTareas[fechaKey] = []
+        nuevasTareas[fechaKey].push(...lista)
+      }
+    })
+
+    if (modificadas) {
+      localStorage.setItem('vincla_tareas', JSON.stringify(nuevasTareas))
+      const pendientesMovidas = Object.values(nuevasTareas).flat().filter(t => t.autoMovida && t.status !== 'done').length
+      if (pendientesMovidas > 0) setToast(`${pendientesMovidas} tarea${pendientesMovidas > 1 ? 's' : ''} vencida${pendientesMovidas > 1 ? 's' : ''} movida${pendientesMovidas > 1 ? 's' : ''} a hoy.`)
+    }
+  }, []) // solo al montar
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 3000)
+    const t = setTimeout(() => setToast(null), 3500)
     return () => clearTimeout(t)
   }, [toast])
 
@@ -311,7 +403,7 @@ export default function Calendario() {
     setSelected(1)
   }
 
-  function abrirNuevo() {
+  function abrirNuevoEvento() {
     setEventoEditando(null)
     setModalEvento(true)
   }
@@ -331,7 +423,6 @@ export default function Calendario() {
     }
     setModalEvento(false)
     setEventoEditando(null)
-    // Select the day of the new event
     const eventoFecha = new Date(data.fecha + 'T00:00:00')
     if (eventoFecha.getFullYear() === year && eventoFecha.getMonth() + 1 === month) {
       setSelected(eventoFecha.getDate())
@@ -356,10 +447,26 @@ export default function Calendario() {
     }
   })
 
+  // Tareas por día del mes actual
+  const tareasByDay = {}
+  Object.entries(tasks).forEach(([dateKey, lista]) => {
+    const d = new Date(dateKey + 'T00:00:00')
+    if (d.getFullYear() === year && d.getMonth() + 1 === month) {
+      tareasByDay[d.getDate()] = lista
+    }
+  })
+
+  const selectedKey     = toDateKey(year, month, selected)
   const selectedPlazos  = byDay[selected] ?? []
   const selectedEventos = eventosByDay[selected] ?? []
+  const selectedTareas  = tasks[selectedKey] ?? []
   const totalSelected   = selectedPlazos.length + selectedEventos.length
   const criticos        = plazos.filter(p => p.urgencia === 'Urgente').length
+
+  // Todas las tareas pendientes para el panel
+  const todasTareasPendientes = Object.entries(tasks)
+    .flatMap(([key, lista]) => lista.filter(t => t.status !== 'done').map(t => ({ ...t, dateKey: key })))
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
 
   return (
     <div className="fade-in">
@@ -380,7 +487,7 @@ export default function Calendario() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Calendario y plazos</h1>
+          <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Calendario y Tareas</h1>
           {criticos > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.25)', color: '#FCA5A5', padding: '4px 10px', borderRadius: 4, fontSize: 12.5 }}>
@@ -390,17 +497,18 @@ export default function Calendario() {
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button style={iconBtn} onClick={prevMonth}><ChevronLeft size={14} /></button>
           <div className="serif" style={{ fontSize: 17, padding: '0 6px', letterSpacing: '-0.005em', minWidth: 160, textAlign: 'center' }}>{MESES_LARGO[month - 1]} {year}</div>
           <button style={iconBtn} onClick={nextMonth}><ChevronRight size={14} /></button>
           <button style={baseBtn()} onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth() + 1); setSelected(today.getDate()) }}>Hoy</button>
-          <button style={baseBtn(true)} onClick={abrirNuevo}><Plus size={14} /> Nuevo evento</button>
+          <button style={baseBtn()} onClick={() => { setModalTareaFecha(null); setModalTarea(true) }}><Plus size={14} /> Nueva tarea</button>
+          <button style={baseBtn(true)} onClick={abrirNuevoEvento}><Plus size={14} /> Nuevo evento</button>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 14 }}>
-        {/* Grid */}
+        {/* Grid calendario */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--border)' }}>
             {DOW.map((d, i) => (
@@ -416,7 +524,10 @@ export default function Calendario() {
               const isToday    = !c.other && c.day === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()
               const dayPlazos  = c.other ? [] : (byDay[c.day] ?? [])
               const dayEventos = c.other ? [] : (eventosByDay[c.day] ?? [])
-              const totalItems = dayPlazos.length + dayEventos.length
+              const dayTareas  = c.other ? [] : (tareasByDay[c.day] ?? [])
+              const totalItems = dayPlazos.length + dayEventos.length + dayTareas.length
+              const maxVisible = 3
+              let shown = 0
               return (
                 <div key={i} onClick={() => !c.other && setSelected(c.day)} style={{
                   padding: '8px 10px', overflow: 'hidden',
@@ -435,13 +546,12 @@ export default function Calendario() {
                       <div className="num" style={{ fontSize: 13, color: c.other ? 'var(--text-3)' : isWeekend ? 'var(--text-2)' : 'var(--text)', fontWeight: isSelected ? 600 : 400, padding: '1px 4px' }}>{c.day}</div>
                     )}
                   </div>
-                  {/* Plazos primero */}
-                  {dayPlazos.slice(0, 2).map((p, ei) => <CalEvent key={`p-${ei}`} plazo={p} />)}
-                  {/* Luego eventos */}
-                  {dayEventos.slice(0, Math.max(0, 3 - Math.min(2, dayPlazos.length))).map((ev, ei) => (
-                    <CalEvento key={`ev-${ei}`} evento={ev} onClick={abrirEditar} />
+                  {dayPlazos.slice(0, 2).map((p, ei) => { shown++; return shown <= maxVisible ? <CalEvent key={`p-${ei}`} plazo={p} /> : null })}
+                  {dayEventos.slice(0, Math.max(0, maxVisible - Math.min(2, dayPlazos.length))).map((ev, ei) => { shown++; return shown <= maxVisible ? <CalEvento key={`ev-${ei}`} evento={ev} onClick={abrirEditar} /> : null })}
+                  {dayTareas.filter(t => t.status !== 'done').slice(0, Math.max(0, maxVisible - shown)).map((t, ei) => (
+                    <CalTarea key={`t-${ei}`} task={t} onClick={task => { setSelected(c.day); setTabPanel('tareas'); setDetailTask({ dateKey: toDateKey(year, month, c.day), task }) }} />
                   ))}
-                  {totalItems > 3 && <div style={{ fontSize: 11, color: 'var(--text-2)', padding: '2px 4px' }}>+{totalItems - 3} más</div>}
+                  {totalItems > maxVisible && <div style={{ fontSize: 11, color: 'var(--text-2)', padding: '2px 4px' }}>+{totalItems - maxVisible} más</div>}
                 </div>
               )
             })}
@@ -456,33 +566,91 @@ export default function Calendario() {
               <div className="serif num" style={{ fontSize: 36, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>{selected}</div>
               <div style={{ color: 'var(--text-2)', fontSize: 13 }}>{MESES_LARGO[month - 1].toLowerCase()} {year}</div>
             </div>
-            <div style={{ color: 'var(--text-2)', fontSize: 12, marginTop: 6 }}>
-              {loading ? 'Cargando…' : `${totalSelected} ${totalSelected === 1 ? 'evento' : 'eventos'} programados`}
-            </div>
           </div>
 
-          <div style={{ padding: '12px 12px 14px' }}>
-            {totalSelected === 0 && !loading && (
-              <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>
-                Sin eventos este día.
-                <div style={{ marginTop: 12 }}>
-                  <button onClick={abrirNuevo} style={{ ...btnStyle(true), fontSize: 12, height: 28, padding: '0 10px' }}>
-                    <Plus size={12} /> Añadir evento
-                  </button>
-                </div>
-              </div>
+          {/* Pestañas */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+            {[{ id: 'eventos', label: `📅 Eventos (${totalSelected})` }, { id: 'tareas', label: `✅ Tareas (${todasTareasPendientes.length})` }].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setTabPanel(tab.id)}
+                style={{
+                  flex: 1, padding: '10px 6px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                  background: tabPanel === tab.id ? 'rgba(79,126,255,0.08)' : 'transparent',
+                  border: 0, borderBottom: `2px solid ${tabPanel === tab.id ? '#4F7EFF' : 'transparent'}`,
+                  color: tabPanel === tab.id ? '#93B4FF' : 'var(--text-2)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ padding: '12px 12px 14px', maxHeight: 480, overflowY: 'auto' }}>
+            {/* Tab Eventos del día seleccionado */}
+            {tabPanel === 'eventos' && (
+              <>
+                {totalSelected === 0 && !loading && (
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>
+                    Sin eventos este día.
+                    <div style={{ marginTop: 12 }}>
+                      <button onClick={abrirNuevoEvento} style={{ ...btnStyle(true), fontSize: 12, height: 28, padding: '0 10px' }}>
+                        <Plus size={12} /> Añadir evento
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {selectedEventos.map((ev, i) => (
+                  <SidePanelEvento key={i} evento={ev} onEditar={abrirEditar} />
+                ))}
+                {selectedPlazos.map((p, i) => (
+                  <SidePanelEvent key={i} plazo={p} onOpenExpediente={expId => nav(`/expedientes/${expId}`)} />
+                ))}
+              </>
             )}
-            {selectedEventos.map((ev, i) => (
-              <SidePanelEvento key={i} evento={ev} onEditar={abrirEditar} />
-            ))}
-            {selectedPlazos.map((p, i) => (
-              <SidePanelEvent key={i} plazo={p} onOpenExpediente={expId => nav(`/expedientes/${expId}`)} />
-            ))}
+
+            {/* Tab Tareas pendientes */}
+            {tabPanel === 'tareas' && (
+              <>
+                {todasTareasPendientes.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>
+                    No hay tareas pendientes. 🎉
+                    <div style={{ marginTop: 12 }}>
+                      <button onClick={() => { setModalTareaFecha(null); setModalTarea(true) }} style={{ ...btnStyle(true), fontSize: 12, height: 28, padding: '0 10px' }}>
+                        <Plus size={12} /> Nueva tarea
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  todasTareasPendientes.map((t, i) => (
+                    <div key={i}>
+                      {/* Fecha header si cambia */}
+                      {(i === 0 || todasTareasPendientes[i - 1]?.dateKey !== t.dateKey) && (
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, padding: '6px 4px 4px', marginBottom: 4 }}>
+                          {t.dateKey}
+                          {t.dateKey === toDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate()) && (
+                            <span style={{ marginLeft: 6, background: 'rgba(79,126,255,0.15)', color: '#93B4FF', padding: '1px 5px', borderRadius: 3, fontSize: 9 }}>HOY</span>
+                          )}
+                        </div>
+                      )}
+                      <SidePanelTarea
+                        task={t}
+                        dateKey={t.dateKey}
+                        onSetStatus={(dk, id, st) => { setStatus(dk, id, st) }}
+                        onDelete={(dk, id) => { deleteTask(dk, id) }}
+                        onMoveNext={(dk, id) => { moveToNextDay(dk, id) }}
+                      />
+                    </div>
+                  ))
+                )}
+              </>
+            )}
           </div>
 
-          {totalSelected > 0 && (
+          {tabPanel === 'eventos' && totalSelected > 0 && (
             <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
-              <button style={{ ...baseBtn(), flex: 1, justifyContent: 'center' }} onClick={abrirNuevo}>
+              <button style={{ ...baseBtn(), flex: 1, justifyContent: 'center' }} onClick={abrirNuevoEvento}>
                 <Plus size={13} /> Nuevo
               </button>
               {selectedPlazos.length > 0 && (
@@ -500,6 +668,29 @@ export default function Calendario() {
           evento={eventoEditando}
           onClose={() => { setModalEvento(false); setEventoEditando(null) }}
           onGuardar={handleGuardarEvento}
+        />
+      )}
+
+      {modalTarea && (
+        <ModalNuevaTarea
+          initialDate={modalTareaFecha}
+          onSave={(dateKey, data) => {
+            addTask(dateKey, data)
+            setModalTarea(false)
+            setToast('Tarea creada correctamente.')
+          }}
+          onClose={() => setModalTarea(false)}
+        />
+      )}
+
+      {detailTask && (
+        <ModalDetalleTarea
+          dateKey={detailTask.dateKey}
+          task={detailTask.task}
+          onClose={() => setDetailTask(null)}
+          onSetStatus={(k, id, st) => { setStatus(k, id, st); setDetailTask(null) }}
+          onDelete={(k, id) => { deleteTask(k, id); setDetailTask(null) }}
+          onMoveNext={(k, id) => { moveToNextDay(k, id); setDetailTask(null) }}
         />
       )}
     </div>

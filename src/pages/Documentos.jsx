@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Upload, Download, MoreHorizontal, Search, X } from 'lucide-react'
+import { FileText, Upload, Download, MoreHorizontal, Search, X, AlertCircle } from 'lucide-react'
 import Badge from '../components/Badge'
 import { useAuth } from '../contexts/AuthContext'
 import { getDocumentos, uploadDocumento, getDownloadUrl } from '../services/documentos'
 import { getExpedientes } from '../services/expedientes'
+import { expedientesFamilia } from '../data/mock'
 
 const EXT_COLORS = {
   pdf:  { bg: 'rgba(248,113,113,0.10)', color: '#FCA5A5', border: 'rgba(248,113,113,0.25)' },
@@ -20,7 +21,9 @@ function UploadModal({ expedientes, onClose, onUploaded, profile }) {
   const fileRef = useRef()
 
   async function handleUpload() {
-    if (!file || !expedienteId) { setError('Selecciona un archivo y un expediente.'); return }
+    if (!file && !expedienteId) { setError('Selecciona un archivo y un expediente.'); return }
+    if (!file) { setError('Selecciona un archivo para subir.'); return }
+    if (!expedienteId) { setError('Selecciona un expediente al que asociar el documento.'); return }
     setUploading(true)
     const { data, error: err } = await uploadDocumento({
       file,
@@ -100,17 +103,46 @@ export default function Documentos() {
   useEffect(() => {
     async function load() {
       const [docsRes, expRes] = await Promise.all([getDocumentos(), getExpedientes()])
-      setDocs(docsRes.data)
-      setExpedientes(expRes.data)
+      setDocs(docsRes.data ?? [])
+      // Si Supabase devuelve vacío, usar mock data como fallback
+      const expData = expRes.data ?? []
+      if (expData.length === 0) {
+        // Normalizar mock data al mismo formato que Supabase devuelve
+        const mockNorm = expedientesFamilia.map(e => ({
+          id: e.id,
+          ref: e.ref,
+          cliente: e.cliente,
+        }))
+        setExpedientes(mockNorm)
+      } else {
+        setExpedientes(expData)
+      }
       setLoading(false)
     }
     load()
   }, [])
 
   async function handleDownload(doc) {
-    const url = await getDownloadUrl(doc.storage_path)
-    if (url) window.open(url, '_blank')
+    // Si el doc tiene una URL en memoria (recién subido), usarla directamente
+    if (doc.url) {
+      window.open(doc.url, '_blank')
+      return
+    }
+    // Si tiene storage_path, obtener URL firmada de Supabase
+    if (doc.storage_path) {
+      const url = await getDownloadUrl(doc.storage_path)
+      if (url) { window.open(url, '_blank'); return }
+    }
+    // Doc sin URL real (mock o sin subir) — mostrar mensaje informativo
+    setToastInfo('Este documento es de demostración y no tiene archivo adjunto.')
   }
+
+  const [toastInfo, setToastInfo] = useState(null)
+  useEffect(() => {
+    if (!toastInfo) return
+    const t = setTimeout(() => setToastInfo(null), 3500)
+    return () => clearTimeout(t)
+  }, [toastInfo])
 
   const filtered = docs.filter(d => !q || d.nombre.toLowerCase().includes(q.toLowerCase()) || d.expedientes?.ref?.toLowerCase().includes(q.toLowerCase()))
 
@@ -199,6 +231,23 @@ export default function Documentos() {
           onClose={() => setShowModal(false)}
           onUploaded={d => setDocs(prev => [d, ...prev])}
         />
+      )}
+
+      {/* Toast informativo para docs sin archivo real */}
+      {toastInfo && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
+          background: 'var(--surface)', border: '1px solid rgba(251,191,36,0.4)',
+          borderRadius: 8, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', gap: 10,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        }}>
+          <AlertCircle size={16} color="#FBBF24" />
+          <span style={{ fontSize: 13, color: 'var(--text)' }}>{toastInfo}</span>
+          <button onClick={() => setToastInfo(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', marginLeft: 4 }}>
+            <X size={13} />
+          </button>
+        </div>
       )}
     </div>
   )

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Download, Plus, ChevronRight, MoreHorizontal, Sparkles, Upload, Heart, AlertTriangle } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import { useAuth } from '../contexts/AuthContext'
-import { getKPIs, getProximosPlazos, getActividad } from '../services/dashboard'
+import { getProximosPlazos, getActividad } from '../services/dashboard'
+import { storageService } from '../services/storageService'
 
 const ICON_MAP = {
   FileText: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>,
@@ -39,14 +40,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function load() {
-      const [k, p, a] = await Promise.all([
-        getKPIs(),
-        getProximosPlazos(5),
-        getActividad(7),
-      ])
-      setKpis(k)
-      setPlazos(p.data)
-      setActividad(a.data)
+      // KPIs desde localStorage
+      const expedientes  = storageService.getAll('expedientes')
+      const clientes     = storageService.getAll('clientes')
+      const documentos   = storageService.getAll('documentos')
+      const expActivos   = expedientes.filter(e => e.estado === 'activo' || e.estado === 'urgente').length
+      setKpis({
+        expedientesActivos: expActivos,
+        plazos:             0,
+        plazosCriticos:     0,
+        documentos:         documentos.length,
+        clientes:           clientes.filter(c => c.estado !== 'archivado').length,
+      })
+      // Plazos y actividad siguen usando Supabase pero con fallback a []
+      try {
+        const [p, a] = await Promise.all([getProximosPlazos(5), getActividad(7)])
+        setPlazos(p.data ?? [])
+        setActividad(a.data ?? [])
+      } catch {
+        setPlazos([])
+        setActividad([])
+      }
       setLoading(false)
     }
     load()

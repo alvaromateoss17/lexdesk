@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell, CheckCircle2, AlarmClock } from 'lucide-react'
 import { getPlazosMes } from '../services/plazos'
 import Modal from '../components/Modal'
-import { tiposEvento, abogadosDespacho } from '../data/mock'
+import { tiposEvento } from '../data/mock'
 import { useTareas } from '../store/tareasStore'
 import ModalNuevaTarea from '../components/tareas/ModalNuevaTarea'
 import ModalDetalleTarea from '../components/tareas/ModalDetalleTarea'
@@ -251,10 +251,7 @@ function ModalEvento({ evento, onClose, onGuardar }) {
           </div>
           <div>
             <Label>Abogado</Label>
-            <select value={form.abogado} onChange={e => set('abogado', e.target.value)} style={inputStyle}>
-              <option value="">Sin asignar</option>
-              {abogadosDespacho.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
-            </select>
+            <input value={form.abogado} onChange={e => set('abogado', e.target.value)} placeholder="Nombre del abogado (opcional)" style={inputStyle} />
           </div>
         </div>
 

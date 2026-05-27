@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Users, Search, Plus, CheckCircle, X, Upload } from 'lucide-react'
 import ImportarClientesModal from '../components/ImportarClientesModal'
 import ClienteCard from '../components/ClienteCard'
-import { abogadosDespacho } from '../data/mock'
-import { getClientes, createCliente } from '../services/clientes'
-import { useAuth } from '../contexts/AuthContext'
+import { storageService } from '../services/storageService'
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +92,7 @@ function ModalNuevoCliente({ onClose, onCrear }) {
     nombre: '', dni: '', fechaNacimiento: '', nacionalidad: 'Española',
     profesion: '', estadoCivil: 'Soltero/a',
     email: '', telefono: '', telefonoSecundario: '', direccion: '',
-    abogadoAsignado: abogadosDespacho[0]?.nombre ?? '',
+    abogadoAsignado: '',
     etiquetas: [], notaInicial: '',
   })
   const [errores, setErrores] = useState({})
@@ -201,9 +199,12 @@ function ModalNuevoCliente({ onClose, onCrear }) {
             <div style={sectionLabel}>Asignación</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Campo label="Abogado asignado *" error={errores.abogadoAsignado}>
-                <select value={form.abogadoAsignado} onChange={e => set('abogadoAsignado', e.target.value)} style={inStyle}>
-                  {abogadosDespacho.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
-                </select>
+                <input
+                  value={form.abogadoAsignado}
+                  onChange={e => set('abogadoAsignado', e.target.value)}
+                  style={inStyle}
+                  placeholder="Nombre del abogado responsable"
+                />
               </Campo>
               <div>
                 <label style={labelStyle}>Etiquetas</label>
@@ -250,7 +251,6 @@ function FilterSelect({ value, onChange, options, placeholder }) {
 
 export default function Clientes() {
   const nav = useNavigate()
-  const { profile } = useAuth()
   const [clientesState, setClientesState] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [filtroAbogado, setFiltroAbogado] = useState('')
@@ -259,13 +259,9 @@ export default function Clientes() {
   const [showModal, setShowModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [toast, setToast] = useState(null)
-  const [loadingClientes, setLoadingClientes] = useState(true)
 
   useEffect(() => {
-    getClientes().then(({ data }) => {
-      setClientesState(data ?? [])
-      setLoadingClientes(false)
-    })
+    setClientesState(storageService.getAll('clientes'))
   }, [])
 
   // KPIs
@@ -299,21 +295,9 @@ export default function Clientes() {
     nav(`/clientes/${cliente.id}`)
   }
 
-  async function handleCrearCliente(nuevo) {
-    const despachoId = profile?.despacho_id ?? profile?.despachos?.id
-    const { data, error } = await createCliente({
-      despachoId,
-      nombre: nuevo.nombre,
-      email: nuevo.email,
-      telefono: nuevo.telefono,
-      cif: nuevo.dni,
-    })
-    if (!error && data) {
-      setClientesState(prev => [...prev, data])
-    } else {
-      // fallback: añadir localmente aunque falle Supabase
-      setClientesState(prev => [...prev, nuevo])
-    }
+  function handleCrearCliente(nuevo) {
+    const guardado = storageService.create('clientes', nuevo)
+    setClientesState(prev => [...prev, guardado])
     setShowModal(false)
     setToast('Cliente creado correctamente')
   }
@@ -360,7 +344,7 @@ export default function Clientes() {
           />
         </div>
         <FilterSelect value={filtroAbogado} onChange={setFiltroAbogado} placeholder="Todos los abogados"
-          options={abogadosDespacho.map(a => ({ value: a.nombre, label: a.nombre }))} />
+          options={[...new Set(clientesState.map(c => c.abogadoAsignado).filter(Boolean))].map(a => ({ value: a, label: a }))} />
         <FilterSelect value={filtroEstado} onChange={setFiltroEstado} placeholder="Todos los estados"
           options={[{ value: 'activo', label: 'Activo' }, { value: 'archivado', label: 'Archivado' }]} />
         <FilterSelect value={filtroEtiqueta} onChange={setFiltroEtiqueta} placeholder="Todas las etiquetas"
@@ -401,9 +385,9 @@ export default function Clientes() {
         <ImportarClientesModal
           onClose={() => setShowImportModal(false)}
           clientesExistentes={clientesState}
-          profile={profile}
           onImportados={importados => {
-            setClientesState(prev => [...prev, ...importados])
+            const guardados = importados.map(c => storageService.create('clientes', c))
+            setClientesState(prev => [...prev, ...guardados])
             setToast(`Se importaron ${importados.length} clientes correctamente`)
           }}
         />

@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Pin, Sparkles, Upload, Clock, Download, MoreHorizontal, Filter, FileText, Send, Baby, Home, Car, Building } from 'lucide-react'
+import { ChevronLeft, Pin, Sparkles, Upload, Clock, Download, MoreHorizontal, Filter, FileText, Send, Baby, Home, Car, Building, ExternalLink } from 'lucide-react'
 import Badge from '../components/Badge'
 import AIPanel from '../components/AIPanel'
 import TimelineExpediente from '../components/TimelineExpediente'
-import { useAuth } from '../contexts/AuthContext'
-import { getExpediente } from '../services/expedientes'
-import { getDocumentosExpediente, uploadDocumento, getDownloadUrl } from '../services/documentos'
-import { getPlazosExpediente } from '../services/plazos'
+import { storageService } from '../services/storageService'
 import { formatCuantia } from '../utils/format'
 
 function KV({ label, value }) {
@@ -22,7 +19,6 @@ function KV({ label, value }) {
 export default function ExpedienteDetalle() {
   const { id }  = useParams()
   const nav     = useNavigate()
-  const { profile } = useAuth()
 
   const [exp,     setExp]     = useState(null)
   const [docs,    setDocs]    = useState([])
@@ -35,18 +31,14 @@ export default function ExpedienteDetalle() {
   const [uploading,  setUploading]  = useState(false)
 
   useEffect(() => {
-    async function load() {
-      const [expRes, docsRes, plazosRes] = await Promise.all([
-        getExpediente(id),
-        getDocumentosExpediente(id),
-        getPlazosExpediente(id),
-      ])
-      setExp(expRes.data)
-      setDocs(docsRes.data)
-      setPlazos(plazosRes.data)
-      setLoading(false)
-    }
-    load()
+    // Cargar expediente desde localStorage
+    const found = storageService.getById('expedientes', id)
+    setExp(found ?? null)
+    // Cargar documentos vinculados al expediente desde localStorage
+    const todosLosDocs = storageService.getAll('documentos')
+    setDocs(todosLosDocs.filter(d => String(d.expedienteId) === String(id)))
+    setPlazos([])
+    setLoading(false)
   }, [id])
 
   const handleSummarize = () => {
@@ -64,24 +56,38 @@ export default function ExpedienteDetalle() {
     }, 1500)
   }
 
-  async function handleUpload(e) {
+  function handleUpload(e) {
     const file = e.target.files?.[0]
-    if (!file || !profile?.despacho_id) return
+    if (!file) return
     setUploading(true)
-    const { data, error } = await uploadDocumento({
-      file,
+    const objectUrl = URL.createObjectURL(file)
+    const nuevoDoc = storageService.create('documentos', {
+      nombre:       file.name,
+      tipo:         file.name.split('.').pop().toLowerCase(),
+      tamano:       file.size,
+      size:         `${(file.size / 1024).toFixed(0)} KB`,
+      categoria:    'Documento',
       expedienteId: id,
-      despachoId:   profile.despacho_id,
-      subidoPorId:  profile.id,
-      tag:          'Documento',
+      clienteTexto: exp?.cliente ?? '',
+      fecha:        new Date().toISOString().split('T')[0],
+      url:          objectUrl,
     })
-    if (!error && data) setDocs(prev => [data, ...prev])
+    setDocs(prev => [nuevoDoc, ...prev])
     setUploading(false)
   }
 
-  async function handleDownload(doc) {
-    const url = await getDownloadUrl(doc.storage_path)
-    if (url) window.open(url, '_blank')
+  function handleDownload(doc) {
+    if (doc.url) {
+      const link = document.createElement('a')
+      link.href = doc.url
+      link.target = '_blank'
+      link.download = doc.nombre
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      alert(`El archivo "${doc.nombre}" fue registrado en otra sesión. Por favor, vuelve a subirlo.`)
+    }
   }
 
   const proximoPlazo = plazos.find(p => !p.completado)

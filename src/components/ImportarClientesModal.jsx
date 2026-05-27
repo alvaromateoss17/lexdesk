@@ -6,7 +6,7 @@ import {
   validarCliente, mapearFila,
   descargarPlantillaClientes,
 } from '../utils/importUtils'
-import { createCliente } from '../services/clientes'
+// Nota: importación directa a localStorage, no Supabase
 
 // ─── Estilos base ─────────────────────────────────────────────────────────────
 
@@ -416,24 +416,23 @@ export default function ImportarClientesModal({ onClose, onImportados, clientesE
     setPaso(3)
   }
 
-  async function handleImportar(datosClientes) {
+  function handleImportar(datosClientes) {
     setImportando(true)
-    const despachoId = profile?.despacho_id ?? profile?.despachos?.id
-    const importados = []
-
-    for (const datos of datosClientes) {
-      const nombre = [datos.nombre, datos.apellidos].filter(Boolean).join(' ')
-      const { data, error } = await createCliente({
-        despachoId,
-        nombre: nombre || datos.nombre || '',
-        email:   datos.email    || '',
+    const importados = datosClientes.map(datos => {
+      const nombre = [datos.nombre, datos.apellidos].filter(Boolean).join(' ') || datos.nombre || ''
+      return {
+        nombre,
+        email:    datos.email    || '',
         telefono: datos.telefono || '',
-        cif:     datos.dni      || '',
-      })
-      if (!error && data) importados.push(data)
-      else importados.push({ id: Date.now() + Math.random(), nombre, ...datos })
-    }
-
+        dni:      datos.dni      || '',
+        estado:   'activo',
+        etiquetas: [],
+        notas:    [],
+        pagos:    [],
+        documentos: [],
+        mensajes:   [],
+      }
+    })
     setImportando(false)
     onImportados(importados)
     onClose()

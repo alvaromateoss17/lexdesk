@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, User, Search, ChevronDown } from 'lucide-react';
-import { getClientes } from '../../services/clientes';
+import { storageService } from '../../services/storageService';
 
 function todayStr() {
   const d = new Date();
@@ -23,9 +23,9 @@ function ClienteSelector({ value, onChange }) {
   const [abierto,   setAbierto]   = useState(false);
   const ref = useRef(null);
 
-  // Cargar clientes una sola vez
+  // Cargar clientes desde localStorage
   useEffect(() => {
-    getClientes().then(({ data }) => setClientes(data ?? []));
+    setClientes(storageService.getAll('clientes'));
   }, []);
 
   // Cerrar al hacer clic fuera

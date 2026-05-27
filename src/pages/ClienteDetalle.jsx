@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { storageService } from '../services/storageService'
 import {
   ChevronRight, MoreHorizontal, Edit2, FolderPlus, MessageSquare, Archive,
   Phone, Mail, MapPin, Calendar, CreditCard, FileText, Lock, Plus,
@@ -409,7 +410,7 @@ function TabNotas({ notasIniciales, onToast }) {
     if (!texto.trim()) return
     const nueva = {
       id: Date.now(),
-      autor: 'Ana López',
+      autor: 'Yo',
       fecha: new Date().toISOString().split('T')[0],
       hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
       texto: texto.trim(),
@@ -554,14 +555,9 @@ export default function ClienteDetalle() {
   const [loadingCliente, setLoadingCliente] = useState(true)
 
   useEffect(() => {
-    // Carga el cliente desde Supabase por id
-    import('../services/clientes').then(({ getClientes }) => {
-      getClientes().then(({ data }) => {
-        const found = (data ?? []).find(c => String(c.id) === String(id))
-        setCliente(found ?? null)
-        setLoadingCliente(false)
-      })
-    })
+    const found = storageService.getById('clientes', id)
+    setCliente(found ?? null)
+    setLoadingCliente(false)
   }, [id])
 
   if (loadingCliente) {

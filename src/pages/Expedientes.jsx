@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, X, Eye, Pencil, Activity, Trash2, Upload, LayoutGrid, List, Clock, User } from 'lucide-react'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
-import { getExpedientes } from '../services/expedientes'
 import { tiposFamilia } from '../data/mock'
 import ImportarExpedientesModal from '../components/ImportarExpedientesModal'
-import { useAuth } from '../contexts/AuthContext'
+import { storageService } from '../services/storageService'
 
 const HUES = { L: 220, D: 270, P: 160, I: 30, M: 340, A: 200 }
 function AvatarMini({ name }) {
@@ -79,12 +78,14 @@ function ModalNuevoExpedienteFamilia({ onClose, onCrear }) {
       window.alert('El cliente y el tipo de procedimiento son obligatorios.')
       return
     }
+    const tipoLabel = tiposFamilia.find(t => t.valor === form.tipo)?.label ?? form.tipo
     const nuevoExp = {
       ...form,
-      id: Date.now(),
       ref: `EXP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
+      tipo: tipoLabel,
       juzgado: form.seccionTribunal,
       estado: form.estado,
+      ultMov: 'Hoy',
       ultimoMov: new Date().toISOString(),
       prioridad: 'normal',
     }
@@ -356,12 +357,11 @@ function ExpedienteCard({ exp, onVer, onEliminar }) {
 
 export default function Expedientes() {
   const nav = useNavigate()
-  const { profile } = useAuth()
   const [estado,        setEstado]        = useState('Todos')
   const [tipo,          setTipo]          = useState('Todos')
   const [q,             setQ]             = useState('')
   const [rows,          setRows]          = useState([])
-  const [loading,       setLoading]       = useState(true)
+  const [loading,       setLoading]       = useState(false)
   const [showModalFam,  setShowModalFam]  = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [toastMsg,      setToastMsg]      = useState('')
@@ -370,14 +370,23 @@ export default function Expedientes() {
     return saved !== 'tabla' // por defecto, cards
   })
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const { data } = await getExpedientes({ estado, tipo, q })
-    setRows(data ?? [])
-    setLoading(false)
+  // Carga desde localStorage y aplica filtros en cliente
+  useEffect(() => {
+    const todos = storageService.getAll('expedientes')
+    let filtrados = todos
+    if (estado && estado !== 'Todos') filtrados = filtrados.filter(r => r.estado?.toLowerCase() === estado.toLowerCase())
+    if (tipo   && tipo   !== 'Todos') filtrados = filtrados.filter(r => r.tipo?.toLowerCase().includes(tipo.toLowerCase()))
+    if (q) {
+      const lower = q.toLowerCase()
+      filtrados = filtrados.filter(r =>
+        r.ref?.toLowerCase().includes(lower) ||
+        r.cliente?.toLowerCase().includes(lower)
+      )
+    }
+    // Más recientes primero
+    filtrados.sort((a, b) => new Date(b.ultimoMov || b.creadoEn || 0) - new Date(a.ultimoMov || a.creadoEn || 0))
+    setRows(filtrados)
   }, [estado, tipo, q])
-
-  useEffect(() => { load() }, [load])
 
   function toggleVista(v) {
     setVistaCards(v)
@@ -451,7 +460,7 @@ export default function Expedientes() {
                 key={r.id}
                 exp={r}
                 onVer={exp => nav(`/expedientes/${exp.id}`)}
-                onEliminar={id => setRows(prev => prev.filter(x => x.id !== id))}
+                onEliminar={id => { storageService.delete('expedientes', id); setRows(prev => prev.filter(x => x.id !== id)) }}
               />
             ))}
           </div>
@@ -512,7 +521,8 @@ export default function Expedientes() {
         <ModalNuevoExpedienteFamilia
           onClose={() => setShowModalFam(false)}
           onCrear={nuevo => {
-            setRows(prev => [nuevo, ...prev])
+            const guardado = storageService.create('expedientes', nuevo)
+            setRows(prev => [guardado, ...prev])
             setToastMsg('Expediente creado correctamente.')
             setTimeout(() => setToastMsg(''), 3000)
           }}
@@ -522,9 +532,9 @@ export default function Expedientes() {
         <ImportarExpedientesModal
           onClose={() => setShowImportModal(false)}
           expedientesExistentes={rows}
-          profile={profile}
           onImportados={importados => {
-            setRows(prev => [...prev, ...importados])
+            const guardados = importados.map(e => storageService.create('expedientes', e))
+            setRows(prev => [...prev, ...guardados])
             setToastMsg(`Se importaron ${importados.length} expedientes correctamente`)
             setTimeout(() => setToastMsg(''), 3500)
           }}

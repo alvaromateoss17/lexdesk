@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell, CheckCircle2, AlarmClock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell, CheckCircle2, AlarmClock, Printer } from 'lucide-react'
 import { getPlazosMes } from '../services/plazos'
 import Modal from '../components/Modal'
-import { tiposEvento } from '../data/mock'
 import { useTareas } from '../store/tareasStore'
+import AutocompleteInput from '../components/AutocompleteInput'
+import { TIPOS_EVENTO, getColorEvento } from '../data/tiposEvento'
 import ModalNuevaTarea from '../components/tareas/ModalNuevaTarea'
 import ModalDetalleTarea from '../components/tareas/ModalDetalleTarea'
 
@@ -113,7 +114,7 @@ function SidePanelEvent({ plazo, onOpenExpediente }) {
 
 function SidePanelEvento({ evento, onEditar }) {
   const hex = evento.color || '#4F7EFF'
-  const tipoLabel = tiposEvento.find(t => t.valor === evento.tipo)?.label ?? evento.tipo
+  const tipoLabel = evento.tipo || '—'
   return (
     <div style={{ padding: 12, marginBottom: 8, border: `1px solid ${hex}40`, borderRadius: 6, background: `${hex}12` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -171,6 +172,15 @@ function SidePanelTarea({ task, dateKey, onSetStatus, onDelete, onMoveNext }) {
   )
 }
 
+const ABOGADO_DEFAULT = (() => {
+  try {
+    const config = JSON.parse(localStorage.getItem('vincla_configuracion') || '{}')
+    return config.nombreAbogado || config.nombre || 'Maribel González Hernández'
+  } catch {
+    return 'Maribel González Hernández'
+  }
+})()
+
 function ModalEvento({ evento, onClose, onGuardar }) {
   const isEdit = !!evento
   const fechaDefault = evento?.fecha ?? new Date().toISOString().slice(0, 10)
@@ -182,15 +192,14 @@ function ModalEvento({ evento, onClose, onGuardar }) {
     hora:         evento?.hora         ?? '',
     clienteNombre:evento?.cliente      ?? '',
     expedienteId: evento?.expedienteId ?? '',
-    abogado:      evento?.abogado      ?? '',
+    abogado:      evento?.abogado      ?? ABOGADO_DEFAULT,
     ubicacion:    evento?.ubicacion    ?? '',
     descripcion:  evento?.descripcion  ?? '',
     recordatorio: evento?.recordatorio ?? '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const tipoSeleccionado = tiposEvento.find(t => t.valor === form.tipo)
-  const colorEvento = tipoSeleccionado?.color ?? '#4F7EFF'
+  const colorEvento = getColorEvento(form.tipo)
 
   function handleGuardar() {
     if (!form.titulo.trim() || !form.tipo || !form.fecha) return
@@ -207,25 +216,19 @@ function ModalEvento({ evento, onClose, onGuardar }) {
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <Label>Tipo de evento *</Label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-            {tiposEvento.map(t => (
-              <button
-                key={t.valor}
-                onClick={() => set('tipo', t.valor)}
-                style={{
-                  padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  background: form.tipo === t.valor ? `${t.color}18` : 'var(--bg)',
-                  border: `1px solid ${form.tipo === t.valor ? t.color + '50' : 'var(--border-2)'}`,
-                  color: form.tipo === t.valor ? t.color : 'var(--text-2)',
-                  transition: 'all 0.1s',
-                }}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.color, flexShrink: 0 }} />
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <AutocompleteInput
+            value={form.tipo}
+            onChange={val => set('tipo', val)}
+            options={TIPOS_EVENTO}
+            placeholder="Ej: Vista Oral, Equipo Psicosocial, Ratificación..."
+            required={true}
+          />
+          {form.tipo && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: colorEvento, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{form.tipo}</span>
+            </div>
+          )}
         </div>
 
         <div>
@@ -400,6 +403,75 @@ export default function Calendario() {
     setSelected(1)
   }
 
+  function imprimirCalendario() {
+    const ventana = window.open('', '_blank')
+    if (!ventana) return
+
+    const nombreMes = new Date(year, month - 1, 1)
+      .toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+
+    const eventosMes = eventos.filter(ev => {
+      const f = new Date(ev.fecha + 'T00:00:00')
+      return f.getMonth() + 1 === month && f.getFullYear() === year
+    })
+
+    const evByDay = {}
+    eventosMes.forEach(ev => {
+      const d = new Date(ev.fecha + 'T00:00:00').getDate()
+      if (!evByDay[d]) evByDay[d] = []
+      evByDay[d].push(ev)
+    })
+    const plazByDay = {}
+    plazos.forEach(p => {
+      const d = new Date(p.fecha + 'T00:00:00').getDate()
+      if (!plazByDay[d]) plazByDay[d] = []
+      plazByDay[d].push(p)
+    })
+
+    ventana.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Calendario — ${nombreMes}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Arial, sans-serif; padding: 20px; color: #000; }
+    h1 { text-align:center; font-size:18px; margin-bottom:16px; text-transform:capitalize; }
+    .despacho { text-align:center; font-size:10px; color:#666; margin-bottom:8px; }
+    .grid { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:#ccc; border:1px solid #ccc; }
+    .dia-header { background:#f0f0f0; padding:6px; text-align:center; font-size:11px; font-weight:bold; }
+    .dia { background:#fff; min-height:80px; padding:4px; vertical-align:top; }
+    .dia-otro-mes { background:#f9f9f9; }
+    .dia-otro-mes .dia-num { color:#bbb; }
+    .dia-num { font-size:11px; font-weight:bold; margin-bottom:4px; }
+    .evento { font-size:9px; padding:1px 3px; border-radius:2px; margin-bottom:1px;
+              background:#e8e8e8; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    @media print { body { padding:10px; } }
+  </style>
+</head>
+<body>
+  <div class="despacho">Despacho de Abogados — ${ABOGADO_DEFAULT}</div>
+  <h1>Calendario — ${nombreMes}</h1>
+  <div class="grid">
+    ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => `<div class="dia-header">${d}</div>`).join('')}
+    ${cells.map(c => `
+      <div class="dia ${c.other ? 'dia-otro-mes' : ''}">
+        <div class="dia-num">${c.day}</div>
+        ${c.other ? '' : [
+          ...(plazByDay[c.day] || []).map(p => `<div class="evento" title="${p.tipo}">${p.tipo}</div>`),
+          ...(evByDay[c.day] || []).map(ev => `<div class="evento" title="${ev.titulo}">${ev.titulo}</div>`),
+        ].join('')}
+      </div>
+    `).join('')}
+  </div>
+</body>
+</html>`)
+
+    ventana.document.close()
+    ventana.focus()
+    setTimeout(() => { ventana.print() }, 500)
+  }
+
   function abrirNuevoEvento() {
     setEventoEditando(null)
     setModalEvento(true)
@@ -499,6 +571,7 @@ export default function Calendario() {
           <div className="serif" style={{ fontSize: 17, padding: '0 6px', letterSpacing: '-0.005em', minWidth: 160, textAlign: 'center' }}>{MESES_LARGO[month - 1]} {year}</div>
           <button style={iconBtn} onClick={nextMonth}><ChevronRight size={14} /></button>
           <button style={baseBtn()} onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth() + 1); setSelected(today.getDate()) }}>Hoy</button>
+          <button style={baseBtn()} onClick={imprimirCalendario}><Printer size={14} /> Imprimir</button>
           <button style={baseBtn()} onClick={() => { setModalTareaFecha(null); setModalTarea(true) }}><Plus size={14} /> Nueva tarea</button>
           <button style={baseBtn(true)} onClick={abrirNuevoEvento}><Plus size={14} /> Nuevo evento</button>
         </div>

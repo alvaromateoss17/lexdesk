@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Upload, Download, MoreHorizontal, Search, X, ExternalLink } from 'lucide-react'
+import { FileText, Upload, Download, Search, X, Eye } from 'lucide-react'
 import Badge from '../components/Badge'
 import { storageService } from '../services/storageService'
 
@@ -18,10 +18,22 @@ function UploadModal({ onClose, onUploaded }) {
   const [error,         setError]         = useState('')
   const fileRef = useRef()
 
-  function handleUpload() {
+  async function handleUpload() {
     if (!file) { setError('Selecciona un archivo para subir.'); return }
 
-    const objectUrl = URL.createObjectURL(file)
+    const MAX_SIZE = 5 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      setError('El archivo es demasiado grande. Máximo 5MB.')
+      return
+    }
+
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
     const nuevoDoc = storageService.create('documentos', {
       nombre:        file.name,
       tipo:          file.name.split('.').pop().toLowerCase(),
@@ -32,7 +44,7 @@ function UploadModal({ onClose, onUploaded }) {
       expedienteId:  null,
       fecha:         new Date().toLocaleDateString('es-ES'),
       subidoPor:     'Yo',
-      url:           objectUrl,
+      contenido:     base64,
     })
     onUploaded(nuevoDoc)
     onClose()
@@ -113,18 +125,29 @@ export default function Documentos() {
   }, [])
 
   function handleAbrir(doc) {
-    if (doc.url) {
-      const link = document.createElement('a')
-      link.href = doc.url
-      link.target = '_blank'
-      link.download = doc.nombre
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } else {
-      setToast(`El archivo "${doc.nombre}" fue registrado en otra sesión. Vuelve a subirlo para abrirlo.`)
+    if (!doc.contenido) {
+      setToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para abrirlo.`)
       setTimeout(() => setToast(null), 4000)
+      return
     }
+    const ventana = window.open()
+    if (!ventana) return
+    ventana.document.write(`<html><head><title>${doc.nombre}</title></head><body style="margin:0;padding:0;background:#000;"><iframe src="${doc.contenido}" style="width:100%;height:100vh;border:none;" /></body></html>`)
+    ventana.document.close()
+  }
+
+  function handleDescargar(doc) {
+    if (!doc.contenido) {
+      setToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para descargarlo.`)
+      setTimeout(() => setToast(null), 4000)
+      return
+    }
+    const link = document.createElement('a')
+    link.href = doc.contenido
+    link.download = doc.nombre
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const filtered = docs.filter(d =>
@@ -208,13 +231,23 @@ export default function Documentos() {
                   <td style={td}><span style={{ color: 'var(--text-2)', fontSize: 12 }}>{d.size}</span></td>
                   <td style={td}><span style={{ color: 'var(--text-2)', fontSize: 12 }}>{d.fecha}</span></td>
                   <td style={td}>
-                    <div style={{ display: 'flex', gap: 4 }}>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      {!d.contenido && (
+                        <span style={{ fontSize: 11, color: '#F59E0B', marginRight: 4 }} title="Archivo no disponible — vuelve a subirlo">⚠️</span>
+                      )}
                       <button
-                        style={{ ...iconBtn, color: d.url ? 'var(--blue)' : 'var(--text-3)' }}
+                        style={{ ...iconBtn, color: d.contenido ? 'var(--blue)' : 'var(--text-3)' }}
                         onClick={e => { e.stopPropagation(); handleAbrir(d) }}
-                        title="Abrir documento"
+                        title="Ver documento"
                       >
-                        <ExternalLink size={14} />
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        style={{ ...iconBtn, color: d.contenido ? '#10B981' : 'var(--text-3)' }}
+                        onClick={e => { e.stopPropagation(); handleDescargar(d) }}
+                        title="Descargar"
+                      >
+                        <Download size={14} />
                       </button>
                     </div>
                   </td>

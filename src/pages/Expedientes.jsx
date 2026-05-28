@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, X, Eye, Pencil, Activity, Trash2, Upload, LayoutGrid, List, Clock, User } from 'lucide-react'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
-import { tiposFamilia } from '../data/mock'
 import ImportarExpedientesModal from '../components/ImportarExpedientesModal'
+import AutocompleteInput from '../components/AutocompleteInput'
+import { TIPOS_EXPEDIENTE } from '../data/tiposExpediente'
 import { storageService } from '../services/storageService'
 
 const HUES = { L: 220, D: 270, P: 160, I: 30, M: 340, A: 200 }
@@ -77,7 +78,7 @@ function ModalNuevoExpedienteFamilia({ onClose, onCrear }) {
       window.alert('El cliente y el tipo de procedimiento son obligatorios.')
       return
     }
-    const tipoLabel = tiposFamilia.find(t => t.valor === form.tipo)?.label ?? form.tipo
+    const tipoLabel = form.tipo
     const nuevoExp = {
       ...form,
       ref: `EXP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
@@ -110,10 +111,13 @@ function ModalNuevoExpedienteFamilia({ onClose, onCrear }) {
             </div>
             <div>
               <Label>Tipo de procedimiento *</Label>
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)} style={inputStyle}>
-                <option value="">Seleccionar...</option>
-                {tiposFamilia.map(t => <option key={t.valor} value={t.valor}>{t.label}</option>)}
-              </select>
+              <AutocompleteInput
+                value={form.tipo}
+                onChange={val => set('tipo', val)}
+                options={TIPOS_EXPEDIENTE}
+                placeholder="Ej: Divorcio, Guarda y Custodia..."
+                required={true}
+              />
             </div>
             <div>
               <Label>Estado *</Label>

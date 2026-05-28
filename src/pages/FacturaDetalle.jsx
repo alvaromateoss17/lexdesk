@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Download, Send, Pencil, CheckCircle2, Clock, AlertCircle, Ban, Receipt } from 'lucide-react'
 import FacturaForm from '../components/FacturaForm'
+import { descargarPDFFactura } from './Facturacion'
 
 const ESTADO_MAP = {
   borrador: { label: 'Borrador',  color: 'var(--text-2)',  bg: 'rgba(138,138,138,0.12)', border: 'var(--border)',           icon: Clock },
@@ -27,7 +28,23 @@ export default function FacturaDetalle() {
   const [facturas, setFacturas] = useState([])
   const [editando, setEditando] = useState(false)
 
-  const factura = facturas.find(f => String(f.id) === id)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('vincla_facturas')
+      if (raw) setFacturas(JSON.parse(raw))
+    } catch { /* noop */ }
+  }, [])
+
+  function persistirCambio(nuevaFactura) {
+    try {
+      const todas = JSON.parse(localStorage.getItem('vincla_facturas') || '[]')
+      const actualizadas = todas.map(f => String(f.id) === String(nuevaFactura.id) ? nuevaFactura : f)
+      localStorage.setItem('vincla_facturas', JSON.stringify(actualizadas))
+      setFacturas(actualizadas)
+    } catch { /* noop */ }
+  }
+
+  const factura = facturas.find(f => String(f.id) === String(id))
 
   if (!factura) {
     return (
@@ -42,7 +59,7 @@ export default function FacturaDetalle() {
   }
 
   function handleGuardar(data) {
-    setFacturas(fs => fs.map(f => f.id === data.id ? data : f))
+    persistirCambio(data)
     setEditando(false)
   }
 
@@ -66,11 +83,10 @@ export default function FacturaDetalle() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={btn()} onClick={() => setEditando(true)}><Pencil size={13} /> Editar</button>
-          <button style={btn()}><Download size={13} /> PDF</button>
-          <button style={btn()}><Send size={13} /> Enviar</button>
+          <button style={btn()} onClick={() => descargarPDFFactura(factura)}><Download size={13} /> PDF</button>
           {factura.estado === 'emitida' && (
             <button
-              onClick={() => setFacturas(fs => fs.map(f => f.id === factura.id ? { ...f, estado: 'cobrada' } : f))}
+              onClick={() => persistirCambio({ ...factura, estado: 'cobrada' })}
               style={btn(true)}
             >
               <CheckCircle2 size={13} /> Marcar cobrada
@@ -183,7 +199,7 @@ export default function FacturaDetalle() {
             )}
             {(factura.estado === 'emitida' || factura.estado === 'vencida') && (
               <button
-                onClick={() => setFacturas(fs => fs.map(f => f.id === factura.id ? { ...f, estado: 'cobrada', fechaCobro: new Date().toISOString().slice(0, 10) } : f))}
+                onClick={() => persistirCambio({ ...factura, estado: 'cobrada', fechaCobro: new Date().toISOString().slice(0, 10) })}
                 style={{ ...btn(true), marginTop: 12, width: '100%', justifyContent: 'center' }}
               >
                 <CheckCircle2 size={13} /> Registrar cobro
@@ -209,11 +225,10 @@ export default function FacturaDetalle() {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, boxShadow: 'var(--shadow-sm)' }}>
             <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Acciones</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <button style={{ ...btn(), width: '100%', justifyContent: 'flex-start' }}><Download size={13} /> Descargar PDF</button>
-              <button style={{ ...btn(), width: '100%', justifyContent: 'flex-start' }}><Send size={13} /> Enviar por email</button>
+              <button onClick={() => descargarPDFFactura(factura)} style={{ ...btn(), width: '100%', justifyContent: 'flex-start' }}><Download size={13} /> Descargar PDF</button>
               {factura.estado !== 'anulada' && (
                 <button
-                  onClick={() => setFacturas(fs => fs.map(f => f.id === factura.id ? { ...f, estado: 'anulada' } : f))}
+                  onClick={() => persistirCambio({ ...factura, estado: 'anulada' })}
                   style={{ ...btn(), width: '100%', justifyContent: 'flex-start', color: 'var(--red)', borderColor: 'rgba(248,113,113,0.3)' }}
                 >
                   <Ban size={13} /> Anular factura

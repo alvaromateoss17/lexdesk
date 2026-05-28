@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, ChevronDown, Check, MoreHorizontal, Eye, Pencil, Download, Send, X, Trash2 } from 'lucide-react'
+import { Search, ChevronDown, Check, MoreHorizontal, Eye, Pencil, Download, X, Trash2, Copy, Archive, CheckCircle, AlertCircle, Send } from 'lucide-react'
 
 const ESTADO_MAP = {
   borrador: { bg: 'rgba(138,138,138,0.12)', color: 'var(--text-2)',  border: 'var(--border)', label: 'Borrador' },
@@ -47,7 +47,7 @@ function FilterChip({ label, value, options, onChange }) {
   )
 }
 
-function AccionesFact({ factura, onEditar, onEliminar }) {
+function AccionesFact({ factura, onEditar, onEliminar, onCambiarEstado, onDuplicar, onArchivar, onDescargarPDF }) {
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -60,11 +60,17 @@ function AccionesFact({ factura, onEditar, onEliminar }) {
   }, [open])
 
   const acciones = [
-    { icon: Eye,      label: 'Ver detalle',     onClick: () => nav(`/facturacion/${factura.id}`) },
-    { icon: Pencil,   label: 'Editar',           onClick: () => onEditar(factura) },
-    { icon: Download, label: 'Descargar PDF',    onClick: () => nav(`/facturacion/${factura.id}`) },
-    { icon: Send,     label: 'Enviar por email', onClick: () => {} },
-    { icon: Trash2,   label: 'Eliminar',         onClick: () => onEliminar(factura.id), danger: true },
+    { icon: Eye,    label: 'Ver detalle', onClick: () => nav(`/facturacion/${factura.id}`) },
+    { icon: Pencil, label: 'Editar',      onClick: () => onEditar(factura), disabled: factura.estado === 'cobrada' },
+    ...(factura.estado === 'borrador' ? [{ icon: Send,          label: 'Marcar como emitida',  onClick: () => onCambiarEstado(factura.id, 'emitida'),  color: '#93B4FF' }] : []),
+    ...(['emitida','vencida'].includes(factura.estado) ? [{ icon: CheckCircle, label: 'Marcar como cobrada', onClick: () => onCambiarEstado(factura.id, 'cobrada'), color: '#6EE7B7' }] : []),
+    ...(factura.estado === 'emitida' ? [{ icon: AlertCircle, label: 'Marcar como vencida',  onClick: () => onCambiarEstado(factura.id, 'vencida'), color: '#FBBF24' }] : []),
+    { separador: true },
+    { icon: Copy,     label: 'Duplicar',       onClick: () => onDuplicar(factura) },
+    { icon: Download, label: 'Descargar PDF',  onClick: () => onDescargarPDF(factura) },
+    { separador: true },
+    { icon: Archive, label: factura.archivada ? 'Desarchivar' : 'Archivar', onClick: () => onArchivar(factura.id, !factura.archivada) },
+    { icon: Trash2,  label: 'Eliminar', onClick: () => onEliminar(factura.id), danger: true },
   ]
 
   return (
@@ -76,23 +82,28 @@ function AccionesFact({ factura, onEditar, onEliminar }) {
         <MoreHorizontal size={15} />
       </button>
       {open && (
-        <div style={{ position: 'absolute', right: 0, top: 34, zIndex: 100, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-md)', padding: 4, minWidth: 185 }}>
-          {acciones.map((a, i) => (
-            <div key={i} onClick={e => { e.stopPropagation(); setOpen(false); a.onClick() }}
-              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px', borderRadius: 5, cursor: 'pointer', fontSize: 13, color: a.danger ? 'var(--red)' : 'var(--text)' }}
-              onMouseEnter={e => e.currentTarget.style.background = a.danger ? 'rgba(248,113,113,0.08)' : 'var(--surface-2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <a.icon size={13} strokeWidth={1.5} />
-              {a.label}
-            </div>
-          ))}
+        <div style={{ position: 'absolute', right: 0, top: 34, zIndex: 100, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-md)', padding: 4, minWidth: 200 }}>
+          {acciones.map((a, i) => {
+            if (a.separador) return <div key={i} style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+            return (
+              <div key={i}
+                onClick={e => { if (a.disabled) return; e.stopPropagation(); setOpen(false); a.onClick() }}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px', borderRadius: 5, cursor: a.disabled ? 'not-allowed' : 'pointer', fontSize: 13, color: a.danger ? 'var(--red)' : a.color || 'var(--text)', opacity: a.disabled ? 0.4 : 1 }}
+                onMouseEnter={e => { if (!a.disabled) e.currentTarget.style.background = a.danger ? 'rgba(248,113,113,0.08)' : 'var(--surface-2)' }}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <a.icon size={13} strokeWidth={1.5} />
+                {a.label}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
-export default function TablaFacturas({ facturas, onEditar, onEliminar, showFilters = true }) {
+export default function TablaFacturas({ facturas, onEditar, onEliminar, onCambiarEstado, onDuplicar, onArchivar, onDescargarPDF, showFilters = true }) {
   const nav = useNavigate()
   const [q,      setQ]      = useState('')
   const [estado, setEstado] = useState('Todos')
@@ -167,7 +178,7 @@ export default function TablaFacturas({ facturas, onEditar, onEliminar, showFilt
                 </td>
                 <td style={td}><EstadoBadge estado={f.estado} /></td>
                 <td style={{ ...td, width: 40 }} onClick={e => e.stopPropagation()}>
-                  <AccionesFact factura={f} onEditar={onEditar} onEliminar={onEliminar} />
+                  <AccionesFact factura={f} onEditar={onEditar} onEliminar={onEliminar} onCambiarEstado={onCambiarEstado} onDuplicar={onDuplicar} onArchivar={onArchivar} onDescargarPDF={onDescargarPDF} />
                 </td>
               </tr>
             ))}

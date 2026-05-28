@@ -145,7 +145,17 @@ function SidePanelTarea({ task, dateKey, onSetStatus, onDelete, onMoveNext }) {
           {PRIORIDAD_LABEL[task.prioridad] ?? 'Media'}
         </span>
       </div>
-      {task.desc && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>{task.desc}</div>}
+      {task.desc && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>{task.desc}</div>}
+      {task.tipoRelacion && task.relacionNombre && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11,
+          padding: '2px 7px', borderRadius: 4, marginBottom: 6,
+          background: task.tipoRelacion === 'cliente' ? 'rgba(79,126,255,0.12)' : task.tipoRelacion === 'empleado' ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+          color: task.tipoRelacion === 'cliente' ? '#93B4FF' : task.tipoRelacion === 'empleado' ? '#6EE7B7' : '#FCD34D',
+        }}>
+          {task.tipoRelacion === 'cliente' ? '👤' : task.tipoRelacion === 'empleado' ? '🧑‍💼' : '🏢'} {task.relacionNombre}
+        </div>
+      )}
       {task.autoMovida && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#F59E0B', marginBottom: 8 }}>
           <AlarmClock size={11} />
@@ -410,17 +420,16 @@ export default function Calendario() {
     const nombreMes = new Date(year, month - 1, 1)
       .toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
 
-    const eventosMes = eventos.filter(ev => {
+    const evByDay = {}
+    eventos.filter(ev => {
       const f = new Date(ev.fecha + 'T00:00:00')
       return f.getMonth() + 1 === month && f.getFullYear() === year
-    })
-
-    const evByDay = {}
-    eventosMes.forEach(ev => {
+    }).forEach(ev => {
       const d = new Date(ev.fecha + 'T00:00:00').getDate()
       if (!evByDay[d]) evByDay[d] = []
       evByDay[d].push(ev)
     })
+
     const plazByDay = {}
     plazos.forEach(p => {
       const d = new Date(p.fecha + 'T00:00:00').getDate()
@@ -428,38 +437,65 @@ export default function Calendario() {
       plazByDay[d].push(p)
     })
 
+    // Tareas del mes actual
+    const tarByDay = {}
+    Object.entries(tasks).forEach(([dateKey, lista]) => {
+      const d = new Date(dateKey + 'T00:00:00')
+      if (d.getFullYear() === year && d.getMonth() + 1 === month) {
+        const dia = d.getDate()
+        const pendientes = lista.filter(t => t.status !== 'done')
+        if (pendientes.length > 0) tarByDay[dia] = pendientes
+      }
+    })
+
     ventana.document.write(`<!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Calendario — ${nombreMes}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: Arial, sans-serif; padding: 20px; color: #000; }
-    h1 { text-align:center; font-size:18px; margin-bottom:16px; text-transform:capitalize; }
-    .despacho { text-align:center; font-size:10px; color:#666; margin-bottom:8px; }
-    .grid { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:#ccc; border:1px solid #ccc; }
-    .dia-header { background:#f0f0f0; padding:6px; text-align:center; font-size:11px; font-weight:bold; }
-    .dia { background:#fff; min-height:80px; padding:4px; vertical-align:top; }
+    body { font-family: Arial, sans-serif; padding: 15px; color: #000; font-size: 11px; }
+    .cabecera { text-align:center; margin-bottom:10px; }
+    .cabecera h1 { font-size:16px; text-transform:capitalize; }
+    .cabecera p { font-size:10px; color:#555; margin-top:2px; }
+    .leyenda { display:flex; gap:14px; justify-content:center; margin-bottom:8px; font-size:10px; }
+    .leyenda-item { display:flex; align-items:center; gap:4px; }
+    .dot { width:7px; height:7px; border-radius:50%; }
+    .grid { display:grid; grid-template-columns:repeat(7,1fr); border-top:1px solid #ccc; border-left:1px solid #ccc; }
+    .dia-header { background:#f0f0f0; padding:5px; text-align:center; font-size:10px; font-weight:bold; border-right:1px solid #ccc; border-bottom:1px solid #ccc; }
+    .dia { background:#fff; min-height:80px; padding:4px; border-right:1px solid #ccc; border-bottom:1px solid #ccc; }
     .dia-otro-mes { background:#f9f9f9; }
-    .dia-otro-mes .dia-num { color:#bbb; }
-    .dia-num { font-size:11px; font-weight:bold; margin-bottom:4px; }
-    .evento { font-size:9px; padding:1px 3px; border-radius:2px; margin-bottom:1px;
-              background:#e8e8e8; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-    @media print { body { padding:10px; } }
+    .dia-otro-mes .dia-num { color:#ccc; }
+    .dia-num { font-size:11px; font-weight:bold; margin-bottom:3px; }
+    .item { font-size:8px; padding:1px 3px; border-radius:2px; margin-bottom:1px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .item-evento { background:#dbeafe; color:#1e40af; }
+    .item-plazo { background:#fef3c7; color:#92400e; }
+    .item-tarea { background:#dcfce7; color:#166534; }
+    .item-tarea-alta { background:#fee2e2; color:#991b1b; }
+    @media print { body { padding:5px; } }
   </style>
 </head>
 <body>
-  <div class="despacho">Despacho de Abogados — ${ABOGADO_DEFAULT}</div>
-  <h1>Calendario — ${nombreMes}</h1>
+  <div class="cabecera">
+    <h1>Calendario y Tareas — ${nombreMes}</h1>
+    <p>Despacho de Abogados · ${ABOGADO_DEFAULT}</p>
+  </div>
+  <div class="leyenda">
+    <div class="leyenda-item"><div class="dot" style="background:#3b82f6"></div> Evento</div>
+    <div class="leyenda-item"><div class="dot" style="background:#f59e0b"></div> Plazo</div>
+    <div class="leyenda-item"><div class="dot" style="background:#22c55e"></div> Tarea</div>
+    <div class="leyenda-item"><div class="dot" style="background:#ef4444"></div> Tarea urgente</div>
+  </div>
   <div class="grid">
     ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => `<div class="dia-header">${d}</div>`).join('')}
     ${cells.map(c => `
       <div class="dia ${c.other ? 'dia-otro-mes' : ''}">
         <div class="dia-num">${c.day}</div>
         ${c.other ? '' : [
-          ...(plazByDay[c.day] || []).map(p => `<div class="evento" title="${p.tipo}">${p.tipo}</div>`),
-          ...(evByDay[c.day] || []).map(ev => `<div class="evento" title="${ev.titulo}">${ev.titulo}</div>`),
+          ...(plazByDay[c.day] || []).map(p => `<div class="item item-plazo" title="${p.tipo}">${p.tipo}</div>`),
+          ...(evByDay[c.day] || []).map(ev => `<div class="item item-evento" title="${ev.titulo}">${ev.hora ? ev.hora + ' ' : ''}${ev.titulo}</div>`),
+          ...(tarByDay[c.day] || []).map(t => `<div class="item ${t.prioridad === 'alta' ? 'item-tarea-alta' : 'item-tarea'}" title="${t.text}">✓ ${t.text}</div>`),
         ].join('')}
       </div>
     `).join('')}

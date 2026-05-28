@@ -1,119 +1,63 @@
 import { useState } from 'react'
-import { Plus, X, ChevronDown, Check } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import Modal from './Modal'
-import { seriesFacturacion, conceptosFacturables, abogadosDespacho } from '../data/mock'
+import AutocompleteInput from './AutocompleteInput'
+import { SERIES_FACTURA, generarNumeroFactura } from '../data/seriesFactura'
+import { CONCEPTOS_FACTURA } from '../data/conceptosFactura'
 
 const IVA_OPCIONES = [0, 4, 10, 21]
 
-function Select({ value, onChange, options, placeholder }) {
-  const [open, setOpen] = useState(false)
-  const selected = options.find(o => o.value === value)
-  return (
-    <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen(o => !o)} style={{ ...inputStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}>
-        <span style={{ color: selected ? 'var(--text)' : 'var(--text-3)' }}>
-          {selected ? selected.label : placeholder}
-        </span>
-        <ChevronDown size={13} style={{ color: 'var(--text-2)', flexShrink: 0 }} />
-      </button>
-      {open && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 200 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'absolute', top: 38, left: 0, right: 0, zIndex: 201, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-md)', padding: 4, maxHeight: 240, overflowY: 'auto' }}>
-            {options.map(o => (
-              <div
-                key={o.value}
-                onClick={() => { onChange(o.value); setOpen(false) }}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 5, cursor: 'pointer', fontSize: 13, color: 'var(--text)', background: o.value === value ? 'var(--surface-2)' : 'transparent' }}
-                onMouseEnter={e => { if (o.value !== value) e.currentTarget.style.background = 'var(--surface-2)' }}
-                onMouseLeave={e => { if (o.value !== value) e.currentTarget.style.background = 'transparent' }}
-              >
-                {o.value === value && <Check size={12} style={{ color: 'var(--blue)', flexShrink: 0 }} />}
-                {o.value !== value && <span style={{ width: 12, flexShrink: 0 }} />}
-                <div>
-                  <div>{o.label}</div>
-                  {o.sublabel && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{o.sublabel}</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
+const ABOGADO_DEFAULT = (() => {
+  try {
+    const c = JSON.parse(localStorage.getItem('vincla_configuracion') || '{}')
+    return c.nombreAbogado || c.nombre || 'Maribel González Hernández'
+  } catch { return 'Maribel González Hernández' }
+})()
 
 function LineaRow({ linea, idx, onChange, onRemove, isLast }) {
-  const concepto = conceptosFacturables.find(c => c.id === linea.conceptoId)
-
-  function handleConcepto(id) {
-    const c = conceptosFacturables.find(x => x.id === id)
-    onChange(idx, {
-      conceptoId: id,
-      descripcion: c?.descripcion ?? '',
-      precioUnit: c?.precioBase ?? 0,
-      cantidad: linea.cantidad,
-      iva: c?.iva ?? 21,
-    })
-  }
-
-  const base    = (linea.precioUnit || 0) * (linea.cantidad || 1)
-  const ivaAmt  = base * (linea.iva || 0) / 100
-  const total   = base + ivaAmt
+  const base   = (linea.precioUnit || 0) * (linea.cantidad || 1)
+  const ivaAmt = base * (linea.iva || 0) / 100
+  const total  = base + ivaAmt
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 70px 90px 28px', gap: 8, alignItems: 'center', borderBottom: isLast ? 0 : '1px solid var(--border)', paddingBottom: isLast ? 0 : 10, marginBottom: isLast ? 0 : 10 }}>
-      {/* Concepto */}
-      <div>
-        <select
-          value={linea.conceptoId ?? ''}
-          onChange={e => handleConcepto(Number(e.target.value))}
-          style={{ ...inputStyle, height: 32 }}
-        >
-          <option value="">Concepto libre…</option>
-          {conceptosFacturables.map(c => (
-            <option key={c.id} value={c.id}>{c.descripcion}</option>
-          ))}
-        </select>
-        {!linea.conceptoId && (
-          <input
-            value={linea.descripcion}
-            onChange={e => onChange(idx, { ...linea, descripcion: e.target.value })}
-            placeholder="Descripción personalizada"
-            style={{ ...inputStyle, height: 28, marginTop: 4, fontSize: 12 }}
-          />
-        )}
-      </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 70px 80px 28px', gap: 8, alignItems: 'start', borderBottom: isLast ? 0 : '1px solid var(--border)', paddingBottom: isLast ? 0 : 12, marginBottom: isLast ? 0 : 12 }}>
+      {/* Concepto — AutocompleteInput */}
+      <AutocompleteInput
+        value={linea.descripcion}
+        onChange={val => onChange(idx, { ...linea, descripcion: val })}
+        options={CONCEPTOS_FACTURA}
+        placeholder="Concepto o descripción..."
+      />
       {/* Cantidad */}
       <input
         type="number" min={1}
         value={linea.cantidad}
-        onChange={e => onChange(idx, { ...linea, cantidad: Number(e.target.value) })}
-        style={{ ...inputStyle, height: 32, textAlign: 'right' }}
+        onChange={e => onChange(idx, { ...linea, cantidad: Number(e.target.value) || 1 })}
+        style={{ ...inputStyle, height: 34, textAlign: 'right' }}
       />
       {/* Precio unit */}
       <input
         type="number" min={0} step={0.01}
         value={linea.precioUnit}
         onChange={e => onChange(idx, { ...linea, precioUnit: parseFloat(e.target.value) || 0 })}
-        style={{ ...inputStyle, height: 32, textAlign: 'right' }}
+        style={{ ...inputStyle, height: 34, textAlign: 'right' }}
       />
       {/* IVA */}
       <select
         value={linea.iva}
         onChange={e => onChange(idx, { ...linea, iva: Number(e.target.value) })}
-        style={{ ...inputStyle, height: 32 }}
+        style={{ ...inputStyle, height: 34 }}
       >
         {IVA_OPCIONES.map(p => <option key={p} value={p}>{p}%</option>)}
       </select>
       {/* Total */}
-      <div style={{ fontSize: 13, fontWeight: 500, textAlign: 'right', color: 'var(--text)' }}>
+      <div style={{ fontSize: 13, fontWeight: 500, textAlign: 'right', color: 'var(--text)', paddingTop: 8 }}>
         {total.toFixed(2)} €
       </div>
       {/* Remove */}
       <button
         onClick={() => onRemove(idx)}
-        style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid transparent', color: 'var(--text-3)', cursor: 'pointer' }}
+        style={{ width: 28, height: 34, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid transparent', color: 'var(--text-3)', cursor: 'pointer' }}
         onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)' }}
         onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.borderColor = 'transparent' }}
       >
@@ -126,33 +70,32 @@ function LineaRow({ linea, idx, onChange, onRemove, isLast }) {
 export default function FacturaForm({ factura, onClose, onGuardar }) {
   const isEdit = !!factura
 
-  const nextNum = (seriesFacturacion[0]?.ultimoNumero ?? 0) + 1
-  const nextRef = `${seriesFacturacion[0]?.prefijo ?? 'FAM'}-2025-${String(nextNum).padStart(3, '0')}`
-
   const [form, setForm] = useState({
-    numero:       factura?.numero      ?? nextRef,
-    serieId:      factura?.serieId     ?? seriesFacturacion[0]?.id,
-    clienteId:    factura?.clienteId   ?? null,
-    expedienteId: factura?.expedienteId ?? null,
-    abogadoId:    factura?.abogadoId   ?? null,
-    fecha:        factura?.fecha       ?? new Date().toISOString().slice(0, 10),
-    fechaVto:     factura?.fechaVto    ?? '',
-    notas:        factura?.notas       ?? '',
-    lineas:       factura?.lineas      ?? [{ conceptoId: null, descripcion: '', cantidad: 1, precioUnit: 0, iva: 21 }],
+    serie:      factura?.serie     ?? 'FAM',
+    numero:     factura?.numero    ?? generarNumeroFactura(factura?.serie ?? 'FAM'),
+    cliente:    factura?.cliente   ?? '',
+    expediente: factura?.expediente ?? '',
+    abogado:    factura?.abogado   ?? ABOGADO_DEFAULT,
+    fecha:      factura?.fecha     ?? new Date().toISOString().slice(0, 10),
+    fechaVto:   factura?.fechaVto  ?? '',
+    notas:      factura?.notas     ?? '',
+    lineas:     factura?.lineas    ?? [{ descripcion: '', cantidad: 1, precioUnit: 0, iva: 21 }],
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  function handleSerieChange(nuevaSerie) {
+    set('serie', nuevaSerie)
+    if (!isEdit) set('numero', generarNumeroFactura(nuevaSerie))
+  }
+
   function addLinea() {
-    set('lineas', [...form.lineas, { conceptoId: null, descripcion: '', cantidad: 1, precioUnit: 0, iva: 21 }])
+    set('lineas', [...form.lineas, { descripcion: '', cantidad: 1, precioUnit: 0, iva: 21 }])
   }
-
   function updateLinea(idx, data) {
-    const lineas = [...form.lineas]
-    lineas[idx] = data
-    set('lineas', lineas)
+    const lineas = [...form.lineas]; lineas[idx] = data; set('lineas', lineas)
   }
-
   function removeLinea(idx) {
+    if (form.lineas.length === 1) return
     set('lineas', form.lineas.filter((_, i) => i !== idx))
   }
 
@@ -161,33 +104,34 @@ export default function FacturaForm({ factura, onClose, onGuardar }) {
   const total    = subtotal + ivaTotal
 
   function handleGuardar(estado = 'borrador') {
-    const cliente = null
-    const expediente = null
     onGuardar({
-      id:           factura?.id ?? Date.now(),
-      ...form,
+      id:         factura?.id ?? Date.now(),
+      serie:      form.serie,
+      numero:     form.numero,
       estado,
-      cliente:      cliente?.nombre ?? '—',
-      expediente:   expediente?.ref ?? '—',
-      subtotal:     parseFloat(subtotal.toFixed(2)),
-      iva:          parseFloat(ivaTotal.toFixed(2)),
-      total:        parseFloat(total.toFixed(2)),
+      fecha:      form.fecha,
+      fechaVto:   form.fechaVto,
+      cliente:    form.cliente.trim() || '—',
+      expediente: form.expediente.trim() || '—',
+      abogado:    form.abogado,
+      notas:      form.notas,
+      lineas:     form.lineas,
+      subtotal:   parseFloat(subtotal.toFixed(2)),
+      iva:        parseFloat(ivaTotal.toFixed(2)),
+      total:      parseFloat(total.toFixed(2)),
     })
   }
 
-  const clienteOpts = []
-  const expOpts = []
-
   return (
     <Modal title={isEdit ? `Editar ${factura.numero}` : 'Nueva factura'} onClose={onClose} size="lg">
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto', maxHeight: '80vh' }}>
 
         {/* Fila 1: serie / número / fecha / vencimiento */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
           <div>
             <Label>Serie</Label>
-            <select value={form.serieId} onChange={e => set('serieId', Number(e.target.value))} style={inputStyle}>
-              {seriesFacturacion.map(s => <option key={s.id} value={s.id}>{s.codigo} — {s.nombre}</option>)}
+            <select value={form.serie} onChange={e => handleSerieChange(e.target.value)} style={inputStyle}>
+              {SERIES_FACTURA.map(s => <option key={s.codigo} value={s.codigo}>{s.codigo} — {s.nombre}</option>)}
             </select>
           </div>
           <div>
@@ -208,36 +152,23 @@ export default function FacturaForm({ factura, onClose, onGuardar }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <div>
             <Label>Cliente</Label>
-            <Select
-              value={form.clienteId}
-              onChange={v => set('clienteId', v)}
-              options={clienteOpts}
-              placeholder="Seleccionar cliente…"
-            />
+            <input value={form.cliente} onChange={e => set('cliente', e.target.value)} placeholder="Nombre del cliente" style={inputStyle} />
           </div>
           <div>
             <Label>Expediente</Label>
-            <Select
-              value={form.expedienteId}
-              onChange={v => set('expedienteId', v)}
-              options={expOpts}
-              placeholder="Opcional…"
-            />
+            <input value={form.expediente} onChange={e => set('expediente', e.target.value)} placeholder="Ej. EXP-2026-001 (opcional)" style={inputStyle} />
           </div>
           <div>
             <Label>Abogado responsable</Label>
-            <select value={form.abogadoId ?? ''} onChange={e => set('abogadoId', Number(e.target.value) || null)} style={inputStyle}>
-              <option value="">Sin asignar</option>
-              {abogadosDespacho.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-            </select>
+            <input value={form.abogado} onChange={e => set('abogado', e.target.value)} style={inputStyle} />
           </div>
         </div>
 
         {/* Líneas */}
         <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 70px 90px 28px', gap: 8 }}>
-              {['Concepto / descripción', 'Cantidad', 'Precio unit.', 'IVA', 'Total', ''].map((h, i) => (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 70px 80px 28px', gap: 8 }}>
+              {['Concepto / descripción', 'Cant.', 'Precio unit.', 'IVA', 'Total', ''].map((h, i) => (
                 <div key={i} style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i >= 1 && i <= 4 ? 'right' : 'left' }}>{h}</div>
               ))}
             </div>
@@ -259,19 +190,16 @@ export default function FacturaForm({ factura, onClose, onGuardar }) {
           </div>
 
           {/* Totales */}
-          <div style={{ borderTop: '1px solid var(--border)', padding: '14px 14px', background: 'var(--surface-2)', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ borderTop: '1px solid var(--border)', padding: '14px', background: 'var(--surface-2)', display: 'flex', justifyContent: 'flex-end' }}>
             <div style={{ width: 260, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-2)' }}>
-                <span>Base imponible</span>
-                <span className="num">{subtotal.toFixed(2)} €</span>
+                <span>Base imponible</span><span className="num">{subtotal.toFixed(2)} €</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-2)' }}>
-                <span>IVA</span>
-                <span className="num">{ivaTotal.toFixed(2)} €</span>
+                <span>IVA</span><span className="num">{ivaTotal.toFixed(2)} €</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 600, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 2 }}>
-                <span>Total</span>
-                <span className="num">{total.toFixed(2)} €</span>
+                <span>Total</span><span className="num">{total.toFixed(2)} €</span>
               </div>
             </div>
           </div>

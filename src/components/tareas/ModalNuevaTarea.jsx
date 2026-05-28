@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, User, Search, ChevronDown } from 'lucide-react';
-import { storageService } from '../../services/storageService';
+import { X } from 'lucide-react';
 
 function todayStr() {
   const d = new Date();
@@ -194,12 +193,13 @@ function ClienteSelector({ value, onChange }) {
 // ─── Modal principal ──────────────────────────────────────────────────────────
 
 export default function ModalNuevaTarea({ initialDate, onSave, onClose }) {
-  const [text,      setText]      = useState('');
-  const [desc,      setDesc]      = useState('');
-  const [date,      setDate]      = useState(initialDate || todayStr());
-  const [prioridad, setPrioridad] = useState('media');
-  const [cliente,   setCliente]   = useState(null);
-  const [error,     setError]     = useState(false);
+  const [text,          setText]          = useState('');
+  const [desc,          setDesc]          = useState('');
+  const [date,          setDate]          = useState(initialDate || todayStr());
+  const [prioridad,     setPrioridad]     = useState('media');
+  const [tipoRelacion,  setTipoRelacion]  = useState('cliente');
+  const [relacionNombre, setRelacionNombre] = useState('');
+  const [error,         setError]         = useState(false);
   const titleRef = useRef();
 
   useEffect(() => {
@@ -215,8 +215,8 @@ export default function ModalNuevaTarea({ initialDate, onSave, onClose }) {
       text: text.trim(),
       desc,
       prioridad,
-      clienteId:     cliente?.id     ?? null,
-      clienteNombre: cliente?.nombre ?? null,
+      tipoRelacion,
+      relacionNombre: relacionNombre.trim(),
     });
   };
 
@@ -273,8 +273,45 @@ export default function ModalNuevaTarea({ initialDate, onSave, onClose }) {
             />
           </div>
 
-          {/* Cliente */}
-          <ClienteSelector value={cliente} onChange={setCliente} />
+          {/* Relacionado con */}
+          <div>
+            <label style={label}>Relacionado con</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              {[
+                { value: 'cliente',  label: '👤 Cliente' },
+                { value: 'empleado', label: '🧑‍💼 Empleado' },
+                { value: 'despacho', label: '🏢 Despacho' },
+              ].map(op => (
+                <button
+                  key={op.value}
+                  type="button"
+                  onClick={() => { setTipoRelacion(op.value); setRelacionNombre(''); }}
+                  style={{
+                    flex: 1, padding: '7px 4px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+                    background: tipoRelacion === op.value ? 'rgba(79,126,255,0.15)' : 'transparent',
+                    border: `1px solid ${tipoRelacion === op.value ? 'rgba(79,126,255,0.5)' : 'var(--border-2)'}`,
+                    color: tipoRelacion === op.value ? '#93B4FF' : 'var(--text-2)',
+                    transition: 'all 0.12s',
+                  }}
+                >
+                  {op.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={relacionNombre}
+              onChange={e => setRelacionNombre(e.target.value)}
+              placeholder={
+                tipoRelacion === 'cliente'  ? 'Nombre del cliente...' :
+                tipoRelacion === 'empleado' ? 'Nombre del empleado...' :
+                'Descripción de la tarea interna...'
+              }
+              style={input}
+              onFocus={e => { e.target.style.borderColor = 'rgba(79,126,255,0.5)'; }}
+              onBlur={e => { e.target.style.borderColor = 'var(--border-2)'; }}
+            />
+          </div>
 
           {/* Fecha + Prioridad */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

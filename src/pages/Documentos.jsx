@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Upload, Download, Search, X, Eye } from 'lucide-react'
+import { FileText, Upload, Download, Search, X, Eye, Trash2 } from 'lucide-react'
 import Badge from '../components/Badge'
 import { storageService } from '../services/storageService'
 import { idbSave, idbGet, idbDelete, idbListIds } from '../services/idbStorage'
@@ -10,24 +10,127 @@ const EXT_COLORS = {
   docx: { bg: 'rgba(79,126,255,0.10)',  color: '#93B4FF', border: 'rgba(79,126,255,0.25)' },
 }
 
+// ─── Modal visor de documento ─────────────────────────────────────────────────
+
+function ViewerModal({ doc, onClose, onDownload }) {
+  const [blobUrl, setBlobUrl] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState(false)
+
+  useEffect(() => {
+    let url = null
+    async function load() {
+      const contenido = doc.contenido || await idbGet(doc.id)
+      if (!contenido) { setError(true); setLoading(false); return }
+      try {
+        const [header, b64] = contenido.split(',')
+        const mime = header.match(/:(.*?);/)[1]
+        const binary = atob(b64)
+        const arr = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i)
+        const blob = new Blob([arr], { type: mime })
+        url = URL.createObjectURL(blob)
+        setBlobUrl(url)
+      } catch { setError(true) }
+      setLoading(false)
+    }
+    load()
+    return () => { if (url) URL.revokeObjectURL(url) }
+  }, [doc])
+
+  const ext = doc.tipo?.toLowerCase()
+  const isImage = ['jpg','jpeg','png','gif','webp','svg'].includes(ext)
+  const isPdf   = ext === 'pdf'
+  const canPreview = isImage || isPdf
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(8,9,14,0.75)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', flexDirection: 'column', padding: 24, gap: 12 }}
+    >
+      {/* Barra superior */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 16px', flexShrink: 0 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <FileText size={15} style={{ color: 'var(--text-2)' }} />
+          <span style={{ fontWeight: 500, fontSize: 14 }}>{doc.nombre}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{doc.size}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => onDownload(doc)} style={btnStyle()}>
+            <Download size={13} /> Descargar
+          </button>
+          <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-2)', cursor: 'pointer', color: 'var(--text-2)', display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 6 }}>
+            <X size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Área de contenido */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}
+      >
+        {loading && (
+          <div style={{ color: 'var(--text-2)', fontSize: 14 }}>Cargando documento…</div>
+        )}
+
+        {!loading && error && (
+          <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontWeight: 500, marginBottom: 6 }}>No se puede mostrar este archivo</div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>El contenido no está disponible. Vuelve a subirlo.</div>
+          </div>
+        )}
+
+        {!loading && !error && blobUrl && canPreview && isPdf && (
+          <iframe
+            src={blobUrl}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            title={doc.nombre}
+          />
+        )}
+
+        {!loading && !error && blobUrl && canPreview && isImage && (
+          <img
+            src={blobUrl}
+            alt={doc.nombre}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 4 }}
+          />
+        )}
+
+        {!loading && !error && blobUrl && !canPreview && (
+          <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>
+            <FileText size={40} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
+            <div style={{ fontWeight: 500, marginBottom: 6 }}>Vista previa no disponible</div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>
+              Este formato no se puede previsualizar en el navegador.
+            </div>
+            <button onClick={() => onDownload(doc)} style={btnStyle(true)}>
+              <Download size={13} /> Descargar para abrir
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Modal de subida ──────────────────────────────────────────────────────────
 
 function UploadModal({ onClose, onUploaded }) {
-  const [file,          setFile]          = useState(null)
-  const [clienteTexto,  setClienteTexto]  = useState('')
-  const [tag,           setTag]           = useState('Documento')
-  const [error,         setError]         = useState('')
-  const [uploading,     setUploading]     = useState(false)
+  const [file,      setFile]      = useState(null)
+  const [clienteTexto, setClienteTexto] = useState('')
+  const [tag,       setTag]       = useState('Documento')
+  const [error,     setError]     = useState('')
+  const [uploading, setUploading] = useState(false)
   const fileRef = useRef()
 
   async function handleUpload() {
     if (!file) { setError('Selecciona un archivo para subir.'); return }
-
-    const MAX_SIZE = 50 * 1024 * 1024
-    if (file.size > MAX_SIZE) {
-      setError('El archivo es demasiado grande. Máximo 50MB.')
-      return
-    }
+    if (file.size > 50 * 1024 * 1024) { setError('El archivo es demasiado grande. Máximo 50MB.'); return }
 
     setUploading(true)
     try {
@@ -38,22 +141,19 @@ function UploadModal({ onClose, onUploaded }) {
         reader.readAsDataURL(file)
       })
 
-      // Guardar metadata en localStorage (sin el contenido pesado)
       const nuevoDoc = storageService.create('documentos', {
-        nombre:        file.name,
-        tipo:          file.name.split('.').pop().toLowerCase(),
-        tamano:        file.size,
-        size:          formatSize(file.size),
+        nombre:       file.name,
+        tipo:         file.name.split('.').pop().toLowerCase(),
+        tamano:       file.size,
+        size:         formatSize(file.size),
         tag,
-        clienteTexto:  clienteTexto.trim(),
-        expedienteId:  null,
-        fecha:         new Date().toLocaleDateString('es-ES'),
-        subidoPor:     'Yo',
+        clienteTexto: clienteTexto.trim(),
+        expedienteId: null,
+        fecha:        new Date().toLocaleDateString('es-ES'),
+        subidoPor:    'Yo',
       })
 
-      // Guardar el contenido en IndexedDB (sin límite práctico)
       await idbSave(nuevoDoc.id, base64)
-
       onUploaded(nuevoDoc)
       onClose()
     } catch (e) {
@@ -73,7 +173,6 @@ function UploadModal({ onClose, onUploaded }) {
         </div>
 
         <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Drop zone */}
           <div
             onClick={() => fileRef.current?.click()}
             style={{ border: `2px dashed ${file ? 'var(--blue)' : 'var(--border-2)'}`, borderRadius: 8, padding: 24, textAlign: 'center', cursor: 'pointer', background: file ? 'rgba(79,126,255,0.04)' : 'transparent', transition: 'all 0.15s' }}
@@ -93,7 +192,6 @@ function UploadModal({ onClose, onUploaded }) {
             )}
           </div>
 
-          {/* Cliente (texto libre, opcional) */}
           <div>
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, fontWeight: 500 }}>
               Cliente <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(opcional)</span>
@@ -106,7 +204,6 @@ function UploadModal({ onClose, onUploaded }) {
             />
           </div>
 
-          {/* Categoría */}
           <div>
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, fontWeight: 500 }}>Categoría</div>
             <select value={tag} onChange={e => setTag(e.target.value)} style={{ width: '100%', height: 34, borderRadius: 6, background: 'var(--bg)', border: '1px solid var(--border-2)', color: 'var(--text)', fontFamily: 'inherit', fontSize: 13, padding: '0 10px', outline: 0 }}>
@@ -128,6 +225,27 @@ function UploadModal({ onClose, onUploaded }) {
   )
 }
 
+// ─── Confirmación de borrado ──────────────────────────────────────────────────
+
+function DeleteConfirm({ doc, onCancel, onConfirm }) {
+  return (
+    <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(8,9,14,0.6)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'grid', placeItems: 'center', padding: 40 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 380, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: 'var(--shadow-lg)', padding: 24 }}>
+        <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 8 }}>Eliminar documento</div>
+        <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
+          ¿Seguro que quieres eliminar <strong style={{ color: 'var(--text)' }}>{doc.nombre}</strong>? Esta acción no se puede deshacer.
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={btnStyle()}>Cancelar</button>
+          <button onClick={onConfirm} style={{ ...btnStyle(), background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#FCA5A5' }}>
+            <Trash2 size={13} /> Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function Documentos() {
@@ -135,6 +253,8 @@ export default function Documentos() {
   const [contentIds, setContentIds] = useState(new Set())
   const [q,          setQ]          = useState('')
   const [showModal,  setShowModal]  = useState(false)
+  const [viewer,     setViewer]     = useState(null)
+  const [toDelete,   setToDelete]   = useState(null)
   const [toast,      setToast]      = useState(null)
 
   useEffect(() => {
@@ -147,39 +267,24 @@ export default function Documentos() {
     setTimeout(() => setToast(null), 4000)
   }
 
-  async function handleAbrir(doc) {
-    const contenido = doc.contenido || await idbGet(doc.id)
-    if (!contenido) {
-      showToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para abrirlo.`)
-      return
-    }
-    try {
-      const [header, b64] = contenido.split(',')
-      const mime = header.match(/:(.*?);/)[1]
-      const binary = atob(b64)
-      const arr = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i)
-      const blob = new Blob([arr], { type: mime })
-      const url = URL.createObjectURL(blob)
-      window.open(url, '_blank')
-      setTimeout(() => URL.revokeObjectURL(url), 15000)
-    } catch {
-      showToast(`No se pudo abrir "${doc.nombre}". Intenta descargarlo.`)
-    }
-  }
-
   async function handleDescargar(doc) {
     const contenido = doc.contenido || await idbGet(doc.id)
-    if (!contenido) {
-      showToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para descargarlo.`)
-      return
-    }
+    if (!contenido) { showToast(`"${doc.nombre}" no tiene contenido. Vuelve a subirlo.`); return }
     const link = document.createElement('a')
     link.href = contenido
     link.download = doc.nombre
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  async function handleEliminar(doc) {
+    storageService.delete('documentos', doc.id)
+    await idbDelete(doc.id).catch(() => {})
+    setDocs(prev => prev.filter(d => d.id !== doc.id))
+    setContentIds(prev => { const s = new Set(prev); s.delete(String(doc.id)); return s })
+    setToDelete(null)
+    showToast(`"${doc.nombre}" eliminado.`)
   }
 
   function handleUploaded(doc) {
@@ -198,9 +303,7 @@ export default function Documentos() {
     <div className="fade-in">
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
         <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Documentos</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={btnStyle(true)} onClick={() => setShowModal(true)}><Upload size={14} /> Subir documento</button>
-        </div>
+        <button style={btnStyle(true)} onClick={() => setShowModal(true)}><Upload size={14} /> Subir documento</button>
       </div>
       <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>{`${docs.length} documento${docs.length !== 1 ? 's' : ''}`}</div>
 
@@ -226,7 +329,7 @@ export default function Documentos() {
         <div style={{ fontSize: 13, color: 'var(--text-2)' }}>PDF, DOCX, XLSX, imágenes…</div>
       </div>
 
-      {/* Lista de documentos */}
+      {/* Lista */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}>
         <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
           <thead>
@@ -244,12 +347,12 @@ export default function Documentos() {
                   <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Sube tu primer documento con el botón de arriba.</div>
                 </td>
               </tr>
-            ) : filtered.map((d) => {
+            ) : filtered.map(d => {
               const ext = d.tipo?.toLowerCase()
               const c = EXT_COLORS[ext] || { bg: 'rgba(156,163,175,0.10)', color: '#D1D5DB', border: 'rgba(156,163,175,0.25)' }
               const hasContent = d.contenido || contentIds.has(String(d.id))
               return (
-                <tr key={d.id} style={{ cursor: 'pointer' }}
+                <tr key={d.id}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
@@ -271,21 +374,30 @@ export default function Documentos() {
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                       {!hasContent && (
-                        <span style={{ fontSize: 11, color: '#F59E0B', marginRight: 4 }} title="Archivo no disponible — vuelve a subirlo">⚠️</span>
+                        <span title="Archivo no disponible — vuelve a subirlo" style={{ fontSize: 11, color: '#F59E0B', marginRight: 2 }}>⚠️</span>
                       )}
                       <button
+                        onClick={e => { e.stopPropagation(); setViewer(d) }}
                         style={{ ...iconBtn, color: hasContent ? 'var(--blue)' : 'var(--text-3)' }}
-                        onClick={e => { e.stopPropagation(); handleAbrir(d) }}
                         title="Ver documento"
                       >
                         <Eye size={14} />
                       </button>
                       <button
-                        style={{ ...iconBtn, color: hasContent ? '#10B981' : 'var(--text-3)' }}
                         onClick={e => { e.stopPropagation(); handleDescargar(d) }}
+                        style={{ ...iconBtn, color: hasContent ? '#10B981' : 'var(--text-3)' }}
                         title="Descargar"
                       >
                         <Download size={14} />
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setToDelete(d) }}
+                        style={{ ...iconBtn, color: 'var(--text-3)' }}
+                        title="Eliminar"
+                        onMouseEnter={e => e.currentTarget.style.color = '#FCA5A5'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -297,25 +409,21 @@ export default function Documentos() {
       </div>
 
       {showModal && (
-        <UploadModal
-          onClose={() => setShowModal(false)}
-          onUploaded={handleUploaded}
-        />
+        <UploadModal onClose={() => setShowModal(false)} onUploaded={handleUploaded} />
       )}
 
-      {/* Toast */}
+      {viewer && (
+        <ViewerModal doc={viewer} onClose={() => setViewer(null)} onDownload={handleDescargar} />
+      )}
+
+      {toDelete && (
+        <DeleteConfirm doc={toDelete} onCancel={() => setToDelete(null)} onConfirm={() => handleEliminar(toDelete)} />
+      )}
+
       {toast && (
-        <div style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
-          background: 'var(--surface)', border: '1px solid rgba(251,191,36,0.4)',
-          borderRadius: 8, padding: '12px 16px',
-          display: 'flex', alignItems: 'center', gap: 10,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        }}>
-          <span style={{ fontSize: 13, color: 'var(--text)' }}>⚠️ {toast}</span>
-          <button onClick={() => setToast(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', marginLeft: 4 }}>
-            <X size={13} />
-          </button>
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 2000, background: 'var(--surface)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+          <span style={{ fontSize: 13, color: 'var(--text)' }}>{toast}</span>
+          <button onClick={() => setToast(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', marginLeft: 4 }}><X size={13} /></button>
         </div>
       )}
     </div>

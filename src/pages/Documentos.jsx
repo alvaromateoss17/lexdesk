@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { FileText, Upload, Download, Search, X, Eye } from 'lucide-react'
 import Badge from '../components/Badge'
 import { storageService } from '../services/storageService'
+import { idbSave, idbGet, idbDelete, idbListIds } from '../services/idbStorage'
 
 const EXT_COLORS = {
   pdf:  { bg: 'rgba(248,113,113,0.10)', color: '#FCA5A5', border: 'rgba(248,113,113,0.25)' },
@@ -16,38 +17,51 @@ function UploadModal({ onClose, onUploaded }) {
   const [clienteTexto,  setClienteTexto]  = useState('')
   const [tag,           setTag]           = useState('Documento')
   const [error,         setError]         = useState('')
+  const [uploading,     setUploading]     = useState(false)
   const fileRef = useRef()
 
   async function handleUpload() {
     if (!file) { setError('Selecciona un archivo para subir.'); return }
 
-    const MAX_SIZE = 5 * 1024 * 1024
+    const MAX_SIZE = 50 * 1024 * 1024
     if (file.size > MAX_SIZE) {
-      setError('El archivo es demasiado grande. Máximo 5MB.')
+      setError('El archivo es demasiado grande. Máximo 50MB.')
       return
     }
 
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+    setUploading(true)
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
 
-    const nuevoDoc = storageService.create('documentos', {
-      nombre:        file.name,
-      tipo:          file.name.split('.').pop().toLowerCase(),
-      tamano:        file.size,
-      size:          formatSize(file.size),
-      tag,
-      clienteTexto:  clienteTexto.trim(),
-      expedienteId:  null,
-      fecha:         new Date().toLocaleDateString('es-ES'),
-      subidoPor:     'Yo',
-      contenido:     base64,
-    })
-    onUploaded(nuevoDoc)
-    onClose()
+      // Guardar metadata en localStorage (sin el contenido pesado)
+      const nuevoDoc = storageService.create('documentos', {
+        nombre:        file.name,
+        tipo:          file.name.split('.').pop().toLowerCase(),
+        tamano:        file.size,
+        size:          formatSize(file.size),
+        tag,
+        clienteTexto:  clienteTexto.trim(),
+        expedienteId:  null,
+        fecha:         new Date().toLocaleDateString('es-ES'),
+        subidoPor:     'Yo',
+      })
+
+      // Guardar el contenido en IndexedDB (sin límite práctico)
+      await idbSave(nuevoDoc.id, base64)
+
+      onUploaded(nuevoDoc)
+      onClose()
+    } catch (e) {
+      setError('Error al guardar el documento. Inténtalo de nuevo.')
+      console.error(e)
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -105,7 +119,9 @@ function UploadModal({ onClose, onUploaded }) {
 
         <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={btnStyle()}>Cancelar</button>
-          <button onClick={handleUpload} style={btnStyle(true)}>Subir documento</button>
+          <button onClick={handleUpload} disabled={uploading} style={btnStyle(true)}>
+            {uploading ? 'Subiendo…' : 'Subir documento'}
+          </button>
         </div>
       </div>
     </div>
@@ -115,23 +131,30 @@ function UploadModal({ onClose, onUploaded }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function Documentos() {
-  const [docs,      setDocs]      = useState([])
-  const [q,         setQ]         = useState('')
-  const [showModal, setShowModal] = useState(false)
-  const [toast,     setToast]     = useState(null)
+  const [docs,       setDocs]       = useState([])
+  const [contentIds, setContentIds] = useState(new Set())
+  const [q,          setQ]          = useState('')
+  const [showModal,  setShowModal]  = useState(false)
+  const [toast,      setToast]      = useState(null)
 
   useEffect(() => {
     setDocs(storageService.getAll('documentos'))
+    idbListIds().then(setContentIds).catch(() => {})
   }, [])
 
-  function handleAbrir(doc) {
-    if (!doc.contenido) {
-      setToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para abrirlo.`)
-      setTimeout(() => setToast(null), 4000)
+  function showToast(msg) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  async function handleAbrir(doc) {
+    const contenido = doc.contenido || await idbGet(doc.id)
+    if (!contenido) {
+      showToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para abrirlo.`)
       return
     }
     try {
-      const [header, b64] = doc.contenido.split(',')
+      const [header, b64] = contenido.split(',')
       const mime = header.match(/:(.*?);/)[1]
       const binary = atob(b64)
       const arr = new Uint8Array(binary.length)
@@ -141,23 +164,27 @@ export default function Documentos() {
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 15000)
     } catch {
-      setToast(`No se pudo abrir "${doc.nombre}". Intenta descargarlo.`)
-      setTimeout(() => setToast(null), 4000)
+      showToast(`No se pudo abrir "${doc.nombre}". Intenta descargarlo.`)
     }
   }
 
-  function handleDescargar(doc) {
-    if (!doc.contenido) {
-      setToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para descargarlo.`)
-      setTimeout(() => setToast(null), 4000)
+  async function handleDescargar(doc) {
+    const contenido = doc.contenido || await idbGet(doc.id)
+    if (!contenido) {
+      showToast(`El archivo "${doc.nombre}" no tiene contenido guardado. Vuelve a subirlo para descargarlo.`)
       return
     }
     const link = document.createElement('a')
-    link.href = doc.contenido
+    link.href = contenido
     link.download = doc.nombre
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  function handleUploaded(doc) {
+    setDocs(prev => [doc, ...prev])
+    setContentIds(prev => new Set([...prev, String(doc.id)]))
   }
 
   const filtered = docs.filter(d =>
@@ -220,6 +247,7 @@ export default function Documentos() {
             ) : filtered.map((d) => {
               const ext = d.tipo?.toLowerCase()
               const c = EXT_COLORS[ext] || { bg: 'rgba(156,163,175,0.10)', color: '#D1D5DB', border: 'rgba(156,163,175,0.25)' }
+              const hasContent = d.contenido || contentIds.has(String(d.id))
               return (
                 <tr key={d.id} style={{ cursor: 'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
@@ -242,18 +270,18 @@ export default function Documentos() {
                   <td style={td}><span style={{ color: 'var(--text-2)', fontSize: 12 }}>{d.fecha}</span></td>
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      {!d.contenido && (
+                      {!hasContent && (
                         <span style={{ fontSize: 11, color: '#F59E0B', marginRight: 4 }} title="Archivo no disponible — vuelve a subirlo">⚠️</span>
                       )}
                       <button
-                        style={{ ...iconBtn, color: d.contenido ? 'var(--blue)' : 'var(--text-3)' }}
+                        style={{ ...iconBtn, color: hasContent ? 'var(--blue)' : 'var(--text-3)' }}
                         onClick={e => { e.stopPropagation(); handleAbrir(d) }}
                         title="Ver documento"
                       >
                         <Eye size={14} />
                       </button>
                       <button
-                        style={{ ...iconBtn, color: d.contenido ? '#10B981' : 'var(--text-3)' }}
+                        style={{ ...iconBtn, color: hasContent ? '#10B981' : 'var(--text-3)' }}
                         onClick={e => { e.stopPropagation(); handleDescargar(d) }}
                         title="Descargar"
                       >
@@ -271,7 +299,7 @@ export default function Documentos() {
       {showModal && (
         <UploadModal
           onClose={() => setShowModal(false)}
-          onUploaded={d => setDocs(prev => [d, ...prev])}
+          onUploaded={handleUploaded}
         />
       )}
 

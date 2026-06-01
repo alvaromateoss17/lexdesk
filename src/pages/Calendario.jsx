@@ -326,7 +326,9 @@ export default function Calendario() {
   const [selected, setSelected] = useState(today.getDate())
   const [plazos,   setPlazos]   = useState([])
   const [loading,  setLoading]  = useState(true)
-  const [eventos,  setEventos]  = useState([])
+  const [eventos,  setEventos]  = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vincla_eventos') || '[]') } catch { return [] }
+  })
   const [modalEvento,    setModalEvento]    = useState(false)
   const [eventoEditando, setEventoEditando] = useState(null)
   const [toast,    setToast]    = useState(null)
@@ -338,6 +340,11 @@ export default function Calendario() {
   const [detailTask,      setDetailTask]      = useState(null)
 
   const { tasks, addTask, setStatus, deleteTask, moveToNextDay } = useTareas()
+
+  // Persistir eventos en localStorage
+  useEffect(() => {
+    localStorage.setItem('vincla_eventos', JSON.stringify(eventos))
+  }, [eventos])
 
   // Auto-pase de tareas vencidas a hoy
   useEffect(() => {

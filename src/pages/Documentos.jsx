@@ -130,10 +130,20 @@ export default function Documentos() {
       setTimeout(() => setToast(null), 4000)
       return
     }
-    const ventana = window.open()
-    if (!ventana) return
-    ventana.document.write(`<html><head><title>${doc.nombre}</title></head><body style="margin:0;padding:0;background:#000;"><iframe src="${doc.contenido}" style="width:100%;height:100vh;border:none;" /></body></html>`)
-    ventana.document.close()
+    try {
+      const [header, b64] = doc.contenido.split(',')
+      const mime = header.match(/:(.*?);/)[1]
+      const binary = atob(b64)
+      const arr = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i)
+      const blob = new Blob([arr], { type: mime })
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 15000)
+    } catch {
+      setToast(`No se pudo abrir "${doc.nombre}". Intenta descargarlo.`)
+      setTimeout(() => setToast(null), 4000)
+    }
   }
 
   function handleDescargar(doc) {

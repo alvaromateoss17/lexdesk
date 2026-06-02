@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
-import { Plus, TrendingUp, Receipt, AlertCircle, CheckCircle2, Clock, Trash2, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, TrendingUp, Receipt, AlertCircle, CheckCircle2, Clock, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import TablaFacturas from '../components/TablaFacturas'
 import FacturaForm from '../components/FacturaForm'
-import { generarNumeroFactura } from '../data/seriesFactura'
+import FacturacionSkeleton from '../components/FacturacionSkeleton'
+import { useFacturas, useMovimientos } from '../hooks/useFacturacion'
 
 const ABOGADO_DEFAULT = (() => {
   try {
@@ -14,6 +15,19 @@ const ABOGADO_DEFAULT = (() => {
 const CATEGORIA_COLOR = {
   personal: '#4F7EFF', oficina: '#34D399', tecnologia: '#A78BFA',
   marketing: '#FBBF24', formacion: '#F87171', suplidos: '#F97316', otros: '#94A3B8',
+}
+
+// Helper: nombre visible de factura
+function nombreFactura(f) {
+  if (!f) return '—'
+  return `${f.serie || 'A'}-${String(f.numero).padStart(3, '0')}`
+}
+
+// Helper: nombre visible de cliente
+function nombreCliente(f) {
+  if (!f) return '—'
+  if (f.clientes) return `${f.clientes.nombre} ${f.clientes.apellidos || ''}`.trim()
+  return '—'
 }
 
 function KpiCard({ label, value, sub, color, icon: Icon }) {
@@ -37,11 +51,18 @@ export function descargarPDFFactura(factura) {
   const estadoText = factura.estado === 'cobrada' ? '#166534' : factura.estado === 'vencida' ? '#991b1b' : '#1e40af'
   const estadoLabel = { borrador: 'Borrador', emitida: 'Emitida', cobrada: 'Cobrada', vencida: 'Vencida', anulada: 'Anulada' }[factura.estado] || factura.estado
 
+  // Adaptar campos Supabase para el PDF
+  const numeroVisible = nombreFactura(factura)
+  const clienteVisible = nombreCliente(factura)
+  const fechaVisible = factura.fecha_emision || factura.fecha || '—'
+  const fechaVtoVisible = factura.fecha_vencimiento || factura.fechaVto || null
+  const lineas = factura.lineas_factura || factura.lineas || []
+
   ventana.document.write(`<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Factura ${factura.numero}</title>
+  <title>Factura ${numeroVisible}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial,sans-serif;padding:40px;color:#111;font-size:12px}
@@ -70,18 +91,17 @@ export function descargarPDFFactura(factura) {
       <p>${ABOGADO_DEFAULT}</p>
     </div>
     <div class="finfo">
-      <div class="num">${factura.numero}</div>
+      <div class="num">${numeroVisible}</div>
       <div class="estado">${estadoLabel}</div>
-      <p style="margin-top:8px;color:#555">Emisión: ${factura.fecha || '—'}</p>
-      ${factura.fechaVto ? `<p style="color:#555">Vencimiento: ${factura.fechaVto}</p>` : ''}
+      <p style="margin-top:8px;color:#555">Emisión: ${fechaVisible}</p>
+      ${fechaVtoVisible ? `<p style="color:#555">Vencimiento: ${fechaVtoVisible}</p>` : ''}
     </div>
   </div>
   <div class="partes">
     <div class="parte"><h3>Emisor</h3><p><strong>${ABOGADO_DEFAULT}</strong></p><p>Abogada</p></div>
     <div class="parte">
       <h3>Cliente</h3>
-      <p><strong>${factura.cliente || '—'}</strong></p>
-      ${factura.expediente && factura.expediente !== '—' ? `<p>Expediente: ${factura.expediente}</p>` : ''}
+      <p><strong>${clienteVisible}</strong></p>
     </div>
   </div>
   <table>
@@ -95,14 +115,15 @@ export function descargarPDFFactura(factura) {
       </tr>
     </thead>
     <tbody>
-      ${(factura.lineas || []).map(l => {
-        const base = (l.precioUnit || 0) * (l.cantidad || 1)
-        const ivaAmt = base * (l.iva || 0) / 100
+      ${lineas.map(l => {
+        const precioUnit = l.precio_unitario ?? l.precioUnit ?? 0
+        const base = precioUnit * (l.cantidad || 1)
+        const ivaAmt = base * (factura.iva_porcentaje ?? 21) / 100
         return `<tr>
           <td>${l.descripcion || '—'}</td>
           <td style="text-align:center">${l.cantidad}</td>
-          <td style="text-align:right">${fmt(l.precioUnit)}</td>
-          <td style="text-align:center">${l.iva}%</td>
+          <td style="text-align:right">${fmt(precioUnit)}</td>
+          <td style="text-align:center">${factura.iva_porcentaje ?? 21}%</td>
           <td style="text-align:right">${fmt(base + ivaAmt)}</td>
         </tr>`
       }).join('')}
@@ -110,8 +131,8 @@ export function descargarPDFFactura(factura) {
   </table>
   <div class="totales">
     <table>
-      <tr><td>Subtotal</td><td style="text-align:right">${fmt(factura.subtotal)}</td></tr>
-      <tr><td>IVA</td><td style="text-align:right">${fmt(factura.iva)}</td></tr>
+      <tr><td>Subtotal</td><td style="text-align:right">${fmt(factura.base_imponible ?? factura.subtotal)}</td></tr>
+      <tr><td>IVA</td><td style="text-align:right">${fmt(factura.iva_importe ?? factura.iva)}</td></tr>
       <tr class="total-final"><td><strong>TOTAL</strong></td><td style="text-align:right"><strong>${fmt(factura.total)}</strong></td></tr>
     </table>
   </div>
@@ -124,24 +145,13 @@ export function descargarPDFFactura(factura) {
 
 export default function Facturacion() {
   const [tab, setTab] = useState('facturas')
-  const [facturas, setFacturas] = useState([])
-  const [gastos,   setGastos]   = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState(null)
   const [toast,    setToast]    = useState(null)
   const [facturaAEliminar, setFacturaAEliminar] = useState(null)
 
-  // ─── Persistencia localStorage ────────────────────────────────────────────────
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('vincla_facturas')
-      if (raw) setFacturas(JSON.parse(raw))
-    } catch { /* noop */ }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('vincla_facturas', JSON.stringify(facturas))
-  }, [facturas])
+  const { facturas, cargando, error, crear, actualizar, cambiarEstado, eliminar } = useFacturas()
+  const { movimientos, crear: crearMov, eliminar: eliminarMov } = useMovimientos()
 
   // ─── Toast ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -151,23 +161,28 @@ export default function Facturacion() {
   }, [toast])
 
   // ─── KPIs ─────────────────────────────────────────────────────────────────────
-  const facturasActivas = facturas.filter(f => !f.archivada && f.estado !== 'anulada')
-  const totalFacturado  = facturasActivas.reduce((s, f) => s + (f.total || 0), 0)
-  const totalCobrado    = facturas.filter(f => f.estado === 'cobrada').reduce((s, f) => s + (f.total || 0), 0)
-  const totalPendiente  = facturas.filter(f => f.estado === 'emitida').reduce((s, f) => s + (f.total || 0), 0)
+  const facturasActivas = facturas.filter(f => f.estado !== 'anulada')
+  const totalFacturado  = facturasActivas.reduce((s, f) => s + Number(f.total || 0), 0)
+  const totalCobrado    = facturas.filter(f => f.estado === 'cobrada').reduce((s, f) => s + Number(f.total || 0), 0)
+  const totalPendiente  = facturas.filter(f => f.estado === 'emitida').reduce((s, f) => s + Number(f.total || 0), 0)
   const totalVencidas   = facturas.filter(f => f.estado === 'vencida').length
-  const totalGastos     = gastos.reduce((s, g) => s + (g.importe || 0), 0)
+  const totalGastos     = movimientos.filter(m => m.tipo === 'gasto').reduce((s, m) => s + Number(m.importe || 0), 0)
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
-  function handleGuardar(data) {
-    if (editando) {
-      setFacturas(fs => fs.map(f => String(f.id) === String(data.id) ? data : f))
-    } else {
-      setFacturas(fs => [data, ...fs])
+  async function handleGuardar(data) {
+    try {
+      if (editando) {
+        await actualizar(editando.id, data)
+        setToast('Factura actualizada.')
+      } else {
+        await crear(data)
+        setToast('Factura creada.')
+      }
+    } catch (err) {
+      setToast('Error: ' + err.message)
     }
     setShowForm(false)
     setEditando(null)
-    setToast(editando ? 'Factura actualizada.' : 'Factura creada.')
   }
 
   function handleEditar(f) {
@@ -175,50 +190,56 @@ export default function Facturacion() {
     setShowForm(true)
   }
 
-  function handleEliminar(id) {
-    setFacturas(fs => fs.filter(f => String(f.id) !== String(id)))
-    setFacturaAEliminar(null)
-    setToast('Factura eliminada.')
-  }
-
-  function handleCambiarEstado(id, nuevoEstado) {
-    setFacturas(fs => fs.map(f =>
-      String(f.id) === String(id)
-        ? { ...f, estado: nuevoEstado }
-        : f
-    ))
-    setToast(`Factura marcada como ${nuevoEstado}.`)
-  }
-
-  function handleDuplicar(factura) {
-    const copia = {
-      ...factura,
-      id: Date.now(),
-      numero: generarNumeroFactura(factura.serie || 'FAM'),
-      estado: 'borrador',
-      fecha: new Date().toISOString().split('T')[0],
-      archivada: false,
+  async function handleEliminar(id) {
+    try {
+      await eliminar(id)
+      setToast('Factura eliminada.')
+    } catch (err) {
+      setToast('Error: ' + err.message)
     }
-    setFacturas(fs => [copia, ...fs])
-    setToast('Factura duplicada como borrador.')
+    setFacturaAEliminar(null)
   }
 
-  function handleArchivar(id, archivar) {
-    setFacturas(fs => fs.map(f =>
-      String(f.id) === String(id) ? { ...f, archivada: archivar } : f
-    ))
-    setToast(archivar ? 'Factura archivada.' : 'Factura restaurada.')
+  async function handleCambiarEstado(id, nuevoEstado) {
+    try {
+      await cambiarEstado(id, nuevoEstado)
+      setToast(`Factura marcada como ${nuevoEstado}.`)
+    } catch (err) {
+      setToast('Error: ' + err.message)
+    }
+  }
+
+  async function handleDuplicar(factura) {
+    try {
+      await crear({
+        serie:             factura.serie,
+        estado:            'borrador',
+        fecha_emision:     new Date().toISOString().split('T')[0],
+        fecha_vencimiento: null,
+        base_imponible:    factura.base_imponible || 0,
+        iva_porcentaje:    factura.iva_porcentaje ?? 21,
+        iva_importe:       factura.iva_importe || 0,
+        total:             factura.total || 0,
+        notas:             factura.notas || null,
+        cliente_id:        factura.cliente_id || null,
+      })
+      setToast('Factura duplicada como borrador.')
+    } catch (err) {
+      setToast('Error: ' + err.message)
+    }
+  }
+
+  // Archivar no existe en Supabase schema — no-op con mensaje
+  function handleArchivar(_id, _archivar) {
+    setToast('Archivado no disponible en esta versión.')
   }
 
   const TABS = [
     { id: 'facturas',    label: 'Facturas' },
     { id: 'cliente',     label: 'Por cliente' },
-    { id: 'expediente',  label: 'Por expediente' },
     { id: 'gastos',      label: 'Gastos' },
     { id: 'rentabilidad', label: 'Rentabilidad' },
   ]
-
-  const facturasVisibles = facturas.filter(f => !f.archivada)
 
   return (
     <div className="fade-in">
@@ -234,7 +255,7 @@ export default function Facturacion() {
       {facturaAEliminar && (
         <div onClick={() => setFacturaAEliminar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'grid', placeItems: 'center' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 28, maxWidth: 400, width: '90%', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}>
-            <div style={{ fontWeight: 500, marginBottom: 10 }}>¿Eliminar factura {facturaAEliminar.numero}?</div>
+            <div style={{ fontWeight: 500, marginBottom: 10 }}>¿Eliminar factura {nombreFactura(facturaAEliminar)}?</div>
             <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>Esta acción no se puede deshacer.</div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setFacturaAEliminar(null)} style={btnStyle()}>Cancelar</button>
@@ -255,9 +276,16 @@ export default function Facturacion() {
         </button>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#FCA5A5' }}>
+          Error al cargar facturas: {error}
+        </div>
+      )}
+
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-        <KpiCard label="Total facturado" value={`${totalFacturado.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €`} sub="Sin anuladas ni archivadas" icon={Receipt} />
+        <KpiCard label="Total facturado" value={`${totalFacturado.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €`} sub="Sin anuladas" icon={Receipt} />
         <KpiCard label="Cobrado" value={`${totalCobrado.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €`} sub="Efectivamente ingresado" color="#34D399" icon={CheckCircle2} />
         <KpiCard label="Pendiente" value={`${totalPendiente.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €`} sub={`${facturas.filter(f => f.estado === 'emitida').length} facturas emitidas`} color="#FBBF24" icon={Clock} />
         <KpiCard label="Vencidas" value={totalVencidas} sub="Requieren atención" color={totalVencidas > 0 ? '#F87171' : undefined} icon={AlertCircle} />
@@ -278,31 +306,29 @@ export default function Facturacion() {
       </div>
 
       {tab === 'facturas' && (
-        <TablaFacturas
-          facturas={facturasVisibles}
-          onEditar={handleEditar}
-          onEliminar={id => setFacturaAEliminar(facturasVisibles.find(f => String(f.id) === String(id)))}
-          onCambiarEstado={handleCambiarEstado}
-          onDuplicar={handleDuplicar}
-          onArchivar={handleArchivar}
-          onDescargarPDF={descargarPDFFactura}
-        />
+        cargando
+          ? <FacturacionSkeleton />
+          : <TablaFacturas
+              facturas={facturas}
+              onEditar={handleEditar}
+              onEliminar={id => setFacturaAEliminar(facturas.find(f => f.id === id))}
+              onCambiarEstado={handleCambiarEstado}
+              onDuplicar={handleDuplicar}
+              onArchivar={handleArchivar}
+              onDescargarPDF={descargarPDFFactura}
+            />
       )}
 
       {tab === 'cliente' && (
-        <TabPorCliente facturas={facturasVisibles} />
-      )}
-
-      {tab === 'expediente' && (
-        <TabPorExpediente facturas={facturasVisibles} />
+        <TabPorCliente facturas={facturas} />
       )}
 
       {tab === 'gastos' && (
-        <TabGastos gastos={gastos} onEliminar={id => setGastos(gs => gs.filter(g => g.id !== id))} />
+        <TabGastos gastos={movimientos.filter(m => m.tipo === 'gasto')} onEliminar={id => eliminarMov(id).then(() => setToast('Gasto eliminado.')).catch(err => setToast('Error: ' + err.message))} />
       )}
 
       {tab === 'rentabilidad' && (
-        <TabRentabilidad facturas={facturasVisibles} gastos={gastos} />
+        <TabRentabilidad facturas={facturas} gastos={movimientos.filter(m => m.tipo === 'gasto')} />
       )}
 
       {showForm && (
@@ -322,12 +348,12 @@ function TabPorCliente({ facturas }) {
   const [expandidos, setExpandidos] = useState({})
 
   const porCliente = facturas.filter(f => f.estado !== 'anulada').reduce((acc, f) => {
-    const nombre = f.cliente || 'Sin cliente'
+    const nombre = f.clientes ? `${f.clientes.nombre} ${f.clientes.apellidos || ''}`.trim() : 'Sin cliente'
     if (!acc[nombre]) acc[nombre] = { nombre, facturas: [], totalFacturado: 0, totalCobrado: 0, totalPendiente: 0 }
     acc[nombre].facturas.push(f)
-    acc[nombre].totalFacturado += f.total || 0
-    if (f.estado === 'cobrada') acc[nombre].totalCobrado += f.total || 0
-    if (f.estado === 'emitida' || f.estado === 'vencida') acc[nombre].totalPendiente += f.total || 0
+    acc[nombre].totalFacturado += Number(f.total || 0)
+    if (f.estado === 'cobrada') acc[nombre].totalCobrado += Number(f.total || 0)
+    if (f.estado === 'emitida' || f.estado === 'vencida') acc[nombre].totalPendiente += Number(f.total || 0)
     return acc
   }, {})
 
@@ -381,9 +407,9 @@ function TabPorCliente({ facturas }) {
                   <tbody>
                     {c.facturas.map(f => (
                       <tr key={f.id}>
-                        <td style={td}><span className="mono" style={{ fontSize: 12 }}>{f.numero}</span></td>
-                        <td style={td}><span style={{ color: 'var(--text-2)' }}>{f.fecha}</span></td>
-                        <td style={td}><span className="num">{(f.total || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
+                        <td style={td}><span className="mono" style={{ fontSize: 12 }}>{`${f.serie || 'A'}-${String(f.numero).padStart(3, '0')}`}</span></td>
+                        <td style={td}><span style={{ color: 'var(--text-2)' }}>{f.fecha_emision}</span></td>
+                        <td style={td}><span className="num">{Number(f.total || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
                         <td style={td}>
                           <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: `${ESTADO_COLOR[f.estado] || '#9CA3AF'}18`, color: ESTADO_COLOR[f.estado] || '#9CA3AF', border: `1px solid ${ESTADO_COLOR[f.estado] || '#9CA3AF'}35` }}>
                             {{ borrador: 'Borrador', emitida: 'Emitida', cobrada: 'Cobrada', vencida: 'Vencida', anulada: 'Anulada' }[f.estado] || f.estado}
@@ -402,70 +428,16 @@ function TabPorCliente({ facturas }) {
   )
 }
 
-// ─── Tab: Por expediente ─────────────────────────────────────────────────────
-
-function TabPorExpediente({ facturas }) {
-  const grupos = {}
-  facturas.filter(f => f.estado !== 'anulada').forEach(f => {
-    const key = f.expediente || 'Sin expediente'
-    if (!grupos[key]) grupos[key] = { expediente: key, facturas: [], total: 0, cobrado: 0 }
-    grupos[key].facturas.push(f)
-    grupos[key].total   += f.total || 0
-    grupos[key].cobrado += f.estado === 'cobrada' ? (f.total || 0) : 0
-  })
-  const rows = Object.values(grupos).sort((a, b) => b.total - a.total)
-
-  return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
-        <thead>
-          <tr>
-            {['Expediente', 'Nº facturas', 'Total facturado', 'Cobrado', 'Pendiente', 'Cobertura'].map((h, i) => (
-              <th key={i} style={{ textAlign: 'left', fontWeight: 500, color: 'var(--text-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
-            <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)' }}>No hay datos todavía.</td></tr>
-          )}
-          {rows.map((r, i) => {
-            const pendiente = r.total - r.cobrado
-            const cobertura = r.total > 0 ? (r.cobrado / r.total) * 100 : 0
-            return (
-              <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <td style={td}><span className="mono" style={{ fontSize: 12 }}>{r.expediente}</span></td>
-                <td style={td}>{r.facturas.length}</td>
-                <td style={td}><span className="num">{r.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
-                <td style={td}><span className="num" style={{ color: '#6EE7B7' }}>{r.cobrado.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
-                <td style={td}><span className="num" style={{ color: pendiente > 0 ? '#FCA5A5' : 'var(--text-2)' }}>{pendiente.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
-                <td style={td}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--border-2)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${cobertura}%`, background: cobertura === 100 ? '#34D399' : cobertura > 50 ? '#FBBF24' : '#F87171', borderRadius: 2 }} />
-                    </div>
-                    <span style={{ fontSize: 12, color: 'var(--text-2)', minWidth: 36 }}>{cobertura.toFixed(0)}%</span>
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
 // ─── Tab: Gastos ─────────────────────────────────────────────────────────────
 
 function TabGastos({ gastos, onEliminar }) {
   const [q, setQ] = useState('')
   const filtered  = gastos.filter(g => !q || g.descripcion?.toLowerCase().includes(q.toLowerCase()) || g.categoria?.toLowerCase().includes(q.toLowerCase()))
-  const total     = filtered.reduce((s, g) => s + (g.importe || 0), 0)
+  const total     = filtered.reduce((s, g) => s + Number(g.importe || 0), 0)
   const porCategoria = {}
   gastos.forEach(g => {
     if (!porCategoria[g.categoria]) porCategoria[g.categoria] = 0
-    porCategoria[g.categoria] += g.importe || 0
+    porCategoria[g.categoria] += Number(g.importe || 0)
   })
 
   return (
@@ -480,22 +452,21 @@ function TabGastos({ gastos, onEliminar }) {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
             <thead>
-              <tr>{['Descripción', 'Categoría', 'Fecha', 'Proveedor', 'Importe', ''].map((h, i) => (
+              <tr>{['Descripción', 'Categoría', 'Fecha', 'Importe', ''].map((h, i) => (
                 <th key={i} style={{ textAlign: 'left', fontWeight: 500, color: 'var(--text-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>{h}</th>
               ))}</tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>No hay gastos registrados.</td></tr>
+                <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>No hay gastos registrados.</td></tr>
               ) : filtered.map(g => {
                 const col = CATEGORIA_COLOR[g.categoria] ?? '#94A3B8'
                 return (
                   <tr key={g.id} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={td}>{g.descripcion}</td>
-                    <td style={td}><span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: `${col}18`, color: col, border: `1px solid ${col}35` }}>{g.categoria}</span></td>
+                    <td style={td}><span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: `${col}18`, color: col, border: `1px solid ${col}35` }}>{g.categoria || '—'}</span></td>
                     <td style={td}><span style={{ color: 'var(--text-2)' }}>{g.fecha}</span></td>
-                    <td style={td}><span style={{ color: 'var(--text-2)' }}>{g.proveedor}</span></td>
-                    <td style={td}><span className="num" style={{ fontWeight: 500 }}>{(g.importe || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
+                    <td style={td}><span className="num" style={{ fontWeight: 500 }}>{Number(g.importe || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
                     <td style={{ ...td, width: 40 }}>
                       <button onClick={() => onEliminar(g.id)} style={{ height: 28, width: 28, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid transparent', color: 'var(--text-3)', cursor: 'pointer' }}
                         onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)' }}
@@ -536,18 +507,18 @@ function TabGastos({ gastos, onEliminar }) {
 // ─── Tab: Rentabilidad ────────────────────────────────────────────────────────
 
 function TabRentabilidad({ facturas, gastos }) {
-  const totalCobrado   = facturas.filter(f => f.estado === 'cobrada').reduce((s, f) => s + (f.total || 0), 0)
-  const totalGastos    = gastos.reduce((s, g) => s + (g.importe || 0), 0)
+  const totalCobrado   = facturas.filter(f => f.estado === 'cobrada').reduce((s, f) => s + Number(f.total || 0), 0)
+  const totalGastos    = gastos.reduce((s, g) => s + Number(g.importe || 0), 0)
   const margen         = totalCobrado > 0 ? ((totalCobrado - totalGastos) / totalCobrado * 100) : 0
 
   const mesesData = (() => {
     const map = {}
     facturas.forEach(f => {
-      if (f.estado === 'anulada' || !f.fecha) return
-      const mes = f.fecha.slice(0, 7)
+      if (f.estado === 'anulada' || !f.fecha_emision) return
+      const mes = f.fecha_emision.slice(0, 7)
       if (!map[mes]) map[mes] = { facturado: 0, cobrado: 0 }
-      map[mes].facturado += f.total || 0
-      if (f.estado === 'cobrada') map[mes].cobrado += f.total || 0
+      map[mes].facturado += Number(f.total || 0)
+      if (f.estado === 'cobrada') map[mes].cobrado += Number(f.total || 0)
     })
     return Object.entries(map).sort().slice(-6)
   })()

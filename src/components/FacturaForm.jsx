@@ -70,16 +70,27 @@ function LineaRow({ linea, idx, onChange, onRemove, isLast }) {
 export default function FacturaForm({ factura, onClose, onGuardar }) {
   const isEdit = !!factura
 
+  // Normalizar líneas: soporta tanto formato mock (precioUnit) como Supabase (precio_unitario)
+  const normalizarLineas = (lineas) => {
+    if (!lineas || lineas.length === 0) return [{ descripcion: '', cantidad: 1, precioUnit: 0, iva: 21 }]
+    return lineas.map(l => ({
+      descripcion: l.descripcion || '',
+      cantidad:    l.cantidad    || 1,
+      precioUnit:  l.precioUnit  ?? l.precio_unitario ?? 0,
+      iva:         l.iva         ?? 21,
+    }))
+  }
+
   const [form, setForm] = useState({
-    serie:      factura?.serie     ?? 'FAM',
-    numero:     factura?.numero    ?? generarNumeroFactura(factura?.serie ?? 'FAM'),
-    cliente:    factura?.cliente   ?? '',
-    expediente: factura?.expediente ?? '',
-    abogado:    factura?.abogado   ?? ABOGADO_DEFAULT,
-    fecha:      factura?.fecha     ?? new Date().toISOString().slice(0, 10),
-    fechaVto:   factura?.fechaVto  ?? '',
-    notas:      factura?.notas     ?? '',
-    lineas:     factura?.lineas    ?? [{ descripcion: '', cantidad: 1, precioUnit: 0, iva: 21 }],
+    serie:      factura?.serie                                    ?? 'FAM',
+    numero:     factura?.numero                                   ?? generarNumeroFactura(factura?.serie ?? 'FAM'),
+    cliente:    factura?.cliente                                  ?? '',
+    expediente: factura?.expediente                               ?? '',
+    abogado:    factura?.abogado                                  ?? ABOGADO_DEFAULT,
+    fecha:      factura?.fecha     ?? factura?.fecha_emision      ?? new Date().toISOString().slice(0, 10),
+    fechaVto:   factura?.fechaVto  ?? factura?.fecha_vencimiento  ?? '',
+    notas:      factura?.notas                                    ?? '',
+    lineas:     normalizarLineas(factura?.lineas ?? factura?.lineas_factura),
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -104,21 +115,27 @@ export default function FacturaForm({ factura, onClose, onGuardar }) {
   const total    = subtotal + ivaTotal
 
   function handleGuardar(estado = 'borrador') {
+    // Convertir líneas al formato Supabase (precio_unitario en lugar de precioUnit)
+    const lineasSupabase = form.lineas.map(l => ({
+      descripcion:     l.descripcion,
+      cantidad:        l.cantidad || 1,
+      precio_unitario: l.precioUnit || l.precio_unitario || 0,
+    }))
     onGuardar({
-      id:         factura?.id ?? Date.now(),
-      serie:      form.serie,
-      numero:     form.numero,
+      id:                factura?.id ?? null,
+      serie:             form.serie,
+      numero:            form.numero,
       estado,
-      fecha:      form.fecha,
-      fechaVto:   form.fechaVto,
-      cliente:    form.cliente.trim() || '—',
-      expediente: form.expediente.trim() || '—',
-      abogado:    form.abogado,
-      notas:      form.notas,
-      lineas:     form.lineas,
-      subtotal:   parseFloat(subtotal.toFixed(2)),
-      iva:        parseFloat(ivaTotal.toFixed(2)),
-      total:      parseFloat(total.toFixed(2)),
+      fecha_emision:     form.fecha,
+      fecha_vencimiento: form.fechaVto || null,
+      notas:             form.notas || null,
+      base_imponible:    parseFloat(subtotal.toFixed(2)),
+      iva_porcentaje:    21,
+      iva_importe:       parseFloat(ivaTotal.toFixed(2)),
+      irpf_porcentaje:   0,
+      irpf_importe:      0,
+      total:             parseFloat(total.toFixed(2)),
+      lineas:            lineasSupabase,
     })
   }
 

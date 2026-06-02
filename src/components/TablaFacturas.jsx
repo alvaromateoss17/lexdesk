@@ -109,12 +109,18 @@ export default function TablaFacturas({ facturas, onEditar, onEliminar, onCambia
   const [estado, setEstado] = useState('Todos')
   const [serie,  setSerie]  = useState('Todas')
 
-  const series = ['Todas', ...new Set(facturas.map(f => f.numero.split('-')[0]))]
+  // Helpers para campos Supabase
+  const getNumero = f => `${f.serie || 'A'}-${String(f.numero).padStart(3, '0')}`
+  const getCliente = f => f.clientes ? `${f.clientes.nombre} ${f.clientes.apellidos || ''}`.trim() : '—'
+
+  const series = ['Todas', ...new Set(facturas.map(f => f.serie || 'A'))]
 
   const filtered = facturas.filter(f => {
-    const matchQ      = !q || f.numero.toLowerCase().includes(q.toLowerCase()) || f.cliente.toLowerCase().includes(q.toLowerCase())
+    const numVisible    = getNumero(f)
+    const clienteNombre = getCliente(f)
+    const matchQ      = !q || numVisible.toLowerCase().includes(q.toLowerCase()) || clienteNombre.toLowerCase().includes(q.toLowerCase())
     const matchEstado = estado === 'Todos' || f.estado === estado.toLowerCase()
-    const matchSerie  = serie === 'Todas' || f.numero.startsWith(serie)
+    const matchSerie  = serie === 'Todas' || (f.serie || 'A') === serie
     return matchQ && matchEstado && matchSerie
   })
 
@@ -164,17 +170,17 @@ export default function TablaFacturas({ facturas, onEditar, onEliminar, onCambia
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <td style={td}><span className="mono" style={{ fontSize: 12 }}>{f.numero}</span></td>
-                <td style={td}>{f.cliente}</td>
-                <td style={td}><span style={{ fontSize: 12, color: 'var(--text-2)' }}>{f.expediente}</span></td>
-                <td style={td}><span style={{ color: 'var(--text-2)' }}>{f.fecha}</span></td>
+                <td style={td}><span className="mono" style={{ fontSize: 12 }}>{getNumero(f)}</span></td>
+                <td style={td}>{getCliente(f)}</td>
+                <td style={td}><span style={{ fontSize: 12, color: 'var(--text-2)' }}>—</span></td>
+                <td style={td}><span style={{ color: 'var(--text-2)' }}>{f.fecha_emision}</span></td>
                 <td style={td}>
-                  {f.fechaVto ? (
-                    <span style={{ color: f.estado === 'vencida' ? 'var(--red)' : 'var(--text-2)' }}>{f.fechaVto}</span>
+                  {f.fecha_vencimiento ? (
+                    <span style={{ color: f.estado === 'vencida' ? 'var(--red)' : 'var(--text-2)' }}>{f.fecha_vencimiento}</span>
                   ) : <span style={{ color: 'var(--text-3)' }}>—</span>}
                 </td>
                 <td style={{ ...td, fontWeight: 500 }}>
-                  <span className="num">{f.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                  <span className="num">{Number(f.total || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
                 </td>
                 <td style={td}><EstadoBadge estado={f.estado} /></td>
                 <td style={{ ...td, width: 40 }} onClick={e => e.stopPropagation()}>

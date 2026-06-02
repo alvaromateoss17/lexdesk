@@ -110,7 +110,8 @@ export async function crearCliente(datos) {
       direccion:           datos.direccion?.trim()          || null,
       ciudad:              datos.ciudad?.trim()             || null,
       fecha_nacimiento:    datos.fechaNacimiento            || datos.fecha_nacimiento || null,
-      notas:               datos.notaInicial?.trim()        || datos.notas?.trim()    || null,
+      notas:               (typeof datos.notaInicial === 'string' ? datos.notaInicial.trim() : '') ||
+                         (typeof datos.notas       === 'string' ? datos.notas.trim()       : '') || null,
       activo:              true,
       portal_activo:       false,
       abogado_asignado:    datos.abogadoAsignado?.trim()    || null,

@@ -14,9 +14,10 @@ export default function SetupDespacho() {
     setError('')
     try {
       await crearDespacho(nombre.trim())
-      // El AuthContext ya actualiza el profile — la app recarga automáticamente
+      // Reload completo para que el auth reinicie con el nuevo despacho
+      window.location.href = '/'
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Error desconocido. Inténtalo de nuevo.')
       setCargando(false)
     }
   }

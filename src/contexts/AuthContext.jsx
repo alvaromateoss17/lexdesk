@@ -1,155 +1,134 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { cargarPerfil, registrarUsuario, setupDespacho } from '../services/authService'
+import { registrarUsuario } from '../services/authService'
 
 const AuthContext = createContext(null)
 
+async function cargarPerfilDB(authUserId) {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('*, despachos(*)')
+    .eq('auth_user_id', authUserId)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null  // sin fila → no es error
+    throw error
+  }
+  return data
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-  // Flag para suprimir fetchProfile durante el registro (evita race condition)
-  const registrando = useRef(false)
+  const [user,      setUser]      = useState(null)
+  const [profile,   setProfile]   = useState(null)
+  const [loading,   setLoading]   = useState(true)
+  const [sinPerfil, setSinPerfil] = useState(false)
 
-  // Timeout de seguridad: si en 10s no resuelve, forzar fin de carga
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setLoading(prev => {
-        if (prev) console.warn('[Vincla] Auth timeout — forzando fin de carga')
-        return false
-      })
-    }, 10000)
-    return () => clearTimeout(t)
-  }, [])
-
-  const fetchProfile = useCallback(async (authUser) => {
+  // ── Carga perfil una vez; si no existe tras 1 reintento, marca sinPerfil ──
+  const procesarUsuario = useCallback(async (authUser) => {
     if (!authUser) {
-      setProfile(null)
+      setUser(null); setProfile(null); setSinPerfil(false)
       return
     }
-    // Si estamos en medio del registro, esperar a que termine
-    if (registrando.current) {
-      await new Promise(r => setTimeout(r, 3000))
-    }
+    setUser(authUser)
     try {
-      // Intentar 3 veces con delays crecientes (da tiempo al registro a completarse)
-      for (const delay of [0, 1000, 2500]) {
-        if (delay > 0) await new Promise(r => setTimeout(r, delay))
-        const data = await cargarPerfil(authUser.id)
-        if (data) {
-          setProfile(data)
-          return
-        }
+      let perfil = await cargarPerfilDB(authUser.id)
+
+      if (!perfil) {
+        // Dar 2s al registro para que termine antes de rendirse
+        await new Promise(r => setTimeout(r, 2000))
+        perfil = await cargarPerfilDB(authUser.id)
       }
-      // Tras 3 intentos sin perfil: el usuario tiene Auth pero setup incompleto
-      // NO hacemos signOut — dejamos que PrivateRoute muestre la pantalla de setup
-      console.warn('[Vincla] Usuario sin perfil tras 3 intentos:', authUser.id)
-      setProfile(null)
+
+      if (perfil) {
+        setProfile(perfil)
+        setSinPerfil(false)
+      } else {
+        setProfile(null)
+        setSinPerfil(true)   // existe en Auth pero sin fila en usuarios
+      }
     } catch (err) {
-      console.error('[Vincla] Error cargando perfil:', err)
+      console.error('[Auth] Error cargando perfil:', err.message)
       setProfile(null)
+      setSinPerfil(false)
     }
   }, [])
 
+  // ── Inicialización ────────────────────────────────────────────────────────
   useEffect(() => {
-    let montado = true
+    let activo = true
+
+    // Seguridad: máximo 10s en estado cargando
+    const timeout = setTimeout(() => {
+      if (activo) { console.warn('[Auth] Timeout'); setCargando(false) }
+    }, 10000)
+
+    function setCargando(v) { if (activo) setLoading(v) }
 
     supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
-        if (!montado) return
-        if (error) {
-          console.error('[Vincla] Error obteniendo sesión:', error)
-          setLoading(false)
-          return
-        }
-        setUser(session?.user ?? null)
-        fetchProfile(session?.user ?? null)
-          .catch(err => console.error('[Vincla] Error en fetchProfile inicial:', err))
-          .finally(() => { if (montado) setLoading(false) })
+      .then(async ({ data: { session }, error }) => {
+        if (!activo) return
+        if (error) { console.error('[Auth] getSession error:', error.message); setCargando(false); clearTimeout(timeout); return }
+        await procesarUsuario(session?.user ?? null)
+        setCargando(false)
+        clearTimeout(timeout)
       })
       .catch(err => {
-        console.error('[Vincla] Supabase no disponible:', err)
-        if (montado) setLoading(false)
+        console.error('[Auth] Supabase no disponible:', err.message)
+        setCargando(false)
+        clearTimeout(timeout)
       })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!montado) return
-        setUser(session?.user ?? null)
-
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          try { await fetchProfile(session?.user ?? null) }
-          catch (err) { console.error('[Vincla] Error en onAuthStateChange:', err) }
-        }
-        if (event === 'SIGNED_OUT') {
-          setProfile(null)
+      async (evento, session) => {
+        if (!activo) return
+        if (evento === 'SIGNED_IN')    { await procesarUsuario(session?.user ?? null) }
+        if (evento === 'SIGNED_OUT')   { setUser(null); setProfile(null); setSinPerfil(false) }
+        if (evento === 'TOKEN_REFRESHED' && session?.user && !profile) {
+          await procesarUsuario(session.user)
         }
       }
     )
 
-    return () => {
-      montado = false
-      subscription.unsubscribe()
-    }
-  }, [fetchProfile])
+    return () => { activo = false; clearTimeout(timeout); subscription.unsubscribe() }
+  }, [procesarUsuario]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
-  }
-
-  async function signUp({ email, password, nombre, nombreDespacho, codigoInvitacion = '' }) {
-    registrando.current = true
-    try {
-      const result = await registrarUsuario({ nombre, email, password, nombreDespacho, codigoInvitacion })
-      // Cargar el perfil manualmente después del registro completo
-      if (result.user) {
-        const perfil = await cargarPerfil(result.user.id)
-        if (perfil) setProfile(perfil)
-      }
-      return { data: result, needsConfirmation: result.needsConfirmation }
-    } catch (err) {
-      return { error: { message: err.message } }
-    } finally {
-      registrando.current = false
-    }
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut()
-  }
-
-  // Crea el despacho para cuentas con setup incompleto y recarga el perfil
-  async function crearDespacho(nombreDespacho) {
-    await setupDespacho(nombreDespacho)
+  // ── Refrescar perfil manualmente (para después del setup) ─────────────────
+  const refrescarPerfil = useCallback(async () => {
     const { data: { user: u } } = await supabase.auth.getUser()
-    if (u) {
-      const perfil = await cargarPerfil(u.id)
-      if (perfil) setProfile(perfil)
-    }
+    if (u) await procesarUsuario(u)
+  }, [procesarUsuario])
+
+  // ── Valor del contexto — mantiene todos los nombres anteriores + nuevos ───
+  const valor = {
+    // Nombres actuales (usados por Sidebar, TopBar, Login, hooks…)
+    user,
+    profile,
+    loading,
+    signIn:  (email, password) => supabase.auth.signInWithPassword({ email, password }).then(({ error }) => ({ error })),
+    signOut: () => supabase.auth.signOut(),
+    signUp: async ({ email, password, nombre, nombreDespacho, codigoInvitacion = '' }) => {
+      try {
+        const result = await registrarUsuario({ nombre, email, password, nombreDespacho, codigoInvitacion })
+        // procesarUsuario se disparará vía onAuthStateChange (con reintento de 2s)
+        return { data: result, needsConfirmation: result.needsConfirmation }
+      } catch (err) {
+        return { error: { message: err.message } }
+      }
+    },
+
+    // Nuevos nombres (usados por SetupDespacho, PrivateRoute)
+    sinPerfil,
+    estaAutenticado: !!user,
+    despacho: profile?.despachos ?? null,
+    refrescarPerfil,
+
+    // El signUp real con código de invitación se sigue haciendo en authService
+    // Los hooks usan despacho.id para las operaciones
   }
 
-  const sinDespacho = !loading && !!user && (!profile || !profile.despachos)
-
-  return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      loading,
-      sinDespacho,
-      signIn,
-      signUp,
-      signOut,
-      crearDespacho,
-      estaAutenticado:  !!user,
-      despacho:         profile?.despachos ?? null,
-      refrescarPerfil:  () => fetchProfile(user),
-    }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => useContext(AuthContext)
-
 export default AuthContext

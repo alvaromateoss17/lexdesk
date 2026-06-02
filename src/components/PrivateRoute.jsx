@@ -35,7 +35,7 @@ function BotonActualizarCache() {
 }
 
 export default function PrivateRoute({ children }) {
-  const { user, loading, sinDespacho } = useAuth()
+  const { user, loading, sinPerfil } = useAuth()
 
   if (loading) {
     return (
@@ -60,8 +60,8 @@ export default function PrivateRoute({ children }) {
 
   if (!user) return <Navigate to="/login" replace />
 
-  // Usuario autenticado pero sin despacho configurado → pantalla de setup
-  if (sinDespacho) return <SetupDespacho />
+  // Usuario autenticado pero sin perfil/despacho → pantalla de setup
+  if (sinPerfil) return <SetupDespacho />
 
   return children
 }

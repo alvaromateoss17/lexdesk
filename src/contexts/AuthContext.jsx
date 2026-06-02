@@ -15,6 +15,17 @@ async function cargarPerfilDB(authUserId) {
     if (error.code === 'PGRST116') return null  // sin fila → no es error
     throw error
   }
+
+  // Si el JOIN devolvió null pero despacho_id existe, intentar carga directa
+  if (data && !data.despachos && data.despacho_id) {
+    const { data: despacho } = await supabase
+      .from('despachos')
+      .select('*')
+      .eq('id', data.despacho_id)
+      .single()
+    if (despacho) data.despachos = despacho
+  }
+
   return data
 }
 
@@ -41,13 +52,6 @@ export function AuthProvider({ children }) {
       }
 
       if (perfil) {
-        // LOG TEMPORAL — eliminar después de confirmar que funciona
-        console.log('[Auth] Perfil cargado:', {
-          usuario_id:           perfil?.id,
-          despacho_id:          perfil?.despacho_id,
-          despachos:            perfil?.despachos,
-          despacho_id_desde_join: perfil?.despachos?.id ?? '⚠️ NULL — despacho_id en usuarios es NULL o RLS bloquea el JOIN',
-        })
         setProfile(perfil)
         setSinPerfil(false)
       } else {

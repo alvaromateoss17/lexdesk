@@ -37,7 +37,7 @@ export function useClientes({ soloActivos = true } = {}) {
   useEffect(() => { cargar() }, [cargar])
 
   const crear = useCallback(async (datos) => {
-    if (!despacho?.id) throw new Error('No hay despacho activo.')
+    if (!despacho?.id) throw new Error('Cargando datos del despacho, espera un momento.')
     const nuevo = await crearCliente({ ...datos, despacho_id: despacho.id })
     setClientes(prev => [nuevo, ...prev].sort((a, b) => a.nombre.localeCompare(b.nombre)))
     return nuevo

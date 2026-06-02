@@ -41,6 +41,13 @@ export function AuthProvider({ children }) {
       }
 
       if (perfil) {
+        // LOG TEMPORAL — eliminar después de confirmar que funciona
+        console.log('[Auth] Perfil cargado:', {
+          usuario_id:           perfil?.id,
+          despacho_id:          perfil?.despacho_id,
+          despachos:            perfil?.despachos,
+          despacho_id_desde_join: perfil?.despachos?.id ?? '⚠️ NULL — despacho_id en usuarios es NULL o RLS bloquea el JOIN',
+        })
         setProfile(perfil)
         setSinPerfil(false)
       } else {

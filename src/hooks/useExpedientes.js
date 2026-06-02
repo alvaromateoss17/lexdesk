@@ -42,7 +42,7 @@ export function useExpedientes(filtros = {}) {
   }, [cargar])
 
   const crear = useCallback(async (datos) => {
-    if (!despacho?.id) throw new Error('No hay despacho activo.')
+    if (!despacho?.id) throw new Error('Cargando datos del despacho, espera un momento.')
     const nuevo = await crearExpediente({ ...datos, despacho_id: despacho.id })
     setExpedientes(prev => [nuevo, ...prev])
     return nuevo

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download, Plus, ChevronRight, MoreHorizontal, Sparkles, Upload, Heart, AlertTriangle } from 'lucide-react'
 import KPICard from '../components/KPICard'
@@ -30,62 +30,77 @@ function hoje() {
 
 export default function Dashboard() {
   const nav = useNavigate()
-  const { profile } = useAuth()
+  const { profile, despacho, loading: authLoading } = useAuth()
 
   const [kpis,    setKpis]    = useState(null)
   const [plazos,  setPlazos]  = useState([])
   const [actividad, setActividad] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState(null)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        // KPIs desde Supabase (RLS garantiza que solo ve los de su despacho)
-        const [expRes, clientesRes, tareasRes] = await Promise.all([
-          supabase.from('expedientes').select('*', { count: 'exact', head: true }).in('estado', ['activo', 'pendiente']),
-          supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
-          supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
-        ])
-        setKpis({
-          expedientesActivos: expRes.count     ?? 0,
-          plazos:             tareasRes.count  ?? 0,
-          plazosCriticos:     0,
-          documentos:         0,
-          clientes:           clientesRes.count ?? 0,
-        })
+  const cargarDatosDashboard = useCallback(async () => {
+    setLoading(true)
+    setError(null)
 
-        // Próximos plazos: tareas pendientes con fecha de vencimiento próxima
-        const hoy = new Date().toISOString().split('T')[0]
-        const { data: tareasProximas } = await supabase
-          .from('tareas')
-          .select('*, expedientes(numero, titulo, clientes(nombre, apellidos))')
-          .eq('estado', 'pendiente')
-          .gte('fecha_vencimiento', hoy)
-          .order('fecha_vencimiento', { ascending: true })
-          .limit(5)
+    // Timeout de 8s para evitar skeleton infinito si Supabase no responde
+    const timeoutId = setTimeout(() => {
+      setLoading(false)
+      setError('La carga tardó demasiado. Comprueba tu conexión.')
+      setKpis({ expedientesActivos: 0, plazos: 0, plazosCriticos: 0, documentos: 0, clientes: 0 })
+    }, 8000)
 
-        setPlazos((tareasProximas || []).map(t => ({
-          ...t,
-          tipo:        t.titulo,
-          fecha:       t.fecha_vencimiento,
-          fechaFmt:    t.fecha_vencimiento ? new Date(t.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '—',
-          dias:        t.fecha_vencimiento ? Math.round((new Date(t.fecha_vencimiento + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000) : null,
-          urgencia:    t.prioridad === 'alta' || t.prioridad === 'urgente' ? 'Urgente' : t.prioridad === 'media' ? 'Próximo' : 'Normal',
-          expediente:  t.expedientes?.numero ?? '—',
-          expedienteId: t.expediente_id,
-        })))
+    try {
+      const [expRes, clientesRes, tareasRes] = await Promise.all([
+        supabase.from('expedientes').select('*', { count: 'exact', head: true }).in('estado', ['activo', 'pendiente']),
+        supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
+        supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
+      ])
+      setKpis({
+        expedientesActivos: expRes.count     ?? 0,
+        plazos:             tareasRes.count  ?? 0,
+        plazosCriticos:     0,
+        documentos:         0,
+        clientes:           clientesRes.count ?? 0,
+      })
 
-        setActividad([])
-      } catch (err) {
-        console.error('[Dashboard] Error cargando KPIs:', err)
-        setKpis({ expedientesActivos: 0, plazos: 0, plazosCriticos: 0, documentos: 0, clientes: 0 })
-        setPlazos([])
-        setActividad([])
-      }
+      const hoy = new Date().toISOString().split('T')[0]
+      const { data: tareasProximas } = await supabase
+        .from('tareas')
+        .select('*, expedientes(numero, titulo, clientes(nombre, apellidos))')
+        .eq('estado', 'pendiente')
+        .gte('fecha_vencimiento', hoy)
+        .order('fecha_vencimiento', { ascending: true })
+        .limit(5)
+
+      setPlazos((tareasProximas || []).map(t => ({
+        ...t,
+        tipo:         t.titulo,
+        fecha:        t.fecha_vencimiento,
+        fechaFmt:     t.fecha_vencimiento ? new Date(t.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '—',
+        dias:         t.fecha_vencimiento ? Math.round((new Date(t.fecha_vencimiento + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000) : null,
+        urgencia:     t.prioridad === 'alta' || t.prioridad === 'urgente' ? 'Urgente' : t.prioridad === 'media' ? 'Próximo' : 'Normal',
+        expediente:   t.expedientes?.numero ?? '—',
+        expedienteId: t.expediente_id,
+      })))
+
+      setActividad([])
+    } catch (err) {
+      console.error('[Dashboard] Error cargando KPIs:', err)
+      setError(err.message)
+      setKpis({ expedientesActivos: 0, plazos: 0, plazosCriticos: 0, documentos: 0, clientes: 0 })
+      setPlazos([])
+      setActividad([])
+    } finally {
+      clearTimeout(timeoutId)
       setLoading(false)
     }
-    load()
   }, [])
+
+  // Esperar a que auth resuelva antes de disparar queries
+  useEffect(() => {
+    if (authLoading) return
+    cargarDatosDashboard()
+  }, [authLoading, cargarDatosDashboard])
 
   const nombre = profile?.nombre?.split(' ')[0] ?? 'abogado'
 
@@ -96,7 +111,23 @@ export default function Dashboard() {
     { label: 'Clientes activos',     value: kpis.clientes, delta: '—' },
   ] : []
 
-  if (loading) return <LoadingSkeleton />
+  if (authLoading || loading) return <LoadingSkeleton />
+
+  if (error && !kpis) {
+    return (
+      <div style={{ padding: 48, textAlign: 'center' }}>
+        <p style={{ fontSize: 13, color: '#F87171', marginBottom: 12 }}>
+          Error cargando el dashboard: {error}
+        </p>
+        <button
+          onClick={cargarDatosDashboard}
+          style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--blue)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13 }}
+        >
+          Reintentar
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="fade-in">

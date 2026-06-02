@@ -17,13 +17,20 @@ async function cargarPerfilDB(authUserId) {
   }
   if (!perfil) return null
 
+  // Si no tiene despacho_id en su fila, no hay nada que cargar
+  if (!perfil.despacho_id) return { ...perfil, despachos: null }
+
   const { data: despachoData } = await supabase
     .from('despachos')
     .select('*')
     .eq('id', perfil.despacho_id)
     .single()
 
-  return { ...perfil, despachos: despachoData ?? null }
+  // Fallback: si la query del despacho falla por RLS u otro motivo,
+  // construir un objeto mínimo con el id para que los hooks puedan operar
+  const despachos = despachoData ?? { id: perfil.despacho_id }
+
+  return { ...perfil, despachos }
 }
 
 export function AuthProvider({ children }) {
@@ -57,8 +64,21 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('[Auth] Error cargando perfil:', err.message)
-      setProfile(null)
-      setSinPerfil(false)
+      // Reintento final: si falla la carga, esperar 3s y probar una vez más
+      try {
+        await new Promise(r => setTimeout(r, 3000))
+        const perfilRetry = await cargarPerfilDB(authUser.id)
+        if (perfilRetry) {
+          setProfile(perfilRetry)
+          setSinPerfil(false)
+        } else {
+          setProfile(null)
+          setSinPerfil(true)
+        }
+      } catch {
+        setProfile(null)
+        setSinPerfil(true)
+      }
     }
   }, [])
 

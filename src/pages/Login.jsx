@@ -15,7 +15,7 @@ export default function Login() {
   const [confirm,  setConfirm]  = useState(false)
 
   const [form, setForm] = useState({
-    email: '', password: '', nombre: '', nombreDespacho: '',
+    email: '', password: '', nombre: '', nombreDespacho: '', codigoInvitacion: '',
   })
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -28,12 +28,13 @@ export default function Login() {
     try {
       if (tab === 'login') {
         const { error: err } = await signIn(form.email, form.password)
-        if (err) { setError(err.message); setLoading(false); return }
+        if (err) { setError(traducirError(err.message)); setLoading(false); return }
         nav('/')
       } else {
-        if (!form.nombre.trim())        { setError('Introduce tu nombre.'); setLoading(false); return }
-        if (!form.nombreDespacho.trim()) { setError('Introduce el nombre del despacho.'); setLoading(false); return }
-const { error: err, needsConfirmation } = await signUp(form)
+        if (!form.nombre.trim())           { setError('Introduce tu nombre.'); setLoading(false); return }
+        if (!form.nombreDespacho.trim())   { setError('Introduce el nombre del despacho.'); setLoading(false); return }
+        if (!form.codigoInvitacion.trim()) { setError('Introduce el código de invitación.'); setLoading(false); return }
+        const { error: err, needsConfirmation } = await signUp(form)
         if (err) { setError(err.message); setLoading(false); return }
         if (needsConfirmation) { setConfirm(true); setLoading(false); return }
         nav('/')
@@ -94,6 +95,18 @@ const { error: err, needsConfirmation } = await signUp(form)
               <>
                 <Field label="Tu nombre" value={form.nombre} onChange={v => set('nombre', v)} placeholder="Lucía Romero" />
                 <Field label="Nombre del despacho" value={form.nombreDespacho} onChange={v => set('nombreDespacho', v)} placeholder="Romero & Asociados" />
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, fontWeight: 500 }}>Código de invitación</div>
+                  <input
+                    type="text"
+                    value={form.codigoInvitacion}
+                    onChange={e => set('codigoInvitacion', e.target.value)}
+                    placeholder="VINCLA2025"
+                    required
+                    style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.05em', textTransform: 'uppercase' }}
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>Proporcionado por el equipo de Vincla</div>
+                </div>
               </>
             )}
 
@@ -177,4 +190,12 @@ const inputStyle = {
   color: 'var(--text)', fontFamily: 'inherit', fontSize: 13,
   padding: '0 10px', outline: 0, boxSizing: 'border-box',
   transition: 'border-color 0.15s',
+}
+
+function traducirError(msg) {
+  if (!msg) return 'Error desconocido.'
+  if (msg.includes('Invalid login credentials') || msg.includes('Invalid email or password')) return 'Email o contraseña incorrectos.'
+  if (msg.includes('Email not confirmed')) return 'Confirma tu email antes de iniciar sesión.'
+  if (msg.includes('Email rate limit')) return 'Demasiados intentos. Espera unos minutos.'
+  return msg
 }

@@ -6,6 +6,7 @@ import AIPanel from '../components/AIPanel'
 import TimelineExpediente from '../components/TimelineExpediente'
 import { storageService } from '../services/storageService'
 import { formatCuantia } from '../utils/format'
+import { useExpediente } from '../hooks/useExpedientes'
 
 function KV({ label, value }) {
   return (
@@ -20,25 +21,20 @@ export default function ExpedienteDetalle() {
   const { id }  = useParams()
   const nav     = useNavigate()
 
-  const [exp,     setExp]     = useState(null)
+  const { expediente: exp, cargando: loading, error: errorExp } = useExpediente(id)
   const [docs,    setDocs]    = useState([])
   const [plazos,  setPlazos]  = useState([])
-  const [loading, setLoading] = useState(true)
   const [tab,     setTab]     = useState('Documentos')
   const [showAI,     setShowAI]     = useState(false)
   const [aiLoading,  setAiLoading]  = useState(false)
   const [aiContent,  setAiContent]  = useState(null)
   const [uploading,  setUploading]  = useState(false)
 
+  // Cargar documentos locales vinculados a este expediente
   useEffect(() => {
-    // Cargar expediente desde localStorage
-    const found = storageService.getById('expedientes', id)
-    setExp(found ?? null)
-    // Cargar documentos vinculados al expediente desde localStorage
     const todosLosDocs = storageService.getAll('documentos')
     setDocs(todosLosDocs.filter(d => String(d.expedienteId) === String(id)))
     setPlazos([])
-    setLoading(false)
   }, [id])
 
   const handleSummarize = () => {
@@ -104,9 +100,9 @@ export default function ExpedienteDetalle() {
     <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-2)' }}>Cargando expediente…</div>
   )
 
-  if (!exp) return (
+  if (errorExp || !exp) return (
     <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-2)' }}>
-      <div>Expediente no encontrado.</div>
+      <div>{errorExp || 'Expediente no encontrado.'}</div>
       <button onClick={() => nav('/expedientes')} style={{ marginTop: 12, ...ghostBtn }}>Volver</button>
     </div>
   )
@@ -255,7 +251,7 @@ export default function ExpedienteDetalle() {
                 </div>
                 <div>
                   <div style={{ fontWeight: 500 }}>{exp.cliente}</div>
-                  <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-2)' }}>{exp.clientes.cif ?? '—'}</div>
+                  <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-2)' }}>{exp.clientes.dni ?? '—'}</div>
                 </div>
               </div>
               <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />

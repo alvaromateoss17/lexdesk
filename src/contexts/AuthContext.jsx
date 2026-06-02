@@ -29,19 +29,22 @@ export function AuthProvider({ children }) {
       const data = await cargarPerfil(authUser.id)
       if (data) {
         setProfile(data)
-      } else {
-        // Perfil no existe todavía — puede ocurrir justo tras el registro
-        await new Promise(r => setTimeout(r, 1500))
-        try {
-          const retry = await cargarPerfil(authUser.id)
-          if (retry) setProfile(retry)
-          else console.warn('[Vincla] Usuario sin perfil en DB:', authUser.id)
-        } catch (retryErr) {
-          console.error('[Vincla] Error en reintento de perfil:', retryErr)
-        }
+        return
       }
+      // Perfil no existe todavía — puede ocurrir justo tras el registro
+      await new Promise(r => setTimeout(r, 1500))
+      const retry = await cargarPerfil(authUser.id)
+      if (retry) {
+        setProfile(retry)
+        return
+      }
+      // Si después de 2 intentos no hay perfil, el usuario existe en Auth
+      // pero no en la tabla usuarios (cuenta anterior a la migración).
+      // Lo cerramos para que pueda re-registrarse correctamente.
+      console.warn('[Vincla] Usuario sin perfil en DB — cerrando sesión:', authUser.id)
+      await supabase.auth.signOut()
+      setProfile(null)
     } catch (err) {
-      // ⚠️ CRÍTICO: siempre limpiar aunque haya error para no bloquear la app
       console.error('[Vincla] Error cargando perfil:', err)
       setProfile(null)
     }

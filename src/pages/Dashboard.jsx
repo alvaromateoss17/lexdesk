@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Download, Plus, ChevronRight, MoreHorizontal, Sparkles, Upload, Heart, AlertTriangle } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import { useAuth } from '../contexts/AuthContext'
-import { getProximosPlazos, getActividad } from '../services/dashboard'
-import { storageService } from '../services/storageService'
+import { supabase } from '../lib/supabase'
 
 const ICON_MAP = {
   FileText: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>,
@@ -40,24 +39,46 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function load() {
-      // KPIs desde localStorage
-      const expedientes  = storageService.getAll('expedientes')
-      const clientes     = storageService.getAll('clientes')
-      const documentos   = storageService.getAll('documentos')
-      const expActivos   = expedientes.filter(e => e.estado === 'activo' || e.estado === 'urgente').length
-      setKpis({
-        expedientesActivos: expActivos,
-        plazos:             0,
-        plazosCriticos:     0,
-        documentos:         documentos.length,
-        clientes:           clientes.filter(c => c.estado !== 'archivado').length,
-      })
-      // Plazos y actividad siguen usando Supabase pero con fallback a []
       try {
-        const [p, a] = await Promise.all([getProximosPlazos(5), getActividad(7)])
-        setPlazos(p.data ?? [])
-        setActividad(a.data ?? [])
-      } catch {
+        // KPIs desde Supabase (RLS garantiza que solo ve los de su despacho)
+        const [expRes, clientesRes, tareasRes] = await Promise.all([
+          supabase.from('expedientes').select('*', { count: 'exact', head: true }).in('estado', ['activo', 'pendiente']),
+          supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
+          supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
+        ])
+        setKpis({
+          expedientesActivos: expRes.count     ?? 0,
+          plazos:             tareasRes.count  ?? 0,
+          plazosCriticos:     0,
+          documentos:         0,
+          clientes:           clientesRes.count ?? 0,
+        })
+
+        // Próximos plazos: tareas pendientes con fecha de vencimiento próxima
+        const hoy = new Date().toISOString().split('T')[0]
+        const { data: tareasProximas } = await supabase
+          .from('tareas')
+          .select('*, expedientes(numero, titulo, clientes(nombre, apellidos))')
+          .eq('estado', 'pendiente')
+          .gte('fecha_vencimiento', hoy)
+          .order('fecha_vencimiento', { ascending: true })
+          .limit(5)
+
+        setPlazos((tareasProximas || []).map(t => ({
+          ...t,
+          tipo:        t.titulo,
+          fecha:       t.fecha_vencimiento,
+          fechaFmt:    t.fecha_vencimiento ? new Date(t.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '—',
+          dias:        t.fecha_vencimiento ? Math.round((new Date(t.fecha_vencimiento + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000) : null,
+          urgencia:    t.prioridad === 'alta' || t.prioridad === 'urgente' ? 'Urgente' : t.prioridad === 'media' ? 'Próximo' : 'Normal',
+          expediente:  t.expedientes?.numero ?? '—',
+          expedienteId: t.expediente_id,
+        })))
+
+        setActividad([])
+      } catch (err) {
+        console.error('[Dashboard] Error cargando KPIs:', err)
+        setKpis({ expedientesActivos: 0, plazos: 0, plazosCriticos: 0, documentos: 0, clientes: 0 })
         setPlazos([])
         setActividad([])
       }

@@ -4,9 +4,9 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function SetupDespacho() {
   const { signOut, user, refrescarPerfil } = useAuth()
-  const [nombre,    setNombre]    = useState('')
-  const [cargando,  setCargando]  = useState(false)
-  const [error,     setError]     = useState('')
+  const [nombre,   setNombre]   = useState('')
+  const [cargando, setCargando] = useState(false)
+  const [error,    setError]    = useState('')
 
   async function handleCrear(e) {
     e.preventDefault()
@@ -16,53 +16,18 @@ export default function SetupDespacho() {
     setError('')
 
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser) throw new Error('No hay sesión activa. Cierra sesión y vuelve a entrar.')
+      const { data, error: rpcError } = await supabase.rpc('setup_user_despacho', {
+        p_despacho_nombre: nombre.trim(),
+      })
 
-      // 1. Crear despacho (RLS permite: despacho_insert WITH CHECK (true))
-      const { data: despacho, error: errDespacho } = await supabase
-        .from('despachos')
-        .insert({ nombre: nombre.trim(), plan: 'esencial', activo: true })
-        .select()
-        .single()
+      if (rpcError) throw new Error(rpcError.message)
+      if (!data) throw new Error('No se recibió respuesta del servidor.')
 
-      if (errDespacho) throw new Error('Error al crear el despacho: ' + errDespacho.message)
-
-      // 2. Crear perfil (RLS permite: usuarios_insert con auth_user_id = auth.uid())
-      const { error: errUsuario } = await supabase
-        .from('usuarios')
-        .insert({
-          auth_user_id: authUser.id,
-          despacho_id:  despacho.id,
-          nombre:       authUser.user_metadata?.nombre || authUser.email.split('@')[0],
-          apellidos:    authUser.user_metadata?.apellidos || '',
-          email:        authUser.email,
-          rol:          'propietario',
-          activo:       true,
-        })
-
-      if (errUsuario) {
-        // Si ya existe la fila (ON CONFLICT), intentar actualizar el despacho_id
-        if (errUsuario.code === '23505') {
-          const { error: errUpdate } = await supabase
-            .from('usuarios')
-            .update({ despacho_id: despacho.id })
-            .eq('auth_user_id', authUser.id)
-          if (errUpdate) throw new Error('Error vinculando despacho: ' + errUpdate.message)
-        } else {
-          throw new Error('Error al crear el perfil: ' + errUsuario.message)
-        }
-      }
-
-      // 3. Refrescar perfil en AuthContext → sinPerfil pasará a false
-      //    → PrivateRoute re-renderizará y mostrará el dashboard automáticamente
       await refrescarPerfil()
-
     } catch (err) {
       setError(err.message || 'Error inesperado. Inténtalo de nuevo.')
       setCargando(false)
     }
-    // No resetear cargando en éxito — el componente se desmonta solo al cambiar sinPerfil
   }
 
   return (

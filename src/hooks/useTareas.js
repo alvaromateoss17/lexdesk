@@ -38,7 +38,10 @@ export function useTareas(filtros = {}) {
   useEffect(() => { cargar() }, [cargar])
 
   const crear = useCallback(async (datos) => {
-    if (!despacho?.id) throw new Error('Cargando datos del despacho, espera un momento.')
+    if (!despacho?.id) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      if (!despacho?.id) throw new Error('No se pudo conectar con el despacho. Recarga la página.')
+    }
     const nueva = await crearTarea({ ...datos, despacho_id: despacho.id })
     setTareas(prev => [...prev, nueva].sort(
       (a, b) => (a.fecha_vencimiento || '') < (b.fecha_vencimiento || '') ? -1 : 1

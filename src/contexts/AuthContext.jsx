@@ -93,6 +93,18 @@ export function AuthProvider({ children }) {
       .then(async ({ data: { session }, error }) => {
         if (!activo) return
         if (error) { console.error('[Auth] getSession error:', error.message); setCargando(false); clearTimeout(timeout); return }
+
+        if (session) {
+          // Validar la sesión contra el servidor (detecta JWTs de usuarios borrados)
+          const { error: userError } = await supabase.auth.getUser()
+          if (userError) {
+            await supabase.auth.signOut()
+            setCargando(false)
+            clearTimeout(timeout)
+            return
+          }
+        }
+
         await procesarUsuario(session?.user ?? null)
         setCargando(false)
         clearTimeout(timeout)

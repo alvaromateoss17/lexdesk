@@ -18,29 +18,21 @@ export async function registrarUsuario({ nombre, apellidos = '', email, password
   if (authError) throw new Error(traducirErrorAuth(authError.message))
   if (!authData.user) throw new Error('No se pudo crear la cuenta. Inténtalo de nuevo.')
 
-  const { data: despacho, error: despachoError } = await supabase
-    .from('despachos')
-    .insert({ nombre: nombreDespacho.trim(), plan: 'esencial', activo: true })
-    .select()
-    .single()
+  // Si no hay sesión inmediata (email no confirmado), no podemos llamar a la RPC
+  if (!authData.session) {
+    return { user: authData.user, needsConfirmation: true }
+  }
 
-  if (despachoError) throw new Error('No se pudo crear el despacho: ' + despachoError.message)
+  const { error: rpcError } = await supabase.rpc('crear_despacho_y_perfil', {
+    p_nombre_despacho: nombreDespacho.trim(),
+    p_nombre_usuario:  nombre.trim(),
+    p_apellidos:       apellidos?.trim() || '',
+    p_email:           email.trim().toLowerCase(),
+  })
 
-  const { error: usuarioError } = await supabase
-    .from('usuarios')
-    .insert({
-      auth_user_id: authData.user.id,
-      despacho_id: despacho.id,
-      nombre: nombre.trim(),
-      apellidos: apellidos.trim(),
-      email: email.trim().toLowerCase(),
-      rol: 'propietario',
-      activo: true,
-    })
+  if (rpcError) throw new Error('No se pudo crear el despacho: ' + rpcError.message)
 
-  if (usuarioError) throw new Error('No se pudo crear el perfil: ' + usuarioError.message)
-
-  return { user: authData.user, despacho, needsConfirmation: !authData.session }
+  return { user: authData.user, needsConfirmation: false }
 }
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────

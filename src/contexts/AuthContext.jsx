@@ -9,6 +9,17 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Timeout de seguridad: si en 8s no resuelve, forzar fin de carga
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) console.warn('[Vincla] Auth timeout — forzando fin de carga')
+        return false
+      })
+    }, 8000)
+    return () => clearTimeout(t)
+  }, [])
+
   const fetchProfile = useCallback(async (authUser) => {
     if (!authUser) {
       setProfile(null)
@@ -19,37 +30,63 @@ export function AuthProvider({ children }) {
       if (data) {
         setProfile(data)
       } else {
-        // Race condition al registrarse: perfil aún no existe, reintentar
-        setTimeout(async () => {
+        // Perfil no existe todavía — puede ocurrir justo tras el registro
+        await new Promise(r => setTimeout(r, 1500))
+        try {
           const retry = await cargarPerfil(authUser.id)
           if (retry) setProfile(retry)
-        }, 1500)
+          else console.warn('[Vincla] Usuario sin perfil en DB:', authUser.id)
+        } catch (retryErr) {
+          console.error('[Vincla] Error en reintento de perfil:', retryErr)
+        }
       }
-    } catch {
-      // Si falla la carga del perfil no bloqueamos la app
+    } catch (err) {
+      // ⚠️ CRÍTICO: siempre limpiar aunque haya error para no bloquear la app
+      console.error('[Vincla] Error cargando perfil:', err)
+      setProfile(null)
     }
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      fetchProfile(session?.user ?? null).finally(() => setLoading(false))
-    })
+    let montado = true
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null)
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (!montado) return
+        if (error) {
+          console.error('[Vincla] Error obteniendo sesión:', error)
+          setLoading(false)
+          return
+        }
+        setUser(session?.user ?? null)
+        fetchProfile(session?.user ?? null)
+          .catch(err => console.error('[Vincla] Error inesperado en fetchProfile:', err))
+          .finally(() => { if (montado) setLoading(false) })
+      })
+      .catch(err => {
+        console.error('[Vincla] Supabase no disponible:', err)
+        if (montado) setLoading(false)
+      })
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        await fetchProfile(session?.user ?? null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!montado) return
+        setUser(session?.user ?? null)
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          try { await fetchProfile(session?.user ?? null) }
+          catch (err) { console.error('[Vincla] Error en onAuthStateChange:', err) }
+        }
+        if (event === 'SIGNED_OUT') {
+          setProfile(null)
+        }
       }
-      if (event === 'SIGNED_OUT') {
-        setProfile(null)
-      }
+    )
 
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    return () => {
+      montado = false
+      subscription.unsubscribe()
+    }
   }, [fetchProfile])
 
   async function signIn(email, password) {
@@ -70,21 +107,18 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
-  const value = {
-    user,
-    profile,
-    loading,
-    signIn,
-    signUp,
-    signOut,
-    // Alias adicionales por si algún componente los usa
-    estaAutenticado: !!user,
-    despacho: profile?.despachos ?? null,
-    refrescarPerfil: () => fetchProfile(user),
-  }
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      profile,
+      loading,
+      signIn,
+      signUp,
+      signOut,
+      estaAutenticado: !!user,
+      despacho: profile?.despachos ?? null,
+      refrescarPerfil: () => fetchProfile(user),
+    }}>
       {children}
     </AuthContext.Provider>
   )

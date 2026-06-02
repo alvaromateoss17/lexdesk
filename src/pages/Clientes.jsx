@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Search, Plus, CheckCircle, X, Upload, Archive } from 'lucide-react'
 import ImportarClientesModal from '../components/ImportarClientesModal'
 import ClienteCard from '../components/ClienteCard'
-import { storageService } from '../services/storageService'
+import { useClientes } from '../hooks/useClientes'
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -251,57 +251,49 @@ function FilterSelect({ value, onChange, options, placeholder }) {
 
 export default function Clientes() {
   const nav = useNavigate()
-  const [clientesState, setClientesState] = useState([])
-  const [busqueda, setBusqueda] = useState('')
+  const [verArchivados, setVerArchivados] = useState(false)
   const [filtroAbogado, setFiltroAbogado] = useState('')
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('')
-  const [verArchivados, setVerArchivados] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [toast, setToast] = useState(null)
 
-  useEffect(() => {
-    setClientesState(storageService.getAll('clientes'))
-  }, [])
+  // Hook principal — carga activos o archivados según estado del toggle
+  const {
+    clientes: clientesState, cargando, error: errorClientes,
+    busqueda, setBusqueda,
+    crear, desactivar, recargar,
+  } = useClientes({ soloActivos: !verArchivados })
 
-  // KPIs (solo activos)
-  const clientesActivos    = clientesState.filter(c => !c.archivado)
-  const clientesArchivados = clientesState.filter(c => c.archivado)
-  const totalActivos       = clientesActivos.length
-  const conMensajesSinLeer = clientesActivos.filter(c => c.mensajes?.some(m => !m.leido && m.autor === 'cliente')).length
-  const conPagosPendientes = clientesActivos.filter(c => c.pagos?.some(p => p.estado === 'pendiente')).length
+  // KPIs
+  const totalActivos       = verArchivados ? 0 : clientesState.length
+  const conMensajesSinLeer = 0 // mensajes no migrados aún
+  const conPagosPendientes = 0 // pagos no migrados aún
 
-  // Etiquetas únicas para el filtro
+  // Etiquetas únicas para el filtro (desde los datos cargados)
   const etiquetasUnicas = [...new Set(clientesState.flatMap(c => c.etiquetas ?? []))].sort()
 
-  // Filtrado — por defecto solo activos; si verArchivados solo los archivados
-  const baseList = verArchivados ? clientesArchivados : clientesActivos
-  const clientesFiltrados = baseList
-    .filter(c => {
-      if (busqueda) {
-        const q = busqueda.toLowerCase()
-        return c.nombre.toLowerCase().includes(q) || c.dni?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.telefono?.toLowerCase().includes(q)
-      }
-      return true
-    })
-    .filter(c => !filtroAbogado || c.abogadoAsignado === filtroAbogado)
+  // Filtrado local (abogado y etiqueta; la búsqueda la hace el hook)
+  const clientesFiltrados = clientesState
+    .filter(c => !filtroAbogado  || c.abogadoAsignado === filtroAbogado)
     .filter(c => !filtroEtiqueta || c.etiquetas?.includes(filtroEtiqueta))
-    .sort((a, b) => {
-      const aSinLeer = a.mensajes?.some(m => !m.leido && m.autor === 'cliente') ? -1 : 0
-      const bSinLeer = b.mensajes?.some(m => !m.leido && m.autor === 'cliente') ? -1 : 0
-      if (aSinLeer !== bSinLeer) return aSinLeer - bSinLeer
-      return new Date(b.fechaAlta) - new Date(a.fechaAlta)
-    })
+
+  // Para los contadores del header necesitamos ambos lados
+  const clientesActivos    = verArchivados ? [] : clientesFiltrados
+  const clientesArchivados = verArchivados ? clientesFiltrados : []
 
   function handleVerDetalle(cliente) {
     nav(`/clientes/${cliente.id}`)
   }
 
-  function handleCrearCliente(nuevo) {
-    const guardado = storageService.create('clientes', nuevo)
-    setClientesState(prev => [...prev, guardado])
-    setShowModal(false)
-    setToast('Cliente creado correctamente')
+  async function handleCrearCliente(nuevo) {
+    try {
+      await crear(nuevo)
+      setShowModal(false)
+      setToast('Cliente creado correctamente')
+    } catch (err) {
+      setToast('Error al crear cliente: ' + err.message)
+    }
   }
 
   return (
@@ -315,8 +307,7 @@ export default function Clientes() {
           <div>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Clientes</h1>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
-              <span>{totalActivos} activos</span>
-              {clientesArchivados.length > 0 && <><span style={{ margin: '0 6px' }}>|</span><span>{clientesArchivados.length} archivados</span></>}
+              {cargando ? 'Cargando…' : <><span>{verArchivados ? clientesFiltrados.length + ' archivados' : totalActivos + ' activos'}</span></>}
               {conMensajesSinLeer > 0 && <><span style={{ margin: '0 6px' }}>|</span><span style={{ color: '#FBBF24' }}>{conMensajesSinLeer} con mensajes sin leer</span></>}
               {conPagosPendientes > 0 && <><span style={{ margin: '0 6px' }}>|</span><span style={{ color: '#FBBF24' }}>{conPagosPendientes} con pagos pendientes</span></>}
             </div>
@@ -328,7 +319,7 @@ export default function Clientes() {
             style={{ ...btnSec, color: verArchivados ? '#F59E0B' : undefined, borderColor: verArchivados ? 'rgba(245,158,11,0.4)' : undefined }}
           >
             <Archive size={13} />
-            {verArchivados ? 'Ver activos' : `Archivados (${clientesArchivados.length})`}
+            {verArchivados ? 'Ver activos' : 'Archivados'}
           </button>
           <button onClick={() => setShowImportModal(true)} style={btnSec}>
             <Upload size={13} /> Importar
@@ -353,6 +344,7 @@ export default function Clientes() {
         </div>
         <FilterSelect value={filtroAbogado} onChange={setFiltroAbogado} placeholder="Todos los abogados"
           options={[...new Set(clientesState.map(c => c.abogadoAsignado).filter(Boolean))].map(a => ({ value: a, label: a }))} />
+
         <FilterSelect value={filtroEtiqueta} onChange={setFiltroEtiqueta} placeholder="Todas las etiquetas"
           options={etiquetasUnicas.map(e => ({ value: e, label: e }))} />
         {(busqueda || filtroAbogado || filtroEtiqueta) && (
@@ -363,10 +355,16 @@ export default function Clientes() {
         )}
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 20 }}>
-        {verArchivados
+        {cargando ? 'Cargando clientes…' : verArchivados
           ? `Mostrando ${clientesFiltrados.length} clientes archivados`
           : `Mostrando ${clientesFiltrados.length} de ${totalActivos} clientes activos`}
       </div>
+
+      {errorClientes && (
+        <div style={{ fontSize: 13, color: 'var(--red)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 6, padding: '10px 14px', marginBottom: 14 }}>
+          {errorClientes}
+        </div>
+      )}
 
       {/* Grid */}
       {clientesFiltrados.length === 0 ? (
@@ -404,10 +402,13 @@ export default function Clientes() {
         <ImportarClientesModal
           onClose={() => setShowImportModal(false)}
           clientesExistentes={clientesState}
-          onImportados={importados => {
-            const guardados = importados.map(c => storageService.create('clientes', c))
-            setClientesState(prev => [...prev, ...guardados])
-            setToast(`Se importaron ${importados.length} clientes correctamente`)
+          onImportados={async importados => {
+            let creados = 0
+            for (const c of importados) {
+              try { await crear(c); creados++ } catch { /* continuar */ }
+            }
+            setShowImportModal(false)
+            setToast(`Se importaron ${creados} clientes correctamente`)
           }}
         />
       )}

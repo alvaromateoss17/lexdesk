@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { storageService } from '../services/storageService'
+import { useCliente } from '../hooks/useClientes'
+import { desactivarCliente, reactivarCliente, eliminarClientePermanente } from '../services/clientesService'
 import {
   ChevronRight, MoreHorizontal, Edit2, FolderPlus, MessageSquare, Archive,
   Phone, Mail, MapPin, Calendar, CreditCard, FileText, Lock, Plus,
@@ -156,8 +158,8 @@ function TabResumen({ cliente, expedientes }) {
         ) : expedientes.map(exp => (
           <Link key={exp.id} to={`/expedientes/${exp.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)', gap: 8 }}>
             <div>
-              <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-3)', marginBottom: 2 }}>{exp.ref}</div>
-              <div style={{ fontSize: 13, color: 'var(--text)' }}>{exp.tipo}</div>
+              <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-3)', marginBottom: 2 }}>{exp.numero || exp.ref}</div>
+              <div style={{ fontSize: 13, color: 'var(--text)' }}>{exp.titulo || exp.tipo}</div>
             </div>
             <ChevronRight size={14} color="var(--text-3)" />
           </Link>
@@ -224,13 +226,13 @@ function TabExpedientes({ expedientes }) {
               <tr key={exp.id} onClick={() => nav(`/expedientes/${exp.id}`)} style={{ borderBottom: i < expedientes.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.12s' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <td style={{ padding: '12px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-3)' }}>{exp.ref}</td>
-                <td style={{ padding: '12px 14px', color: 'var(--text)', fontWeight: 500 }}>{exp.tipo}</td>
+                <td style={{ padding: '12px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-3)' }}>{exp.numero || exp.ref}</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text)', fontWeight: 500 }}>{exp.titulo || exp.tipo}</td>
                 <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{exp.abogado}</td>
                 <td style={{ padding: '12px 14px' }}>
                   <Badge texto={exp.prioridad === 'urgente' ? 'Urgente' : exp.estado} color={exp.prioridad === 'urgente' ? '#F87171' : '#4F7EFF'} />
                 </td>
-                <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtFecha(exp.proximaActuacion)}</td>
+                <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtFecha(exp.proximo_plazo || exp.proximaActuacion)}</td>
                 <td style={{ padding: '12px 14px' }}><ChevronRight size={14} color="var(--text-3)" /></td>
               </tr>
             ))}
@@ -597,34 +599,33 @@ export default function ClienteDetalle() {
   const [toast, setToast] = useState(null)
   const [showModalEliminar, setShowModalEliminar] = useState(false)
 
-  const [cliente, setCliente] = useState(null)
-  const [loadingCliente, setLoadingCliente] = useState(true)
+  const { cliente, cargando: loadingCliente, error: errorCliente, recargar: recargarCliente } = useCliente(id)
 
-  useEffect(() => {
-    const found = storageService.getById('clientes', id)
-    setCliente(found ?? null)
-    setLoadingCliente(false)
-  }, [id])
-
-  function handleArchivar() {
+  async function handleArchivar() {
     if (!cliente) return
-    if (cliente.archivado) {
-      // Restaurar
-      const actualizado = storageService.update('clientes', cliente.id, { archivado: false, estado: 'activo', fechaArchivado: null })
-      setCliente(actualizado)
-      setToast('Cliente restaurado correctamente')
-    } else {
-      // Archivar
-      const actualizado = storageService.update('clientes', cliente.id, { archivado: true, estado: 'archivado', fechaArchivado: new Date().toISOString() })
-      setCliente(actualizado)
-      setToast('Cliente archivado correctamente')
+    try {
+      if (cliente.archivado) {
+        await reactivarCliente(id)
+        setToast('Cliente restaurado correctamente')
+      } else {
+        await desactivarCliente(id)
+        setToast('Cliente archivado correctamente')
+      }
+      recargarCliente()
+    } catch (err) {
+      setToast('Error: ' + err.message)
     }
   }
 
-  function handleEliminar() {
+  async function handleEliminar() {
     if (!cliente) return
-    storageService.delete('clientes', cliente.id)
-    nav('/clientes')
+    try {
+      await eliminarClientePermanente(id)
+      nav('/clientes')
+    } catch (err) {
+      setToast('No se puede eliminar: ' + err.message)
+      setShowModalEliminar(false)
+    }
   }
 
   if (loadingCliente) {
@@ -640,7 +641,7 @@ export default function ClienteDetalle() {
     )
   }
 
-  const expedientes = []
+  const expedientes = cliente.expedientes ?? []
   const mensajesSinLeer = (cliente.mensajes ?? []).filter(m => !m.leido && m.autor === 'cliente').length
 
   return (

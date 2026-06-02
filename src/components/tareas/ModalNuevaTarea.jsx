@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, User, ChevronDown, Search } from 'lucide-react';
+import { obtenerClientesParaSelector } from '../../services/clientesService';
 
 function todayStr() {
   const d = new Date();
@@ -22,9 +23,9 @@ function ClienteSelector({ value, onChange }) {
   const [abierto,   setAbierto]   = useState(false);
   const ref = useRef(null);
 
-  // Cargar clientes desde localStorage
+  // Cargar clientes desde Supabase
   useEffect(() => {
-    setClientes(storageService.getAll('clientes'));
+    obtenerClientesParaSelector().then(setClientes).catch(() => setClientes([]));
   }, []);
 
   // Cerrar al hacer clic fuera

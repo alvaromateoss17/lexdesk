@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell, CheckCircle2, AlarmClock, Printer } from 'lucide-react'
 import { getPlazosMes } from '../services/plazos'
 import Modal from '../components/Modal'
-import { useTareas } from '../store/tareasStore'
+import { useTareas } from '../hooks/useTareas'
 import AutocompleteInput from '../components/AutocompleteInput'
 import { TIPOS_EVENTO, getColorEvento } from '../data/tiposEvento'
 import ModalNuevaTarea from '../components/tareas/ModalNuevaTarea'
@@ -339,61 +339,15 @@ export default function Calendario() {
   const [modalTareaFecha, setModalTareaFecha] = useState(null)
   const [detailTask,      setDetailTask]      = useState(null)
 
-  const { tasks, addTask, setStatus, deleteTask, moveToNextDay } = useTareas()
+  const { tareas, cargando: cargandoTareas, crear: crearTarea, setStatus, deleteTask, moveToNextDay } = useTareas()
 
   // Persistir eventos en localStorage
   useEffect(() => {
     localStorage.setItem('vincla_eventos', JSON.stringify(eventos))
   }, [eventos])
 
-  // Auto-pase de tareas vencidas a hoy
-  useEffect(() => {
-    const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
-    const hoyKey = toDateKey(hoy.getFullYear(), hoy.getMonth() + 1, hoy.getDate())
-
-    const raw = localStorage.getItem('vincla_tareas')
-    if (!raw) return
-    let tareasObj
-    try { tareasObj = JSON.parse(raw) } catch { return }
-
-    let modificadas = false
-    const nuevasTareas = {}
-
-    Object.entries(tareasObj).forEach(([fechaKey, lista]) => {
-      const fechaTarea = new Date(fechaKey + 'T00:00:00')
-      fechaTarea.setHours(0, 0, 0, 0)
-
-      const mover = fechaTarea < hoy && fechaKey !== hoyKey
-      if (mover) {
-        lista.forEach(tarea => {
-          if (tarea.status === 'done') {
-            // Tareas completadas las dejamos en su fecha original
-            if (!nuevasTareas[fechaKey]) nuevasTareas[fechaKey] = []
-            nuevasTareas[fechaKey].push(tarea)
-          } else {
-            // Tareas pendientes → mover a hoy
-            modificadas = true
-            if (!nuevasTareas[hoyKey]) nuevasTareas[hoyKey] = []
-            nuevasTareas[hoyKey].push({
-              ...tarea,
-              fechaOriginal: tarea.fechaOriginal || fechaKey,
-              autoMovida: true,
-            })
-          }
-        })
-      } else {
-        if (!nuevasTareas[fechaKey]) nuevasTareas[fechaKey] = []
-        nuevasTareas[fechaKey].push(...lista)
-      }
-    })
-
-    if (modificadas) {
-      localStorage.setItem('vincla_tareas', JSON.stringify(nuevasTareas))
-      const pendientesMovidas = Object.values(nuevasTareas).flat().filter(t => t.autoMovida && t.status !== 'done').length
-      if (pendientesMovidas > 0) setToast(`${pendientesMovidas} tarea${pendientesMovidas > 1 ? 's' : ''} vencida${pendientesMovidas > 1 ? 's' : ''} movida${pendientesMovidas > 1 ? 's' : ''} a hoy.`)
-    }
-  }, []) // solo al montar
+  // Auto-pase de tareas vencidas: con Supabase se gestiona desde el panel lateral
+  // (el usuario mueve manualmente usando → Mañana o posponer)
 
   useEffect(() => {
     if (!toast) return
@@ -444,14 +398,15 @@ export default function Calendario() {
       plazByDay[d].push(p)
     })
 
-    // Tareas del mes actual
+    // Tareas del mes actual para impresión
     const tarByDay = {}
-    Object.entries(tasks).forEach(([dateKey, lista]) => {
-      const d = new Date(dateKey + 'T00:00:00')
+    tareas.forEach(t => {
+      if (!t.dateKey || t.status === 'done') return
+      const d = new Date(t.dateKey + 'T00:00:00')
       if (d.getFullYear() === year && d.getMonth() + 1 === month) {
         const dia = d.getDate()
-        const pendientes = lista.filter(t => t.status !== 'done')
-        if (pendientes.length > 0) tarByDay[dia] = pendientes
+        if (!tarByDay[dia]) tarByDay[dia] = []
+        tarByDay[dia].push(t)
       }
     })
 
@@ -559,26 +514,29 @@ export default function Calendario() {
     }
   })
 
-  // Tareas por día del mes actual
+  // Tareas por día del mes actual (desde el array plano de Supabase)
   const tareasByDay = {}
-  Object.entries(tasks).forEach(([dateKey, lista]) => {
-    const d = new Date(dateKey + 'T00:00:00')
+  tareas.forEach(t => {
+    if (!t.dateKey) return
+    const d = new Date(t.dateKey + 'T00:00:00')
     if (d.getFullYear() === year && d.getMonth() + 1 === month) {
-      tareasByDay[d.getDate()] = lista
+      const dia = d.getDate()
+      if (!tareasByDay[dia]) tareasByDay[dia] = []
+      tareasByDay[dia].push(t)
     }
   })
 
   const selectedKey     = toDateKey(year, month, selected)
   const selectedPlazos  = byDay[selected] ?? []
   const selectedEventos = eventosByDay[selected] ?? []
-  const selectedTareas  = tasks[selectedKey] ?? []
+  const selectedTareas  = (tareasByDay[selected] ?? [])
   const totalSelected   = selectedPlazos.length + selectedEventos.length
   const criticos        = plazos.filter(p => p.urgencia === 'Urgente').length
 
-  // Todas las tareas pendientes para el panel
-  const todasTareasPendientes = Object.entries(tasks)
-    .flatMap(([key, lista]) => lista.filter(t => t.status !== 'done').map(t => ({ ...t, dateKey: key })))
-    .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+  // Todas las tareas pendientes para el panel (desde el array plano)
+  const todasTareasPendientes = tareas
+    .filter(t => t.status !== 'done')
+    .sort((a, b) => (a.dateKey || '') < (b.dateKey || '') ? -1 : 1)
 
   return (
     <div className="fade-in">
@@ -787,10 +745,19 @@ export default function Calendario() {
       {modalTarea && (
         <ModalNuevaTarea
           initialDate={modalTareaFecha}
-          onSave={(dateKey, data) => {
-            addTask(dateKey, data)
-            setModalTarea(false)
-            setToast('Tarea creada correctamente.')
+          onSave={async (dateKey, data) => {
+            try {
+              await crearTarea({
+                titulo: data.text,
+                descripcion: data.desc,
+                prioridad: data.prioridad,
+                fecha_vencimiento: dateKey,
+              })
+              setModalTarea(false)
+              setToast('Tarea creada correctamente.')
+            } catch (err) {
+              setToast('Error al crear tarea: ' + err.message)
+            }
           }}
           onClose={() => setModalTarea(false)}
         />

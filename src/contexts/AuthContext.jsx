@@ -5,28 +5,25 @@ import { registrarUsuario } from '../services/authService'
 const AuthContext = createContext(null)
 
 async function cargarPerfilDB(authUserId) {
-  const { data, error } = await supabase
+  const { data: perfil, error: perfilError } = await supabase
     .from('usuarios')
-    .select('*, despachos(*)')
+    .select('*')
     .eq('auth_user_id', authUserId)
     .single()
 
-  if (error) {
-    if (error.code === 'PGRST116') return null  // sin fila → no es error
-    throw error
+  if (perfilError) {
+    if (perfilError.code === 'PGRST116') return null  // sin fila → no es error
+    throw perfilError
   }
+  if (!perfil) return null
 
-  // Si el JOIN devolvió null pero despacho_id existe, intentar carga directa
-  if (data && !data.despachos && data.despacho_id) {
-    const { data: despacho } = await supabase
-      .from('despachos')
-      .select('*')
-      .eq('id', data.despacho_id)
-      .single()
-    if (despacho) data.despachos = despacho
-  }
+  const { data: despachoData } = await supabase
+    .from('despachos')
+    .select('*')
+    .eq('id', perfil.despacho_id)
+    .single()
 
-  return data
+  return { ...perfil, despachos: despachoData ?? null }
 }
 
 export function AuthProvider({ children }) {

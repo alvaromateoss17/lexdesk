@@ -146,7 +146,12 @@ export function AuthProvider({ children }) {
     signUp: async ({ email, password, nombre, nombreDespacho, codigoInvitacion = '' }) => {
       try {
         const result = await registrarUsuario({ nombre, email, password, nombreDespacho, codigoInvitacion })
-        // procesarUsuario se disparará vía onAuthStateChange (con reintento de 2s)
+        // Recargar perfil explícitamente DESPUÉS de que setup_user_despacho haya terminado
+        // (onAuthStateChange SIGNED_IN puede haber disparado antes de que el despacho existiera)
+        if (!result.needsConfirmation) {
+          const { data: { user: u } } = await supabase.auth.getUser()
+          if (u) await procesarUsuario(u)
+        }
         return { data: result, needsConfirmation: result.needsConfirmation }
       } catch (err) {
         return { error: { message: err.message } }

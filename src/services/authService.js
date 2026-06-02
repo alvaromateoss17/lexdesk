@@ -65,6 +65,21 @@ export async function cerrarSesion() {
   if (error) throw new Error('No se pudo cerrar sesión: ' + error.message)
 }
 
+// ─── SETUP DE DESPACHO (recuperación para cuentas sin despacho) ──────────────
+
+/**
+ * Crea un despacho y vincula al usuario actual a él.
+ * Usa una función SECURITY DEFINER en Supabase que bypasea RLS,
+ * lo que permite reparar cuentas cuyo registro quedó incompleto.
+ */
+export async function setupDespacho(nombreDespacho = 'Mi Despacho') {
+  const { data, error } = await supabase.rpc('setup_user_despacho', {
+    p_despacho_nombre: nombreDespacho.trim() || 'Mi Despacho',
+  })
+  if (error) throw new Error('No se pudo crear el despacho: ' + error.message)
+  return data
+}
+
 // ─── PERFIL ──────────────────────────────────────────────────────────────────
 
 export async function cargarPerfil(authUserId) {

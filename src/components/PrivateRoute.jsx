@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import SetupDespacho from './SetupDespacho'
 
 async function limpiarCacheYRecargar() {
   if ('serviceWorker' in navigator) {
@@ -14,14 +15,11 @@ async function limpiarCacheYRecargar() {
 
 function BotonActualizarCache() {
   const [visible, setVisible] = useState(false)
-
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 5000)
     return () => clearTimeout(t)
   }, [])
-
   if (!visible) return null
-
   return (
     <button
       onClick={limpiarCacheYRecargar}
@@ -37,18 +35,18 @@ function BotonActualizarCache() {
 }
 
 export default function PrivateRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { user, loading, sinDespacho } = useAuth()
 
   if (loading) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', background: 'var(--bg)',
+        alignItems: 'center', justifyContent: 'center', background: 'var(--bg, #0F1117)',
       }}>
         <div style={{
           width: 28, height: 28, borderRadius: '50%',
-          border: '2px solid var(--border)',
-          borderTopColor: 'var(--blue)',
+          border: '2px solid rgba(255,255,255,0.1)',
+          borderTopColor: '#4F7EFF',
           animation: 'spin 0.7s linear infinite',
         }} />
         <p style={{ marginTop: 14, fontSize: 13, color: '#4A5270' }}>
@@ -61,5 +59,9 @@ export default function PrivateRoute({ children }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
+
+  // Usuario autenticado pero sin despacho configurado → pantalla de setup
+  if (sinDespacho) return <SetupDespacho />
+
   return children
 }

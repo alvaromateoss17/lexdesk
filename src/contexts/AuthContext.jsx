@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { cargarPerfil, registrarUsuario } from '../services/authService'
+import { cargarPerfil, registrarUsuario, setupDespacho } from '../services/authService'
 
 const AuthContext = createContext(null)
 
@@ -8,15 +8,17 @@ export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Flag para suprimir fetchProfile durante el registro (evita race condition)
+  const registrando = useRef(false)
 
-  // Timeout de seguridad: si en 8s no resuelve, forzar fin de carga
+  // Timeout de seguridad: si en 10s no resuelve, forzar fin de carga
   useEffect(() => {
     const t = setTimeout(() => {
       setLoading(prev => {
         if (prev) console.warn('[Vincla] Auth timeout — forzando fin de carga')
         return false
       })
-    }, 8000)
+    }, 10000)
     return () => clearTimeout(t)
   }, [])
 
@@ -25,24 +27,23 @@ export function AuthProvider({ children }) {
       setProfile(null)
       return
     }
+    // Si estamos en medio del registro, esperar a que termine
+    if (registrando.current) {
+      await new Promise(r => setTimeout(r, 3000))
+    }
     try {
-      const data = await cargarPerfil(authUser.id)
-      if (data) {
-        setProfile(data)
-        return
+      // Intentar 3 veces con delays crecientes (da tiempo al registro a completarse)
+      for (const delay of [0, 1000, 2500]) {
+        if (delay > 0) await new Promise(r => setTimeout(r, delay))
+        const data = await cargarPerfil(authUser.id)
+        if (data) {
+          setProfile(data)
+          return
+        }
       }
-      // Perfil no existe todavía — puede ocurrir justo tras el registro
-      await new Promise(r => setTimeout(r, 1500))
-      const retry = await cargarPerfil(authUser.id)
-      if (retry) {
-        setProfile(retry)
-        return
-      }
-      // Si después de 2 intentos no hay perfil, el usuario existe en Auth
-      // pero no en la tabla usuarios (cuenta anterior a la migración).
-      // Lo cerramos para que pueda re-registrarse correctamente.
-      console.warn('[Vincla] Usuario sin perfil en DB — cerrando sesión:', authUser.id)
-      await supabase.auth.signOut()
+      // Tras 3 intentos sin perfil: el usuario tiene Auth pero setup incompleto
+      // NO hacemos signOut — dejamos que PrivateRoute muestre la pantalla de setup
+      console.warn('[Vincla] Usuario sin perfil tras 3 intentos:', authUser.id)
       setProfile(null)
     } catch (err) {
       console.error('[Vincla] Error cargando perfil:', err)
@@ -63,7 +64,7 @@ export function AuthProvider({ children }) {
         }
         setUser(session?.user ?? null)
         fetchProfile(session?.user ?? null)
-          .catch(err => console.error('[Vincla] Error inesperado en fetchProfile:', err))
+          .catch(err => console.error('[Vincla] Error en fetchProfile inicial:', err))
           .finally(() => { if (montado) setLoading(false) })
       })
       .catch(err => {
@@ -98,11 +99,19 @@ export function AuthProvider({ children }) {
   }
 
   async function signUp({ email, password, nombre, nombreDespacho, codigoInvitacion = '' }) {
+    registrando.current = true
     try {
       const result = await registrarUsuario({ nombre, email, password, nombreDespacho, codigoInvitacion })
+      // Cargar el perfil manualmente después del registro completo
+      if (result.user) {
+        const perfil = await cargarPerfil(result.user.id)
+        if (perfil) setProfile(perfil)
+      }
       return { data: result, needsConfirmation: result.needsConfirmation }
     } catch (err) {
       return { error: { message: err.message } }
+    } finally {
+      registrando.current = false
     }
   }
 
@@ -110,17 +119,31 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  // Crea el despacho para cuentas con setup incompleto y recarga el perfil
+  async function crearDespacho(nombreDespacho) {
+    await setupDespacho(nombreDespacho)
+    const { data: { user: u } } = await supabase.auth.getUser()
+    if (u) {
+      const perfil = await cargarPerfil(u.id)
+      if (perfil) setProfile(perfil)
+    }
+  }
+
+  const sinDespacho = !loading && !!user && (!profile || !profile.despachos)
+
   return (
     <AuthContext.Provider value={{
       user,
       profile,
       loading,
+      sinDespacho,
       signIn,
       signUp,
       signOut,
-      estaAutenticado: !!user,
-      despacho: profile?.despachos ?? null,
-      refrescarPerfil: () => fetchProfile(user),
+      crearDespacho,
+      estaAutenticado:  !!user,
+      despacho:         profile?.despachos ?? null,
+      refrescarPerfil:  () => fetchProfile(user),
     }}>
       {children}
     </AuthContext.Provider>

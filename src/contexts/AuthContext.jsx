@@ -12,13 +12,11 @@ async function cargarPerfilDB(authUserId) {
     .single()
 
   if (perfilError) {
-    if (perfilError.code === 'PGRST116') return null  // sin fila → no es error
+    if (perfilError.code === 'PGRST116') return null  // sin fila → necesita setup
     throw perfilError
   }
-  if (!perfil) return null
-
-  // Si no tiene despacho_id en su fila, no hay nada que cargar
-  if (!perfil.despacho_id) return { ...perfil, despachos: null }
+  if (!perfil)              return null  // sin fila
+  if (!perfil.despacho_id) return null  // fila sin despacho → necesita setup
 
   const { data: despachoData } = await supabase
     .from('despachos')
@@ -26,11 +24,9 @@ async function cargarPerfilDB(authUserId) {
     .eq('id', perfil.despacho_id)
     .single()
 
-  // Fallback: si la query del despacho falla por RLS u otro motivo,
-  // construir un objeto mínimo con el id para que los hooks puedan operar
-  const despachos = despachoData ?? { id: perfil.despacho_id }
+  if (!despachoData) return null  // despacho borrado o RLS lo bloquea → necesita setup
 
-  return { ...perfil, despachos }
+  return { ...perfil, despachos: despachoData }
 }
 
 export function AuthProvider({ children }) {

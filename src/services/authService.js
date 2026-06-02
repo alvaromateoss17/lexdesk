@@ -18,16 +18,13 @@ export async function registrarUsuario({ nombre, apellidos = '', email, password
   if (authError) throw new Error(traducirErrorAuth(authError.message))
   if (!authData.user) throw new Error('No se pudo crear la cuenta. Inténtalo de nuevo.')
 
-  // Si no hay sesión inmediata (email no confirmado), no podemos llamar a la RPC
+  // Sin sesión inmediata (email pendiente de confirmar) → el despacho se crea en SetupDespacho
   if (!authData.session) {
     return { user: authData.user, needsConfirmation: true }
   }
 
-  const { error: rpcError } = await supabase.rpc('crear_despacho_y_perfil', {
-    p_nombre_despacho: nombreDespacho.trim(),
-    p_nombre_usuario:  nombre.trim(),
-    p_apellidos:       apellidos?.trim() || '',
-    p_email:           email.trim().toLowerCase(),
+  const { error: rpcError } = await supabase.rpc('setup_user_despacho', {
+    p_despacho_nombre: nombreDespacho.trim(),
   })
 
   if (rpcError) throw new Error('No se pudo crear el despacho: ' + rpcError.message)

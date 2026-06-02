@@ -19,11 +19,8 @@ export default function SetupDespacho() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) throw new Error('No hay sesión activa. Vuelve a iniciar sesión.')
 
-      const { data, error: rpcError } = await supabase.rpc('crear_despacho_y_perfil', {
-        p_nombre_despacho: nombre.trim(),
-        p_nombre_usuario:  authUser.user_metadata?.nombre || authUser.email.split('@')[0],
-        p_apellidos:       authUser.user_metadata?.apellidos || '',
-        p_email:           authUser.email,
+      const { data, error: rpcError } = await supabase.rpc('setup_user_despacho', {
+        p_despacho_nombre: nombre.trim(),
       })
 
       if (rpcError) throw new Error(rpcError.message)

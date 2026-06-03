@@ -39,7 +39,10 @@ export function useClientes({ soloActivos = true } = {}) {
   const crear = useCallback(async (datos) => {
     if (!despacho?.id) {
       await new Promise(resolve => setTimeout(resolve, 1000))
-      if (!despacho?.id) throw new Error('No se pudo conectar con el despacho. Recarga la página.')
+      if (!despacho?.id) {
+        console.error('[useClientes] Despacho undefined:', { despacho, profile: JSON.stringify(despacho) })
+        throw new Error('No se pudo conectar con el despacho. Verifica tu cuenta o contacta soporte.')
+      }
     }
     const nuevo = await crearCliente({ ...datos, despacho_id: despacho.id })
     setClientes(prev => [nuevo, ...prev].sort((a, b) => a.nombre.localeCompare(b.nombre)))

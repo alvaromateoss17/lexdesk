@@ -135,7 +135,7 @@ export function AuthProvider({ children }) {
     // Nuevos nombres (usados por SetupDespacho, PrivateRoute)
     sinPerfil,
     estaAutenticado: !!user,
-    despacho: profile?.despachos ?? null,
+    despacho: Array.isArray(profile?.despachos) ? profile.despachos[0] : null,
     refrescarPerfil,
 
     // El signUp real con código de invitación se sigue haciendo en authService

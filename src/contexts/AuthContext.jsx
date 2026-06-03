@@ -56,10 +56,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let activo = true
 
-    // Seguridad: máximo 5s en estado cargando
+    // Seguridad: máximo 10s en estado cargando (aumentado para cuentas con muchos datos)
     const timeout = setTimeout(() => {
       if (activo) { console.warn('[Auth] Timeout'); setCargando(false) }
-    }, 5000)
+    }, 10000)
 
     function setCargando(v) { if (activo) setLoading(v) }
 

@@ -39,7 +39,11 @@ export function useTareas(filtros = {}) {
 
   const crear = useCallback(async (datos) => {
     if (!despacho?.id) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Esperar hasta 3 segundos para que el perfil cargue
+      for (let i = 0; i < 3; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        if (despacho?.id) break
+      }
       if (!despacho?.id) throw new Error('No se pudo conectar con el despacho. Recarga la página.')
     }
     const nueva = await crearTarea({ ...datos, despacho_id: despacho.id })

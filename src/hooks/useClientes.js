@@ -38,10 +38,19 @@ export function useClientes({ soloActivos = true } = {}) {
 
   const crear = useCallback(async (datos) => {
     if (!despacho?.id) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Esperar hasta 3 segundos para que el perfil cargue
+      for (let i = 0; i < 3; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        if (despacho?.id) break
+      }
       if (!despacho?.id) {
-        console.error('[useClientes] Despacho undefined:', { despacho, profile: JSON.stringify(despacho) })
-        throw new Error('No se pudo conectar con el despacho. Verifica tu cuenta o contacta soporte.')
+        console.error('[useClientes] Despacho undefined después de esperar:', { 
+          despacho, 
+          hasDespacho: !!despacho,
+          despachoId: despacho?.id,
+          localStorage: localStorage.getItem('vincla_despacho_id')
+        })
+        throw new Error('No se pudo conectar con el despacho. Recarga la página.')
       }
     }
     const nuevo = await crearCliente({ ...datos, despacho_id: despacho.id })

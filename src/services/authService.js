@@ -23,13 +23,14 @@ export async function registrarUsuario({ nombre, apellidos = '', email, password
     return { user: authData.user, needsConfirmation: true }
   }
 
-  const { error: rpcError } = await supabase.rpc('setup_user_despacho', {
+  const { data: despachoData, error: rpcError } = await supabase.rpc('setup_user_despacho', {
     p_despacho_nombre: nombreDespacho.trim(),
   })
 
   if (rpcError) throw new Error('No se pudo crear el despacho: ' + rpcError.message)
+  if (!despachoData?.despacho_id) throw new Error('No se recibió despacho_id')
 
-  return { user: authData.user, needsConfirmation: false }
+  return { user: authData.user, needsConfirmation: false, despacho_id: despachoData.despacho_id }
 }
 
 // ─── LOGIN ───────────────────────────────────────────────────────────────────

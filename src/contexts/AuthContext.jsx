@@ -32,6 +32,7 @@ export function AuthProvider({ children }) {
   const procesarUsuario = useCallback(async (authUser) => {
     if (!authUser) {
       setUser(null); setProfile(null); setSinPerfil(false)
+      localStorage.removeItem('vincla_despacho_id')
       return
     }
     setUser(authUser)
@@ -41,6 +42,10 @@ export function AuthProvider({ children }) {
       if (perfil) {
         setProfile(perfil)
         setSinPerfil(false)
+        // Guardar despacho en localStorage
+        if (Array.isArray(perfil.despachos) && perfil.despachos[0]) {
+          localStorage.setItem('vincla_despacho_id', perfil.despachos[0].id)
+        }
       } else {
         setProfile(null)
         setSinPerfil(true)   // existe en Auth pero sin fila en usuarios
@@ -120,6 +125,10 @@ export function AuthProvider({ children }) {
     signUp: async ({ email, password, nombre, nombreDespacho, codigoInvitacion = '' }) => {
       try {
         const result = await registrarUsuario({ nombre, email, password, nombreDespacho, codigoInvitacion })
+        // Guardar despacho_id en localStorage si existe
+        if (result.despacho_id) {
+          localStorage.setItem('vincla_despacho_id', result.despacho_id)
+        }
         // Recargar perfil explícitamente DESPUÉS de que setup_user_despacho haya terminado
         // (onAuthStateChange SIGNED_IN puede haber disparado antes de que el despacho existiera)
         if (!result.needsConfirmation) {
@@ -135,7 +144,7 @@ export function AuthProvider({ children }) {
     // Nuevos nombres (usados por SetupDespacho, PrivateRoute)
     sinPerfil,
     estaAutenticado: !!user,
-    despacho: Array.isArray(profile?.despachos) ? profile.despachos[0] : null,
+    despacho: Array.isArray(profile?.despachos) && profile.despachos.length > 0 ? profile.despachos[0] : { id: localStorage.getItem('vincla_despacho_id') },
     refrescarPerfil,
 
     // El signUp real con código de invitación se sigue haciendo en authService

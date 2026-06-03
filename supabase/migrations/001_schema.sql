@@ -1,204 +1,329 @@
--- ============================================================
--- LexDesk — Schema completo
--- Ejecutar en: Supabase Dashboard → SQL Editor
--- ============================================================
+-- =============================================================================
+-- VINCLA — Schema definitivo de base de datos
+-- Arquitectura multi-tenant con Row Level Security
+-- =============================================================================
 
--- ── Tablas ──────────────────────────────────────────────────
+-- Habilitar extensiones necesarias
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm"; -- Para búsqueda de texto
 
--- Despachos (raíz multi-tenant)
-CREATE TABLE despachos (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nombre      TEXT NOT NULL,
-  plan        TEXT DEFAULT 'estudio' CHECK (plan IN ('estudio', 'profesional', 'empresa')),
-  max_usuarios INTEGER DEFAULT 10,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+-- =============================================================================
+-- TIPOS ENUMERADOS
+-- =============================================================================
+
+CREATE TYPE rol_usuario AS ENUM (
+  'propietario',    -- Dueño del despacho, acceso total
+  'abogado',        -- Abogado, acceso a sus expedientes
+  'administrativo'  -- Gestión administrativa, sin expedientes sensibles
 );
 
--- Perfiles (extiende auth.users)
-CREATE TABLE profiles (
-  id          UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
-  despacho_id UUID REFERENCES despachos(id),
-  nombre      TEXT NOT NULL DEFAULT '',
-  email       TEXT NOT NULL DEFAULT '',
-  rol         TEXT DEFAULT 'abogado' CHECK (rol IN ('admin', 'abogado', 'asistente')),
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+CREATE TYPE estado_expediente AS ENUM (
+  'activo',
+  'pendiente',
+  'cerrado',
+  'archivado'
 );
 
--- Clientes
-CREATE TABLE clientes (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  despacho_id         UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
-  nombre              TEXT NOT NULL,
-  email               TEXT,
-  telefono            TEXT,
-  cif                 TEXT,
-  expedientes_activos INTEGER DEFAULT 0,
-  fecha_alta          TIMESTAMPTZ DEFAULT NOW(),
-  created_at          TIMESTAMPTZ DEFAULT NOW()
+CREATE TYPE tipo_expediente AS ENUM (
+  'familia',
+  'civil',
+  'penal',
+  'laboral',
+  'mercantil',
+  'administrativo',
+  'contencioso',
+  'otro'
 );
 
--- Expedientes
-CREATE TABLE expedientes (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  despacho_id   UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
-  cliente_id    UUID REFERENCES clientes(id),
-  abogado_id    UUID REFERENCES profiles(id),
-  ref           TEXT NOT NULL,
-  tipo          TEXT NOT NULL CHECK (tipo IN ('Mercantil','Civil','Familia','Laboral','Penal','Concursal')),
-  estado        TEXT DEFAULT 'Activo' CHECK (estado IN ('Activo','Urgente','Archivado')),
-  juzgado       TEXT,
-  descripcion   TEXT,
-  cuantia       NUMERIC,
-  procedimiento TEXT,
-  fecha_inicio  DATE DEFAULT CURRENT_DATE,
-  ult_mov       TIMESTAMPTZ DEFAULT NOW(),
-  created_at    TIMESTAMPTZ DEFAULT NOW()
+CREATE TYPE estado_tarea AS ENUM (
+  'pendiente',
+  'completada',
+  'pospuesta',
+  'cancelada'
 );
 
--- Documentos
-CREATE TABLE documentos (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  despacho_id   UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
-  expediente_id UUID NOT NULL REFERENCES expedientes(id) ON DELETE CASCADE,
-  subido_por    UUID REFERENCES profiles(id),
-  nombre        TEXT NOT NULL,
-  tipo          TEXT NOT NULL CHECK (tipo IN ('pdf','docx','xlsx')),
-  tamano        INTEGER,
-  storage_path  TEXT NOT NULL,
-  tag           TEXT,
-  created_at    TIMESTAMPTZ DEFAULT NOW()
+CREATE TYPE prioridad_tarea AS ENUM (
+  'baja',
+  'media',
+  'alta',
+  'urgente'
 );
 
--- Plazos
-CREATE TABLE plazos (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  despacho_id   UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
-  expediente_id UUID NOT NULL REFERENCES expedientes(id) ON DELETE CASCADE,
-  tipo          TEXT NOT NULL,
-  fecha         DATE NOT NULL,
-  hora          TEXT,
-  descripcion   TEXT,
-  urgencia      TEXT DEFAULT 'Normal' CHECK (urgencia IN ('Normal','Próximo','Urgente')),
-  completado    BOOLEAN DEFAULT FALSE,
-  created_at    TIMESTAMPTZ DEFAULT NOW()
+CREATE TYPE estado_factura AS ENUM (
+  'borrador',
+  'emitida',
+  'pagada',
+  'vencida',
+  'cancelada'
 );
 
--- Actividad
-CREATE TABLE actividad (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  despacho_id   UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
-  usuario_id    UUID REFERENCES profiles(id),
-  expediente_id UUID REFERENCES expedientes(id),
-  icono         TEXT DEFAULT 'FileText',
-  accion        TEXT NOT NULL,
-  objeto        TEXT NOT NULL,
-  created_at    TIMESTAMPTZ DEFAULT NOW()
+CREATE TYPE tipo_movimiento AS ENUM (
+  'ingreso',
+  'gasto'
 );
 
--- ── Funciones helper ────────────────────────────────────────
+CREATE TYPE plan_despacho AS ENUM (
+  'esencial',
+  'despacho',
+  'enterprise'
+);
 
--- Devuelve el despacho_id del usuario actual
-CREATE OR REPLACE FUNCTION get_despacho_id()
-RETURNS UUID AS $$
-  SELECT despacho_id FROM profiles WHERE id = auth.uid();
-$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+-- =============================================================================
+-- FUNCIÓN PARA updated_at AUTOMÁTICO
+-- =============================================================================
 
--- Auto-genera la referencia del expediente
-CREATE OR REPLACE FUNCTION generate_expediente_ref(p_despacho_id UUID)
-RETURNS TEXT AS $$
-DECLARE
-  year_str TEXT := EXTRACT(YEAR FROM NOW())::TEXT;
-  n        INTEGER;
+CREATE OR REPLACE FUNCTION actualizar_updated_at()
+RETURNS TRIGGER AS $$
 BEGIN
-  SELECT COUNT(*) + 1 INTO n
-  FROM expedientes
-  WHERE despacho_id = p_despacho_id
-    AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW());
-  RETURN 'EXP-' || year_str || '-' || LPAD(n::TEXT, 3, '0');
+  NEW.updated_at = NOW();
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- ── Trigger: crear perfil al registrarse ────────────────────
+-- =============================================================================
+-- TABLA: despachos
+-- El "tenant" principal. Cada despacho es una empresa cliente de Vincla.
+-- =============================================================================
 
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO profiles (id, nombre, email)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'nombre', ''),
-    NEW.email
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+CREATE TABLE IF NOT EXISTS despachos (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre        TEXT NOT NULL,
+  nif           TEXT,
+  direccion     TEXT,
+  ciudad        TEXT,
+  codigo_postal TEXT,
+  telefono      TEXT,
+  email         TEXT,
+  web           TEXT,
+  logo_url      TEXT,
+  plan          plan_despacho NOT NULL DEFAULT 'esencial',
+  activo        BOOLEAN NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+CREATE TRIGGER trg_despachos_updated_at
+  BEFORE UPDATE ON despachos
+  FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
--- ── Row Level Security ───────────────────────────────────────
+-- =============================================================================
+-- TABLA: usuarios
+-- Perfiles de abogados/administrativos. Vinculados a auth.users de Supabase.
+-- UN usuario pertenece a UN despacho.
+-- =============================================================================
 
-ALTER TABLE despachos   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE clientes    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE expedientes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE documentos  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plazos      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE actividad   ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS usuarios (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_user_id  UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  despacho_id   UUID REFERENCES despachos(id) ON DELETE CASCADE,
+  nombre        TEXT NOT NULL,
+  apellidos     TEXT,
+  email         TEXT NOT NULL,
+  telefono      TEXT,
+  rol           rol_usuario NOT NULL DEFAULT 'abogado',
+  activo        BOOLEAN NOT NULL DEFAULT true,
+  avatar_url    TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- Despachos
-CREATE POLICY "despachos_insert" ON despachos FOR INSERT
-  TO authenticated WITH CHECK (true);
+CREATE TRIGGER trg_usuarios_updated_at
+  BEFORE UPDATE ON usuarios
+  FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE POLICY "despachos_select" ON despachos FOR SELECT
-  USING (id = get_despacho_id());
+CREATE INDEX IF NOT EXISTS idx_usuarios_auth_user_id ON usuarios(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_usuarios_despacho_id ON usuarios(despacho_id);
 
-CREATE POLICY "despachos_update" ON despachos FOR UPDATE
-  USING (id = get_despacho_id());
+-- =============================================================================
+-- TABLA: clientes
+-- Clientes del despacho (las personas que contratan al abogado).
+-- =============================================================================
 
--- Profiles
-CREATE POLICY "profiles_select" ON profiles FOR SELECT
-  USING (id = auth.uid() OR despacho_id = get_despacho_id());
+CREATE TABLE IF NOT EXISTS clientes (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  despacho_id      UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
+  nombre           TEXT NOT NULL,
+  apellidos        TEXT,
+  email            TEXT,
+  telefono         TEXT,
+  dni              TEXT,
+  direccion        TEXT,
+  ciudad           TEXT,
+  fecha_nacimiento DATE,
+  notas            TEXT,
+  activo           BOOLEAN NOT NULL DEFAULT true,
+  portal_activo    BOOLEAN NOT NULL DEFAULT false,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-CREATE POLICY "profiles_insert" ON profiles FOR INSERT
-  WITH CHECK (id = auth.uid());
+CREATE TRIGGER trg_clientes_updated_at
+  BEFORE UPDATE ON clientes
+  FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE POLICY "profiles_update" ON profiles FOR UPDATE
-  USING (id = auth.uid());
+CREATE INDEX IF NOT EXISTS idx_clientes_despacho_id ON clientes(despacho_id);
+CREATE INDEX IF NOT EXISTS idx_clientes_nombre ON clientes USING gin(nombre gin_trgm_ops);
 
--- Macro para las tablas con despacho_id
-CREATE POLICY "clientes_all" ON clientes FOR ALL
-  USING (despacho_id = get_despacho_id())
-  WITH CHECK (despacho_id = get_despacho_id());
+-- =============================================================================
+-- TABLA: expedientes
+-- Los casos/procedimientos legales. Núcleo de la aplicación.
+-- =============================================================================
 
-CREATE POLICY "expedientes_all" ON expedientes FOR ALL
-  USING (despacho_id = get_despacho_id())
-  WITH CHECK (despacho_id = get_despacho_id());
+CREATE TABLE IF NOT EXISTS expedientes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  despacho_id     UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
+  cliente_id      UUID REFERENCES clientes(id) ON DELETE SET NULL,
+  abogado_id      UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  numero          TEXT NOT NULL,
+  titulo          TEXT,
+  tipo            tipo_expediente NOT NULL DEFAULT 'otro',
+  estado          estado_expediente NOT NULL DEFAULT 'activo',
+  descripcion     TEXT,
+  fecha_apertura  DATE NOT NULL DEFAULT CURRENT_DATE,
+  fecha_cierre    DATE,
+  proximo_plazo   DATE,
+  juzgado         TEXT,
+  numero_autos    TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(despacho_id, numero)
+);
 
-CREATE POLICY "documentos_all" ON documentos FOR ALL
-  USING (despacho_id = get_despacho_id())
-  WITH CHECK (despacho_id = get_despacho_id());
+CREATE TRIGGER trg_expedientes_updated_at
+  BEFORE UPDATE ON expedientes
+  FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE POLICY "plazos_all" ON plazos FOR ALL
-  USING (despacho_id = get_despacho_id())
-  WITH CHECK (despacho_id = get_despacho_id());
+CREATE INDEX IF NOT EXISTS idx_expedientes_despacho_id ON expedientes(despacho_id);
+CREATE INDEX IF NOT EXISTS idx_expedientes_cliente_id ON expedientes(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_expedientes_abogado_id ON expedientes(abogado_id);
+CREATE INDEX IF NOT EXISTS idx_expedientes_estado ON expedientes(estado);
+CREATE INDEX IF NOT EXISTS idx_expedientes_proximo_plazo ON expedientes(proximo_plazo);
 
-CREATE POLICY "actividad_all" ON actividad FOR ALL
-  USING (despacho_id = get_despacho_id())
-  WITH CHECK (despacho_id = get_despacho_id());
+-- =============================================================================
+-- TABLA: tareas
+-- Tareas y vencimientos procesales. Pueden estar asociadas a un expediente.
+-- =============================================================================
 
--- ── Storage ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS tareas (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  despacho_id       UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
+  expediente_id     UUID REFERENCES expedientes(id) ON DELETE SET NULL,
+  asignado_a        UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  titulo            TEXT NOT NULL,
+  descripcion       TEXT,
+  estado            estado_tarea NOT NULL DEFAULT 'pendiente',
+  prioridad         prioridad_tarea NOT NULL DEFAULT 'media',
+  fecha_vencimiento DATE,
+  completada_at     TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('documentos', 'documentos', false)
-ON CONFLICT (id) DO NOTHING;
+CREATE TRIGGER trg_tareas_updated_at
+  BEFORE UPDATE ON tareas
+  FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
-CREATE POLICY "storage_select" ON storage.objects FOR SELECT
-  USING (bucket_id = 'documentos' AND (storage.foldername(name))[1] = get_despacho_id()::TEXT);
+CREATE INDEX IF NOT EXISTS idx_tareas_despacho_id ON tareas(despacho_id);
+CREATE INDEX IF NOT EXISTS idx_tareas_expediente_id ON tareas(expediente_id);
+CREATE INDEX IF NOT EXISTS idx_tareas_asignado_a ON tareas(asignado_a);
+CREATE INDEX IF NOT EXISTS idx_tareas_fecha_vencimiento ON tareas(fecha_vencimiento);
+CREATE INDEX IF NOT EXISTS idx_tareas_estado ON tareas(estado);
 
-CREATE POLICY "storage_insert" ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'documentos' AND (storage.foldername(name))[1] = get_despacho_id()::TEXT);
+-- =============================================================================
+-- TABLA: facturas
+-- Facturas emitidas por el despacho a sus clientes.
+-- =============================================================================
 
-CREATE POLICY "storage_delete" ON storage.objects FOR DELETE
-  USING (bucket_id = 'documentos' AND (storage.foldername(name))[1] = get_despacho_id()::TEXT);
+CREATE TABLE IF NOT EXISTS facturas (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  despacho_id       UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
+  cliente_id        UUID REFERENCES clientes(id) ON DELETE SET NULL,
+  serie             TEXT NOT NULL DEFAULT 'A',
+  numero            INTEGER NOT NULL,
+  estado            estado_factura NOT NULL DEFAULT 'borrador',
+  fecha_emision     DATE NOT NULL DEFAULT CURRENT_DATE,
+  fecha_vencimiento DATE,
+  base_imponible    DECIMAL(10,2) NOT NULL DEFAULT 0,
+  iva_porcentaje    DECIMAL(5,2) NOT NULL DEFAULT 21.00,
+  iva_importe       DECIMAL(10,2) NOT NULL DEFAULT 0,
+  irpf_porcentaje   DECIMAL(5,2) DEFAULT 0,
+  irpf_importe      DECIMAL(10,2) DEFAULT 0,
+  total             DECIMAL(10,2) NOT NULL DEFAULT 0,
+  notas             TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(despacho_id, serie, numero)
+);
+
+CREATE TRIGGER trg_facturas_updated_at
+  BEFORE UPDATE ON facturas
+  FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
+CREATE INDEX IF NOT EXISTS idx_facturas_despacho_id ON facturas(despacho_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_cliente_id ON facturas(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_estado ON facturas(estado);
+CREATE INDEX IF NOT EXISTS idx_facturas_fecha_emision ON facturas(fecha_emision);
+
+-- =============================================================================
+-- TABLA: lineas_factura
+-- Líneas de detalle de cada factura.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS lineas_factura (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  factura_id       UUID NOT NULL REFERENCES facturas(id) ON DELETE CASCADE,
+  descripcion      TEXT NOT NULL,
+  cantidad         DECIMAL(10,2) NOT NULL DEFAULT 1,
+  precio_unitario  DECIMAL(10,2) NOT NULL,
+  importe          DECIMAL(10,2) GENERATED ALWAYS AS (cantidad * precio_unitario) STORED,
+  orden            INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_lineas_factura_factura_id ON lineas_factura(factura_id);
+
+-- =============================================================================
+-- TABLA: movimientos
+-- Registro de ingresos y gastos del despacho.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS movimientos (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  despacho_id  UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
+  factura_id   UUID REFERENCES facturas(id) ON DELETE SET NULL,
+  tipo         tipo_movimiento NOT NULL,
+  descripcion  TEXT NOT NULL,
+  importe      DECIMAL(10,2) NOT NULL,
+  fecha        DATE NOT NULL DEFAULT CURRENT_DATE,
+  categoria    TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER trg_movimientos_updated_at
+  BEFORE UPDATE ON movimientos
+  FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
+CREATE INDEX IF NOT EXISTS idx_movimientos_despacho_id ON movimientos(despacho_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_fecha ON movimientos(fecha);
+CREATE INDEX IF NOT EXISTS idx_movimientos_tipo ON movimientos(tipo);
+
+-- =============================================================================
+-- TABLA: documentos
+-- Archivos adjuntos a expedientes. Se almacenan en Supabase Storage.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS documentos (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  despacho_id    UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
+  expediente_id  UUID REFERENCES expedientes(id) ON DELETE SET NULL,
+  nombre         TEXT NOT NULL,
+  nombre_archivo TEXT,
+  url_storage    TEXT,
+  tipo_mime      TEXT,
+  tamano_bytes   INTEGER,
+  subido_por     UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_documentos_despacho_id ON documentos(despacho_id);
+CREATE INDEX IF NOT EXISTS idx_documentos_expediente_id ON documentos(expediente_id);

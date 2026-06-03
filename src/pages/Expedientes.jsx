@@ -206,12 +206,13 @@ function ModalNuevoExpediente({ onClose, onCrear }) {
             </div>
             <div>
               <Label>Tipo de procedimiento *</Label>
-              <AutocompleteInput
+              <input
                 value={form.tipo}
-                onChange={val => set('tipo', val)}
-                options={TIPOS_EXPEDIENTE}
+                onChange={val => set('tipo', val.target.value)}
                 placeholder="Ej: Divorcio, Guarda y Custodia..."
+                style={inputStyle}
                 required={true}
+                disabled={guardando}
               />
             </div>
             <div>

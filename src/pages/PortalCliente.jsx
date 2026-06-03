@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { UserCircle, FileText, MessageSquare, CheckCircle, Clock, AlertCircle, Download, Send, Eye, Lock } from 'lucide-react'
+import { useClientes } from '../hooks/useClientes'
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 
@@ -182,10 +183,12 @@ const TABS = [
 export default function PortalCliente() {
   const [tab, setTab] = useState('estado')
   const [clienteIdx, setClienteIdx] = useState(0)
+  
+  // Cargar clientes reales desde el hook
+  const { clientes: clientesState } = useClientes({ soloActivos: true })
 
-  const clientesUnicos = []
-  const cliente = clientesUnicos[clienteIdx] ?? null
-  const expCliente = []
+  const cliente = clientesState[clienteIdx] ?? null
+  const expCliente = []  // Aquí irían los expedientes del cliente
   const hiloCliente = null
 
   return (
@@ -206,9 +209,13 @@ export default function PortalCliente() {
           value={clienteIdx} onChange={e => setClienteIdx(Number(e.target.value))}
           style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
         >
-          {clientesUnicos.map((c, i) => (
-            <option key={i} value={i}>{c.nombre}</option>
-          ))}
+          {clientesState.length === 0 ? (
+            <option value={0}>Sin clientes disponibles</option>
+          ) : (
+            clientesState.map((c, i) => (
+              <option key={i} value={i}>{c.nombre}</option>
+            ))
+          )}
         </select>
       </div>
 

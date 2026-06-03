@@ -89,10 +89,9 @@ function CampoFormulario({ label, error, children, col }) {
 
 function ModalNuevoCliente({ onClose, onCrear }) {
   const [form, setForm] = useState({
-    nombre: '', dni: '', fechaNacimiento: '', nacionalidad: 'Española',
-    profesion: '', estadoCivil: 'Soltero/a',
-    email: '', telefono: '', telefonoSecundario: '', direccion: '',
-    abogadoAsignado: '',
+    nombre: '', dni: '',
+    email: '', telefono: '', telefonoSecundario: '', 
+    numero: '', piso: '', letra: '', localidad: '',
     etiquetas: [], notaInicial: '',
   })
   const [errores, setErrores] = useState({})
@@ -105,7 +104,6 @@ function ModalNuevoCliente({ onClose, onCrear }) {
     if (!form.dni.trim()) e.dni = 'Campo obligatorio'
     if (!form.email.trim()) e.email = 'Campo obligatorio'
     if (!form.telefono.trim()) e.telefono = 'Campo obligatorio'
-    if (!form.abogadoAsignado) e.abogadoAsignado = 'Campo obligatorio'
     return e
   }
 
@@ -127,7 +125,7 @@ function ModalNuevoCliente({ onClose, onCrear }) {
       pagos: [],
       documentos: [],
       notas: form.notaInicial.trim() ? [{
-        id: 1, autor: form.abogadoAsignado,
+        id: 1, autor: 'Sistema',
         fecha: new Date().toISOString().split('T')[0],
         hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
         texto: form.notaInicial.trim(), privada: true,
@@ -157,26 +155,12 @@ function ModalNuevoCliente({ onClose, onCrear }) {
               <Campo label="DNI / NIE *" error={errores.dni}>
                 <input value={form.dni} onChange={e => set('dni', e.target.value)} style={inStyle} placeholder="12345678A" />
               </Campo>
-              <Campo label="Fecha de nacimiento">
-                <input type="date" value={form.fechaNacimiento} onChange={e => set('fechaNacimiento', e.target.value)} style={inStyle} />
-              </Campo>
-              <Campo label="Nacionalidad">
-                <input value={form.nacionalidad} onChange={e => set('nacionalidad', e.target.value)} style={inStyle} />
-              </Campo>
-              <Campo label="Profesión">
-                <input value={form.profesion} onChange={e => set('profesion', e.target.value)} style={inStyle} />
-              </Campo>
-              <Campo label="Estado civil">
-                <select value={form.estadoCivil} onChange={e => set('estadoCivil', e.target.value)} style={inStyle}>
-                  {ESTADOS_CIVILES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </Campo>
             </div>
           </div>
 
-          {/* Contacto */}
+          {/* Contacto y dirección */}
           <div>
-            <div style={sectionLabel}>Contacto</div>
+            <div style={sectionLabel}>Contacto y Dirección</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Campo label="Email *" error={errores.email}>
                 <input type="email" value={form.email} onChange={e => set('email', e.target.value)} style={inStyle} placeholder="cliente@email.com" />
@@ -187,25 +171,26 @@ function ModalNuevoCliente({ onClose, onCrear }) {
               <Campo label="Teléfono secundario">
                 <input value={form.telefonoSecundario} onChange={e => set('telefonoSecundario', e.target.value)} style={inStyle} placeholder="Opcional" />
               </Campo>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Dirección</label>
-                <input value={form.direccion} onChange={e => set('direccion', e.target.value)} style={inStyle} placeholder="C/ Nombre, nº, piso, CP Ciudad" />
-              </div>
+              <div></div>
+              <Campo label="Número">
+                <input value={form.numero} onChange={e => set('numero', e.target.value)} style={inStyle} placeholder="Ej: 42" />
+              </Campo>
+              <Campo label="Piso">
+                <input value={form.piso} onChange={e => set('piso', e.target.value)} style={inStyle} placeholder="Ej: 3" />
+              </Campo>
+              <Campo label="Letra">
+                <input value={form.letra} onChange={e => set('letra', e.target.value)} style={inStyle} placeholder="Ej: B" />
+              </Campo>
+              <Campo label="Localidad">
+                <input value={form.localidad} onChange={e => set('localidad', e.target.value)} style={inStyle} placeholder="Ej: Madrid" />
+              </Campo>
             </div>
           </div>
 
-          {/* Asignación */}
+          {/* Etiquetas y nota inicial */}
           <div>
-            <div style={sectionLabel}>Asignación</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Campo label="Abogado asignado *" error={errores.abogadoAsignado}>
-                <input
-                  value={form.abogadoAsignado}
-                  onChange={e => set('abogadoAsignado', e.target.value)}
-                  style={inStyle}
-                  placeholder="Nombre del abogado responsable"
-                />
-              </Campo>
+            <div style={sectionLabel}>Etiquetas y Notas</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
               <div>
                 <label style={labelStyle}>Etiquetas</label>
                 <EtiquetaInput etiquetas={form.etiquetas} onChange={v => set('etiquetas', v)} />

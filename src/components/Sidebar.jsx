@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, LogOut, ScrollText, Calculator, MessageCircle, UserCircle, Receipt } from 'lucide-react'
+import { useState } from 'react'
 import VinclaLogo from './VinclaLogo'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
@@ -69,6 +70,7 @@ function NavItem({ to, icon: Icon, label, end, badge, badgeCount, badgeColor }) 
 export default function Sidebar() {
   const nav = useNavigate()
   const { profile, signOut } = useAuth()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   const clientesActivos    = 0
   const clientesSinLeer    = 0
@@ -146,15 +148,39 @@ export default function Sidebar() {
             Plan {plan}
           </div>
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowLogoutConfirm(true)}
             title="Cerrar sesión"
-            style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid transparent', color: 'var(--text-3)', cursor: 'pointer', flexShrink: 0, transition: 'color 0.15s, border-color 0.15s' }}
+            style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid transparent', color: 'var(--text-3)', cursor: 'pointer', flexShrink: 0, transition: 'color 0.15s, border-color 0.15s', position: 'relative' }}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.borderColor = 'transparent' }}
           >
             <LogOut size={14} />
           </button>
         </div>
+        
+        {showLogoutConfirm && (
+          <div style={{ marginTop: 12, padding: '12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>¿Cerrar sesión?</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{ flex: 1, padding: '6px 12px', fontSize: 11, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSignOut}
+                style={{ flex: 1, padding: '6px 12px', fontSize: 11, borderRadius: 4, border: 'none', background: '#F87171', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, transition: 'background 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#EF4444'}
+                onMouseLeave={e => e.currentTarget.style.background = '#F87171'}
+              >
+                Salir
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   )

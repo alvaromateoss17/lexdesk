@@ -7,7 +7,7 @@ const AuthContext = createContext(null)
 async function cargarPerfilDB(authUserId) {
   const { data: perfil, error: perfilError } = await supabase
     .from('usuarios')
-    .select('*')
+    .select('*, despachos(*)')
     .eq('auth_user_id', authUserId)
     .single()
 
@@ -17,16 +17,9 @@ async function cargarPerfilDB(authUserId) {
   }
   if (!perfil)              return null  // sin fila
   if (!perfil.despacho_id) return null  // fila sin despacho → necesita setup
+  if (!perfil.despachos)   return null  // despacho borrado o RLS lo bloquea → necesita setup
 
-  const { data: despachoData } = await supabase
-    .from('despachos')
-    .select('*')
-    .eq('id', perfil.despacho_id)
-    .single()
-
-  if (!despachoData) return null  // despacho borrado o RLS lo bloquea → necesita setup
-
-  return { ...perfil, despachos: despachoData }
+  return perfil
 }
 
 export function AuthProvider({ children }) {
@@ -35,7 +28,7 @@ export function AuthProvider({ children }) {
   const [loading,   setLoading]   = useState(true)
   const [sinPerfil, setSinPerfil] = useState(false)
 
-  // ── Carga perfil una vez; si no existe tras 1 reintento, marca sinPerfil ──
+  // ── Carga perfil una vez; si no existe, marca sinPerfil ──
   const procesarUsuario = useCallback(async (authUser) => {
     if (!authUser) {
       setUser(null); setProfile(null); setSinPerfil(false)
@@ -43,13 +36,7 @@ export function AuthProvider({ children }) {
     }
     setUser(authUser)
     try {
-      let perfil = await cargarPerfilDB(authUser.id)
-
-      if (!perfil) {
-        // Dar 2s al registro para que termine antes de rendirse
-        await new Promise(r => setTimeout(r, 2000))
-        perfil = await cargarPerfilDB(authUser.id)
-      }
+      const perfil = await cargarPerfilDB(authUser.id)
 
       if (perfil) {
         setProfile(perfil)
@@ -60,21 +47,8 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('[Auth] Error cargando perfil:', err.message)
-      // Reintento final: si falla la carga, esperar 3s y probar una vez más
-      try {
-        await new Promise(r => setTimeout(r, 3000))
-        const perfilRetry = await cargarPerfilDB(authUser.id)
-        if (perfilRetry) {
-          setProfile(perfilRetry)
-          setSinPerfil(false)
-        } else {
-          setProfile(null)
-          setSinPerfil(true)
-        }
-      } catch {
-        setProfile(null)
-        setSinPerfil(true)
-      }
+      setProfile(null)
+      setSinPerfil(true)
     }
   }, [])
 
@@ -82,10 +56,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let activo = true
 
-    // Seguridad: máximo 10s en estado cargando
+    // Seguridad: máximo 5s en estado cargando
     const timeout = setTimeout(() => {
       if (activo) { console.warn('[Auth] Timeout'); setCargando(false) }
-    }, 10000)
+    }, 5000)
 
     function setCargando(v) { if (activo) setLoading(v) }
 

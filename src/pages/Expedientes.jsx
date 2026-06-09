@@ -59,7 +59,7 @@ const ESTADO_COLORES = {
 function EstadoBadge({ estado }) {
   const c = ESTADO_COLORES[estado?.toLowerCase()] ?? ESTADO_COLORES.activo
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 4, background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 100, background: c.bg, color: c.text, border: `1px solid ${c.border}`, whiteSpace: 'nowrap' }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
       {c.label}
     </span>
@@ -73,33 +73,33 @@ function ExpedienteCard({ exp, onVer, onEliminar }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        border: `1px solid ${hovered ? 'rgba(79,126,255,0.5)' : '#2A2D3E'}`,
-        borderRadius: 12,
-        padding: 20,
+        border: `1px solid ${hovered ? 'var(--ac-bdr)' : 'var(--bd)'}`,
+        borderRadius: 'var(--radius)',
+        padding: 18,
         display: 'flex', flexDirection: 'column', gap: 12,
         transition: 'border-color 0.15s, background 0.15s',
-        background: hovered ? '#1E2130' : '#161820',
+        background: hovered ? 'var(--s2)' : 'var(--s1)',
         cursor: 'default',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-        <span className="mono" style={{ fontSize: 11, color: '#4F7EFF', fontWeight: 600 }}>{exp.ref}</span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--ac)', fontWeight: 500 }}>{exp.ref}</span>
         <EstadoBadge estado={exp.estado} />
       </div>
       <div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: '#E8E9F0', lineHeight: 1.3 }}>{exp.cliente || '—'}</div>
-        {exp.contraparte && <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>vs. {exp.contraparte}</div>}
-        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>{exp.tipo}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx1)', lineHeight: 1.3 }}>{exp.cliente || '—'}</div>
+        {exp.contraparte && <div style={{ fontSize: 12, color: 'var(--tx2)', marginTop: 2 }}>vs. {exp.contraparte}</div>}
+        <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 4 }}>{exp.tipo}</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         {exp.ultMov && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9CA3AF' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--tx2)' }}>
             <Clock size={12} style={{ flexShrink: 0 }} />
             <span>Últ. movimiento: {exp.ultMov}</span>
           </div>
         )}
         {(exp.abogado && exp.abogado !== '—') && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9CA3AF' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--tx2)' }}>
             <User size={12} style={{ flexShrink: 0 }} />
             <span>{exp.abogado}</span>
           </div>
@@ -108,12 +108,12 @@ function ExpedienteCard({ exp, onVer, onEliminar }) {
       <button
         onClick={() => onVer(exp)}
         style={{
-          marginTop: 4, width: '100%', padding: '7px 0', borderRadius: 6, cursor: 'pointer',
-          background: 'transparent', border: '1px solid #2A2D3E', color: '#9CA3AF',
+          marginTop: 4, width: '100%', padding: '7px 0', borderRadius: 'var(--rad-s)', cursor: 'pointer',
+          background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx2)',
           fontSize: 12, fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F7EFF'; e.currentTarget.style.color = '#4F7EFF' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A2D3E'; e.currentTarget.style.color = '#9CA3AF' }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ac-bdr)'; e.currentTarget.style.color = 'var(--ac)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx2)' }}
       >
         Ver expediente →
       </button>
@@ -397,25 +397,21 @@ export default function Expedientes() {
   }
 
   return (
-    <div className="fade-in">
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-        <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Expedientes</h1>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }} className="fade-up">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>Expedientes</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={btnStyle()} onClick={exportarCSV}><Download size={14} /> Exportar CSV</button>
           <button onClick={() => setShowImportModal(true)} style={btnStyle()}><Upload size={14} /> Importar</button>
           <button onClick={() => setShowModal(true)} style={btnStyle(true)}><Plus size={14} /> Nuevo expediente</button>
         </div>
       </div>
-      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>
-        {cargando ? 'Cargando…' : `${allRows.length} expedientes`}
-      </div>
-
       {/* Toolbar */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', border: '1px solid var(--border-2)', borderRadius: 6, height: 32, background: 'var(--bg)', flex: 1, maxWidth: 340 }}>
-          <Search size={14} style={{ color: 'var(--text-2)', flexShrink: 0 }} />
+      <div style={{ background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)', padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', border: '1px solid var(--bd)', borderRadius: 'var(--rad-s)', height: 33, background: 'var(--s2)', flex: 1, maxWidth: 340 }}>
+          <Search size={14} style={{ color: 'var(--tx3)', flexShrink: 0 }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por cliente, referencia…"
-            style={{ flex: 1, background: 'transparent', border: 0, outline: 0, color: 'var(--text)', fontSize: 13 }} />
+            style={{ flex: 1, background: 'transparent', border: 0, outline: 0, color: 'var(--tx1)', fontSize: 13 }} />
         </div>
         <FilterChip label="Estado" value={estadoFiltro} options={['Todos','Activo','En espera','Cerrado','Archivado']} onChange={setEstadoFiltro} />
         <FilterChip label="Tipo" value={tipoFiltro} options={['Todos','Familia','Civil','Inmobiliario','Penal','Laboral','Mercantil']} onChange={setTipoFiltro} />
@@ -466,50 +462,51 @@ export default function Expedientes() {
 
       {/* Vista Tabla */}
       {!vistaCards && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-sm)' }}>
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
+        <div style={{ background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>
+              <tr style={{ background: 'var(--s2)' }}>
                 {[{ label: 'Referencia', w: 130 }, { label: 'Cliente' }, { label: 'Tipo', w: 140 }, { label: 'Abogado', w: 150 }, { label: 'Último mov.', w: 120 }, { label: 'Estado', w: 120 }, { label: '', w: 50 }].map((h, i) => (
-                  <th key={i} style={{ textAlign: 'left', fontWeight: 500, color: 'var(--text-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 14px', borderBottom: '1px solid var(--border)', width: h.w }}>{h.label}</th>
+                  <th key={i} style={{ textAlign: 'left', fontWeight: 600, color: 'var(--tx3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 16px', borderBottom: '1px solid var(--bd)', width: h.w, whiteSpace: 'nowrap' }}>{h.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {cargando ? (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)' }}>Cargando expedientes…</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--tx2)' }}>Cargando expedientes…</td></tr>
               ) : allRows.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)' }}>No se encontraron expedientes.</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--tx2)' }}>No se encontraron expedientes.</td></tr>
               ) : allRows.map((r) => (
-                <tr key={r.id} onClick={() => nav(`/expedientes/${r.id}`)} style={{ cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
+                <tr key={r.id} onClick={() => nav(`/expedientes/${r.id}`)}
+                  style={{ borderBottom: '1px solid var(--bd)', cursor: 'pointer', transition: 'background .1s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--s2)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <td style={td}><span className="mono" style={{ fontSize: 12 }}>{r.ref}</span></td>
+                  <td style={td}><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: 'var(--ac)', fontWeight: 500 }}>{r.ref}</span></td>
                   <td style={td}>
-                    <div>{r.cliente}</div>
-                    {r.contraparte && <div style={{ color: 'var(--text-2)', fontSize: 12 }}>vs. {r.contraparte}</div>}
+                    <div style={{ fontWeight: 500 }}>{r.cliente}</div>
+                    {r.contraparte && <div style={{ color: 'var(--tx2)', fontSize: 12 }}>vs. {r.contraparte}</div>}
                   </td>
                   <td style={td}><Badge>{r.tipo}</Badge></td>
                   <td style={td}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <AvatarMini name={r.abogado} />
-                      <span>{r.abogado}</span>
+                      <span style={{ fontSize: 12.5, color: 'var(--tx2)' }}>{r.abogado}</span>
                     </div>
                   </td>
-                  <td style={td}><span style={{ color: 'var(--text-2)' }}>{r.ultMov}</span></td>
+                  <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--tx3)' }}>{r.ultMov}</td>
                   <td style={td}><EstadoBadge estado={r.estado} /></td>
-                  <td style={td}>
+                  <td style={{ ...td, paddingRight: 12 }}>
                     <AccionesDropdown expediente={r} onEliminar={handleEliminar} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--border)', fontSize: 13 }}>
-            <div style={{ color: 'var(--text-2)' }}>Mostrando {allRows.length} resultados</div>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid var(--bd)', fontSize: 12, color: 'var(--tx2)' }}>
+            <div>Mostrando {allRows.length} resultados</div>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
               <button style={ghostBtnStyle} disabled><ChevronLeft size={14} /></button>
-              <button style={{ ...btnStyle(), background: 'var(--surface-2)' }}>1</button>
+              <button style={{ ...btnStyle(), background: 'var(--s2)' }}>1</button>
               <button style={ghostBtnStyle}><ChevronRight size={14} /></button>
             </div>
           </div>
@@ -566,26 +563,26 @@ export default function Expedientes() {
 
 function btnStyle(primary) {
   return {
-    height: 32, padding: '0 12px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+    height: 32, padding: '0 12px', borderRadius: 'var(--rad-s)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
     display: 'inline-flex', alignItems: 'center', gap: 7,
-    background: primary ? 'var(--blue)' : 'var(--surface)',
-    border: `1px solid ${primary ? 'var(--blue)' : 'var(--border-2)'}`,
-    color: primary ? '#fff' : 'var(--text)',
-    transition: 'background 0.15s',
+    background: primary ? 'var(--ac)' : 'var(--s2)',
+    border: `1px solid ${primary ? 'var(--ac)' : 'var(--bd)'}`,
+    color: primary ? '#fff' : 'var(--tx1)',
+    transition: 'all .14s',
   }
 }
 
 const ghostBtnStyle = {
-  height: 32, padding: '0 6px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+  height: 32, padding: '0 6px', borderRadius: 'var(--rad-s)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
   display: 'inline-flex', alignItems: 'center', gap: 7,
-  background: 'transparent', border: '1px solid transparent', color: 'var(--text-2)',
+  background: 'transparent', border: '1px solid transparent', color: 'var(--tx2)',
 }
 
 const inputStyle = {
-  width: '100%', height: 34, borderRadius: 6,
-  background: 'var(--bg)', border: '1px solid var(--border-2)',
-  color: 'var(--text)', fontFamily: 'inherit', fontSize: 13,
+  width: '100%', height: 34, borderRadius: 'var(--rad-s)',
+  background: 'var(--s2)', border: '1px solid var(--bd)',
+  color: 'var(--tx1)', fontFamily: 'inherit', fontSize: 13,
   padding: '0 10px', outline: 0, boxSizing: 'border-box',
 }
 
-const td = { padding: '12px 14px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', color: 'var(--text)' }
+const td = { padding: '12px 16px', verticalAlign: 'middle', color: 'var(--tx1)' }

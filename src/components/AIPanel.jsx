@@ -79,7 +79,7 @@ export default function AIPanel({ visible, onClose, isLoading, content, expRef, 
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18 }}>
                 <span className="mono" style={{ fontSize: 13, color: 'var(--text-2)' }}>{expRef}</span>
                 <span style={{ color: 'var(--text-3)' }}>·</span>
-                <span className="serif" style={{ fontSize: 17 }}>{expName}</span>
+                <span style={{ fontWeight: 600, letterSpacing: '-.01em' }}>{expName}</span>
               </div>
 
               <AISection title="Objeto del procedimiento">

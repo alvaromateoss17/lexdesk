@@ -61,7 +61,7 @@ export default function ModalDetalleTarea({ dateKey, task, onClose, onSetStatus,
         style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 420 }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-          <h2 className="serif" style={{ fontSize: 20, fontWeight: 500, color: 'var(--text)', margin: 0, lineHeight: 1.3 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em', color: 'var(--tx1)', margin: 0, lineHeight: 1.3 }}>
             {task.text}
           </h2>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', cursor: 'pointer', flexShrink: 0, display: 'flex', marginTop: 2, padding: 0 }}>

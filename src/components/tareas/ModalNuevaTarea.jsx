@@ -231,7 +231,7 @@ export default function ModalNuevaTarea({ initialDate, onSave, onClose }) {
         style={{ background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 440 }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 className="serif" style={{ fontSize: 18, fontWeight: 500, color: 'var(--text)', margin: 0 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em', color: 'var(--tx1)', margin: 0 }}>
             Nueva tarea
           </h2>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', cursor: 'pointer', display: 'flex', padding: 0 }}>

@@ -150,7 +150,7 @@ function SidePanelTarea({ task, dateKey, onSetStatus, onDelete, onMoveNext }) {
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11,
           padding: '2px 7px', borderRadius: 4, marginBottom: 6,
-          background: task.tipoRelacion === 'cliente' ? 'rgba(79,126,255,0.12)' : task.tipoRelacion === 'empleado' ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+          background: task.tipoRelacion === 'cliente' ? 'var(--ac-bg)' : task.tipoRelacion === 'empleado' ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
           color: task.tipoRelacion === 'cliente' ? '#93B4FF' : task.tipoRelacion === 'empleado' ? '#6EE7B7' : '#FCD34D',
         }}>
           {task.tipoRelacion === 'cliente' ? '👤' : task.tipoRelacion === 'empleado' ? '🧑‍💼' : '🏢'} {task.relacionNombre}
@@ -539,25 +539,25 @@ export default function Calendario() {
     .sort((a, b) => (a.dateKey || '') < (b.dateKey || '') ? -1 : 1)
 
   return (
-    <div className="fade-in">
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
       {/* Toast */}
       {toast && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
-          background: '#1a2235', border: '1px solid rgba(52,211,153,0.35)',
-          color: '#6EE7B7', borderRadius: 8, padding: '12px 18px',
+          background: 'var(--s2)', border: '1px solid rgba(55,196,136,.35)',
+          color: 'var(--gr)', borderRadius: 'var(--radius)', padding: '12px 18px',
           fontSize: 13, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', flexShrink: 0 }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gr)', flexShrink: 0 }} />
           {toast}
         </div>
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Calendario y Tareas</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', margin: 0 }}>Calendario y Tareas</h1>
           {criticos > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.25)', color: '#FCA5A5', padding: '4px 10px', borderRadius: 4, fontSize: 12.5 }}>
@@ -569,7 +569,7 @@ export default function Calendario() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button style={iconBtn} onClick={prevMonth}><ChevronLeft size={14} /></button>
-          <div className="serif" style={{ fontSize: 17, padding: '0 6px', letterSpacing: '-0.005em', minWidth: 160, textAlign: 'center' }}>{MESES_LARGO[month - 1]} {year}</div>
+          <div style={{ fontSize: 17, fontWeight: 600, padding: '0 6px', letterSpacing: '-.01em', minWidth: 160, textAlign: 'center' }}>{MESES_LARGO[month - 1]} {year}</div>
           <button style={iconBtn} onClick={nextMonth}><ChevronRight size={14} /></button>
           <button style={baseBtn()} onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth() + 1); setSelected(today.getDate()) }}>Hoy</button>
           <button style={baseBtn()} onClick={imprimirCalendario}><Printer size={14} /> Imprimir</button>
@@ -701,7 +701,7 @@ export default function Calendario() {
                         <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, padding: '6px 4px 4px', marginBottom: 4 }}>
                           {t.dateKey}
                           {t.dateKey === toDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate()) && (
-                            <span style={{ marginLeft: 6, background: 'rgba(79,126,255,0.15)', color: '#93B4FF', padding: '1px 5px', borderRadius: 3, fontSize: 9 }}>HOY</span>
+                            <span style={{ marginLeft: 6, background: 'var(--ac-bg)', color: '#93B4FF', padding: '1px 5px', borderRadius: 3, fontSize: 9 }}>HOY</span>
                           )}
                         </div>
                       )}

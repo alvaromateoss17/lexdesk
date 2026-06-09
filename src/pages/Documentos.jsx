@@ -7,7 +7,7 @@ import { idbSave, idbGet, idbDelete, idbListIds } from '../services/idbStorage'
 const EXT_COLORS = {
   pdf:  { bg: 'rgba(248,113,113,0.10)', color: '#FCA5A5', border: 'rgba(248,113,113,0.25)' },
   xlsx: { bg: 'rgba(52,211,153,0.10)',  color: '#6EE7B7', border: 'rgba(52,211,153,0.25)' },
-  docx: { bg: 'rgba(79,126,255,0.10)',  color: '#93B4FF', border: 'rgba(79,126,255,0.25)' },
+  docx: { bg: 'var(--ac-bg)',  color: '#93B4FF', border: 'rgba(79,126,255,0.25)' },
 }
 
 // ─── Modal visor de documento ─────────────────────────────────────────────────
@@ -300,29 +300,28 @@ export default function Documentos() {
   )
 
   return (
-    <div className="fade-in">
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-        <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Documentos</h1>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }} className="fade-up">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', margin: 0 }}>Documentos</h1>
         <button style={btnStyle(true)} onClick={() => setShowModal(true)}><Upload size={14} /> Subir documento</button>
       </div>
-      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>{`${docs.length} documento${docs.length !== 1 ? 's' : ''}`}</div>
 
       {/* Barra de búsqueda */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', border: '1px solid var(--border-2)', borderRadius: 6, height: 32, background: 'var(--bg)', flex: 1, maxWidth: 400 }}>
-          <Search size={14} style={{ color: 'var(--text-2)', flexShrink: 0 }} />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nombre, cliente o categoría…" style={{ flex: 1, background: 'transparent', border: 0, outline: 0, color: 'var(--text)', fontSize: 13 }} />
+      <div style={{ background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)', padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', border: '1px solid var(--bd)', borderRadius: 'var(--rad-s)', height: 33, background: 'var(--s2)', flex: 1, maxWidth: 400 }}>
+          <Search size={14} style={{ color: 'var(--tx3)', flexShrink: 0 }} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nombre, cliente o categoría…" style={{ flex: 1, background: 'transparent', border: 0, outline: 0, color: 'var(--tx1)', fontSize: 13 }} />
         </div>
       </div>
 
       {/* Drop zone hint */}
       <div
         onClick={() => setShowModal(true)}
-        style={{ border: '2px dashed var(--border-2)', borderRadius: 8, padding: 32, textAlign: 'center', marginBottom: 22, background: 'rgba(79,126,255,0.02)', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
+        style={{ border: '2px dashed var(--bd1)', borderRadius: 'var(--radius)', padding: 32, textAlign: 'center', background: 'var(--ac-bg)', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(79,126,255,0.4)'; e.currentTarget.style.background = 'rgba(79,126,255,0.04)' }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-2)'; e.currentTarget.style.background = 'rgba(79,126,255,0.02)' }}
       >
-        <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(79,126,255,0.10)', border: '1px solid rgba(79,126,255,0.20)', display: 'grid', placeItems: 'center', margin: '0 auto 14px', color: 'var(--blue)' }}>
+        <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--ac-bg)', border: '1px solid rgba(79,126,255,0.20)', display: 'grid', placeItems: 'center', margin: '0 auto 14px', color: 'var(--blue)' }}>
           <Upload size={20} />
         </div>
         <div style={{ fontWeight: 500, marginBottom: 4 }}>Haz clic para subir un documento</div>

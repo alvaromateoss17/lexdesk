@@ -118,7 +118,7 @@ export default function ExpedienteDetalle() {
             <Badge status={exp.estado} />
             <Badge>{exp.tipo}</Badge>
           </div>
-          <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>{exp.cliente}</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', margin: 0 }}>{exp.cliente}</h1>
           <div style={{ color: 'var(--text-2)', fontSize: 13, marginTop: 4 }}>
             {exp.descripcion} · {exp.abogado} · Iniciado {exp.fechaInicio}
           </div>
@@ -232,7 +232,7 @@ export default function ExpedienteDetalle() {
                 <Clock size={14} style={{ color: 'var(--amber)' }} />
                 <div style={{ fontSize: 11, color: '#FBBF24', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 }}>Próximo plazo</div>
               </div>
-              <div className="serif" style={{ fontSize: 20, letterSpacing: '-0.01em', lineHeight: 1.25 }}>{proximoPlazo.tipo}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1.25 }}>{proximoPlazo.tipo}</div>
               <div style={{ color: 'var(--text-2)', fontSize: 13, marginTop: 6 }}>
                 <span className="num" style={{ color: 'var(--text)' }}>{proximoPlazo.fechaFmt}</span>
                 {' · en '}

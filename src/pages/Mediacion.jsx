@@ -16,7 +16,7 @@ function fmtHora(h) {
 function EstadoBadge({ estado }) {
   const map = {
     completada: { label: 'Completada', color: '#34D399', bg: 'rgba(52,211,153,0.1)', border: 'rgba(52,211,153,0.25)' },
-    pendiente:  { label: 'Pendiente',  color: '#93AFFF', bg: 'rgba(79,126,255,0.1)',  border: 'rgba(79,126,255,0.25)' },
+    pendiente:  { label: 'Pendiente',  color: '#93AFFF', bg: 'var(--ac-bg)',  border: 'rgba(79,126,255,0.25)' },
     cancelada:  { label: 'Cancelada',  color: '#FCA5A5', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.25)' },
   }
   const s = map[estado] || map.pendiente
@@ -217,7 +217,7 @@ function ModalNuevaSesion({ onClose }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const ESTADOS_PROCESO = {
-  activo: { label: 'En curso', color: '#4F7EFF', bg: 'rgba(79,126,255,0.10)' },
+  activo: { label: 'En curso', color: '#4F7EFF', bg: 'var(--ac-bg)' },
   cerrado: { label: 'Cerrado', color: '#34D399', bg: 'rgba(52,211,153,0.10)' },
   suspendido: { label: 'Suspendido', color: '#FCA5A5', bg: 'rgba(248,113,113,0.10)' },
 }
@@ -235,7 +235,7 @@ export default function Mediacion() {
   const total = proceso?.sesiones?.length ?? 0
 
   return (
-    <div style={{ padding: '28px 32px' }} className="fade-in">
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

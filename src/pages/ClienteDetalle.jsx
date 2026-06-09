@@ -365,7 +365,7 @@ function TabDocumentos({ docsIniciales, clienteNombre, onToast }) {
             return (
               <div key={d.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
                 <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(79,126,255,0.1)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 6, background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Ic size={15} color="#93AFFF" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -466,7 +466,7 @@ function TabNotas({ notasIniciales, onToast }) {
         notas.map(nota => (
           <div key={nota.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', animation: nota.nueva ? 'fadeIn 0.2s ease' : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(79,126,255,0.15)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 11, fontWeight: 700 }}>
+              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 11, fontWeight: 700 }}>
                 {nota.autor.split(' ').map(p => p[0]).join('').slice(0, 2)}
               </div>
               <div>
@@ -679,7 +679,7 @@ export default function ClienteDetalle() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-2)' }}>
-                <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(79,126,255,0.15)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 9, fontWeight: 700 }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 9, fontWeight: 700 }}>
                   {(cliente.abogadoAsignado || '?').split(' ').map(p => p[0]).join('').slice(0, 2)}
                 </div>
                 {cliente.abogadoAsignado}

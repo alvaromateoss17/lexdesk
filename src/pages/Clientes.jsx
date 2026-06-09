@@ -55,7 +55,7 @@ function EtiquetaInput({ etiquetas, onChange }) {
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: etiquetas.length ? 6 : 0 }}>
         {etiquetas.map(e => (
-          <span key={e} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'rgba(79,126,255,0.1)', border: '1px solid rgba(79,126,255,0.25)', color: '#93AFFF' }}>
+          <span key={e} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--ac-bg)', border: '1px solid rgba(79,126,255,0.25)', color: '#93AFFF' }}>
             {e}
             <button onClick={() => removeEtiqueta(e)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', lineHeight: 1, padding: 0 }}>×</button>
           </span>

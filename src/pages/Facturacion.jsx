@@ -394,7 +394,7 @@ function TabPorCliente({ facturas }) {
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(79,126,255,0.15)', display: 'grid', placeItems: 'center', color: '#93B4FF', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', color: '#93B4FF', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
                 {(c.nombre || '?').slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>

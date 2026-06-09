@@ -7,7 +7,7 @@ import { obtenerFactura, actualizarFactura, reemplazarLineasFactura } from '../s
 
 const ESTADO_MAP = {
   borrador: { label: 'Borrador',  color: 'var(--text-2)',  bg: 'rgba(138,138,138,0.12)', border: 'var(--border)',           icon: Clock },
-  emitida:  { label: 'Emitida',   color: '#93B4FF',        bg: 'rgba(79,126,255,0.12)',  border: 'rgba(79,126,255,0.3)',    icon: Clock },
+  emitida:  { label: 'Emitida',   color: '#93B4FF',        bg: 'var(--ac-bg)',  border: 'rgba(79,126,255,0.3)',    icon: Clock },
   cobrada:  { label: 'Cobrada',   color: '#6EE7B7',        bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',    icon: CheckCircle2 },
   vencida:  { label: 'Vencida',   color: '#FCA5A5',        bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)',   icon: AlertCircle },
   anulada:  { label: 'Anulada',   color: '#FCD34D',        bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.25)',   icon: Ban },

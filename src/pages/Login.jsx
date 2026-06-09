@@ -49,7 +49,7 @@ export default function Login() {
     <div style={{
       minHeight: '100vh', display: 'grid', placeItems: 'center',
       background: 'var(--bg)',
-      backgroundImage: 'radial-gradient(ellipse 60% 50% at 50% -10%, rgba(79,126,255,0.12), transparent)',
+      backgroundImage: 'radial-gradient(ellipse 60% 50% at 50% -10%, var(--ac-bg), transparent)',
     }}>
       <div style={{ width: '100%', maxWidth: 400, padding: '0 20px' }}>
         {/* Logo + tagline */}

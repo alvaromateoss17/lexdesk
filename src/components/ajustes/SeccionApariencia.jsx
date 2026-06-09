@@ -63,7 +63,7 @@ export default function SeccionApariencia() {
 
   return (
     <div style={{ maxWidth: 580 }}>
-      <h2 className="serif" style={{ fontSize: 20, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>Apariencia</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em', color: 'var(--tx1)', marginBottom: 4 }}>Apariencia</h2>
       <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 28 }}>Personaliza el aspecto visual de Vincla</p>
 
       <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, fontWeight: 500 }}>Tema de la interfaz</p>

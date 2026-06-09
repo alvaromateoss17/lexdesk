@@ -16,15 +16,14 @@ function Toast({ mensaje, onClose }) {
   return (
     <div style={{
       position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
-      background: 'var(--surface)', border: '1px solid rgba(52,211,153,0.4)',
-      borderRadius: 8, padding: '12px 16px',
+      background: 'var(--s2)', border: '1px solid rgba(55,196,136,.35)',
+      borderRadius: 'var(--radius)', padding: '12px 16px',
       display: 'flex', alignItems: 'center', gap: 10,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      animation: 'fadeIn 0.2s ease',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.4)', animation: 'fadeIn 0.2s ease',
     }}>
-      <CheckCircle size={16} color="#34D399" />
-      <span style={{ fontSize: 13, color: 'var(--text)' }}>{mensaje}</span>
-      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', marginLeft: 4, lineHeight: 1 }}>
+      <CheckCircle size={16} style={{ color: 'var(--gr)' }} />
+      <span style={{ fontSize: 13, color: 'var(--tx1)' }}>{mensaje}</span>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx3)', marginLeft: 4, lineHeight: 1 }}>
         <X size={13} />
       </button>
     </div>
@@ -282,20 +281,15 @@ export default function Clientes() {
   }
 
   return (
-    <div style={{ padding: '28px 32px' }} className="fade-in">
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }} className="fade-up">
       {/* Cabecera */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(79,126,255,0.12)', display: 'grid', placeItems: 'center', color: '#4F7EFF' }}>
-            <Users size={18} strokeWidth={1.5} />
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Clientes</h1>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
-              {cargando ? 'Cargando…' : <><span>{verArchivados ? clientesFiltrados.length + ' archivados' : totalActivos + ' activos'}</span></>}
-              {conMensajesSinLeer > 0 && <><span style={{ margin: '0 6px' }}>|</span><span style={{ color: '#FBBF24' }}>{conMensajesSinLeer} con mensajes sin leer</span></>}
-              {conPagosPendientes > 0 && <><span style={{ margin: '0 6px' }}>|</span><span style={{ color: '#FBBF24' }}>{conPagosPendientes} con pagos pendientes</span></>}
-            </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>Clientes</h1>
+          <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>
+            {cargando ? 'Cargando…' : <span>{verArchivados ? clientesFiltrados.length + ' archivados' : totalActivos + ' activos'}</span>}
+            {conMensajesSinLeer > 0 && <><span style={{ margin: '0 6px' }}>·</span><span style={{ color: 'var(--am)' }}>{conMensajesSinLeer} con mensajes sin leer</span></>}
+            {conPagosPendientes > 0 && <><span style={{ margin: '0 6px' }}>·</span><span style={{ color: 'var(--am)' }}>{conPagosPendientes} con pagos pendientes</span></>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -315,12 +309,10 @@ export default function Clientes() {
         </div>
       </div>
 
-      <div style={{ height: 1, background: 'var(--border)', margin: '20px 0 18px' }} />
-
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 200 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--tx3)' }} />
           <input
             value={busqueda} onChange={e => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre, DNI o contacto..."
@@ -339,14 +331,8 @@ export default function Clientes() {
           </button>
         )}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 20 }}>
-        {cargando ? 'Cargando clientes…' : verArchivados
-          ? `Mostrando ${clientesFiltrados.length} clientes archivados`
-          : `Mostrando ${clientesFiltrados.length} de ${totalActivos} clientes activos`}
-      </div>
-
       {errorClientes && (
-        <div style={{ fontSize: 13, color: 'var(--red)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 6, padding: '10px 14px', marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: 'var(--rd)', background: 'var(--rd-bg)', border: '1px solid rgba(224,78,83,.25)', borderRadius: 'var(--rad-s)', padding: '10px 14px' }}>
           {errorClientes}
         </div>
       )}
@@ -404,12 +390,12 @@ export default function Clientes() {
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
-const inStyle     = { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 10px', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit', outline: 'none', width: '100%' }
-const labelStyle  = { fontSize: 12, color: 'var(--text-2)', fontWeight: 500, display: 'block', marginBottom: 4 }
-const errStyle    = { fontSize: 11, color: '#F87171', marginTop: 3 }
-const sectionLabel = { fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600, marginBottom: 10 }
-const btnPri      = { height: 32, padding: '0 14px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, background: '#4F7EFF', border: 'none', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 5 }
-const btnSec      = { height: 32, padding: '0 14px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: 'transparent', border: '1px solid var(--border-2)', color: 'var(--text-2)' }
-const closeBtn    = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 22, lineHeight: 1, padding: '2px 4px' }
+const inStyle     = { background: 'var(--s2)', border: '1px solid var(--bd)', borderRadius: 'var(--rad-s)', padding: '7px 10px', fontSize: 13, color: 'var(--tx1)', fontFamily: 'inherit', outline: 'none', width: '100%' }
+const labelStyle  = { fontSize: 12, color: 'var(--tx2)', fontWeight: 500, display: 'block', marginBottom: 4 }
+const errStyle    = { fontSize: 11, color: 'var(--rd)', marginTop: 3 }
+const sectionLabel = { fontSize: 11, color: 'var(--tx3)', textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600, marginBottom: 10 }
+const btnPri      = { height: 32, padding: '0 14px', borderRadius: 'var(--rad-s)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, background: 'var(--ac)', border: '1px solid var(--ac)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 5 }
+const btnSec      = { height: 32, padding: '0 14px', borderRadius: 'var(--rad-s)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: 'var(--s2)', border: '1px solid var(--bd)', color: 'var(--tx1)', display: 'inline-flex', alignItems: 'center', gap: 5 }
+const closeBtn    = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx2)', fontSize: 22, lineHeight: 1, padding: '2px 4px' }
 const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(2px)' }
-const modalStyle   = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '24px', width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }
+const modalStyle   = { background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)', padding: '24px', width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }

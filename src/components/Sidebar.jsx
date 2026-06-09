@@ -1,18 +1,20 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles, Settings, LogOut, ScrollText, Calculator, MessageCircle, UserCircle, Receipt } from 'lucide-react'
+import {
+  LayoutDashboard, FolderOpen, FileText, Calendar, Users, Sparkles,
+  Settings, LogOut, ScrollText, Calculator, MessageCircle, UserCircle,
+  Receipt, Scale, ChevronLeft, ChevronRight,
+} from 'lucide-react'
 import { useState } from 'react'
-import VinclaLogo from './VinclaLogo'
 import { useAuth } from '../contexts/AuthContext'
 import { getInitials } from '../utils/format'
 
 const NAV_PRINCIPAL = [
-  { to: '/',             icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/expedientes',  icon: FolderOpen,       label: 'Expedientes' },
-  { to: '/documentos',   icon: FileText,         label: 'Documentos' },
-  { to: '/calendario',   icon: Calendar,         label: 'Calendario y Tareas' },
-  { to: '/clientes',     icon: Users,            label: 'Clientes',      badge: true },
-  { to: '/facturacion',  icon: Receipt,          label: 'Facturación' },
-  { to: '/asistente',    icon: Sparkles,         label: 'Asistente IA' },
+  { to: '/',            icon: LayoutDashboard, label: 'Dashboard',        end: true },
+  { to: '/expedientes', icon: FolderOpen,      label: 'Expedientes',      badge: 0 },
+  { to: '/facturacion', icon: Receipt,         label: 'Facturación',      badge: 0 },
+  { to: '/calendario',  icon: Calendar,        label: 'Calendario' },
+  { to: '/clientes',    icon: Users,           label: 'Clientes' },
+  { to: '/documentos',  icon: FileText,        label: 'Documentos' },
 ]
 
 const NAV_FAMILIA = [
@@ -22,46 +24,79 @@ const NAV_FAMILIA = [
   { to: '/portal-cliente',     icon: UserCircle,    label: 'Portal Cliente' },
 ]
 
-function NavItem({ to, icon: Icon, label, end, badge, badgeCount, badgeColor }) {
+function AvatarChip({ name = '', size = 28 }) {
+  const colors = [
+    { bg: 'rgba(78,126,255,.18)',  c: '#4E7EFF' },
+    { bg: 'rgba(55,196,136,.18)',  c: '#37C488' },
+    { bg: 'rgba(240,167,66,.18)',  c: '#F0A742' },
+    { bg: 'rgba(163,116,249,.18)', c: '#A374F9' },
+    { bg: 'rgba(224,78,83,.18)',   c: '#E04E53' },
+  ]
+  const { bg, c } = colors[(name.charCodeAt(0) || 0) % colors.length]
+  const parts = name.trim().split(' ')
+  const ini = parts.length >= 2
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase()
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', background: bg, color: c,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.35, fontWeight: 700, letterSpacing: '0.02em', flexShrink: 0,
+    }}>
+      {ini || '?'}
+    </div>
+  )
+}
+
+function NavBtn({ to, icon: Icon, label, end, badge, collapsed }) {
   const location = useLocation()
-  const isExpedienteDetail  = location.pathname.startsWith('/expedientes/') && to === '/expedientes'
-  const isClienteDetail     = location.pathname.startsWith('/clientes/') && to === '/clientes'
-  const isFacturaDetail     = location.pathname.startsWith('/facturacion/') && to === '/facturacion'
+  const isChildActive =
+    (to !== '/' && location.pathname.startsWith(to + '/'))
 
   return (
     <NavLink
       to={to}
       end={end}
-      style={({ isActive }) => ({
-        position: 'relative',
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '8px 12px', margin: '1px 0',
-        borderRadius: 6, textDecoration: 'none',
-        color: (isActive || isExpedienteDetail || isClienteDetail || isFacturaDetail) ? 'var(--text)' : 'var(--text-2)',
-        fontSize: 13.5,
-        background: (isActive || isExpedienteDetail || isClienteDetail || isFacturaDetail) ? 'rgba(79,126,255,0.08)' : 'transparent',
-        transition: 'background 0.15s, color 0.15s',
-      })}
+      title={collapsed ? label : undefined}
+      style={({ isActive }) => {
+        const on = isActive || isChildActive
+        return {
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 10px', borderRadius: 'var(--rad-s)',
+          background: on ? 'var(--ac-bg)' : 'transparent',
+          color: on ? 'var(--ac)' : 'var(--tx2)',
+          border: `1px solid ${on ? 'var(--ac-bdr)' : 'transparent'}`,
+          fontWeight: on ? 600 : 400, fontSize: 13.5,
+          textDecoration: 'none',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          transition: 'all .13s', flexShrink: 0,
+        }
+      }}
+      onMouseEnter={e => {
+        const a = e.currentTarget
+        if (a.style.background === 'transparent') {
+          a.style.background = 'var(--s2)'
+          a.style.color = 'var(--tx1)'
+        }
+      }}
+      onMouseLeave={e => {
+        const a = e.currentTarget
+        if (!a.getAttribute('aria-current')) {
+          a.style.background = ''
+          a.style.color = ''
+        }
+      }}
     >
-      {({ isActive }) => (
-        <>
-          {(isActive || isExpedienteDetail || isClienteDetail || isFacturaDetail) && (
-            <span style={{ position: 'absolute', left: -12, top: 6, bottom: 6, width: 3, background: 'var(--blue)', borderRadius: '0 3px 3px 0' }} />
-          )}
-          <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1 }}>{label}</span>
-          {badge && badgeCount !== undefined && (
-            <span style={{
-              fontSize: 10, padding: '1px 6px', borderRadius: 10, fontWeight: 600,
-              background: badgeColor ? badgeColor + '20' : 'rgba(138,138,138,0.15)',
-              color: badgeColor || 'var(--text-3)',
-              border: `1px solid ${badgeColor ? badgeColor + '35' : 'var(--border)'}`,
-              lineHeight: 1.4,
-            }}>
-              {badgeCount}
-            </span>
-          )}
-        </>
+      <Icon size={16} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+      {!collapsed && <span style={{ flex: 1 }}>{label}</span>}
+      {!collapsed && badge > 0 && (
+        <span style={{
+          fontSize: 10, fontWeight: 700, background: 'var(--ac)',
+          color: '#fff', borderRadius: 100, padding: '1px 6px',
+          minWidth: 18, textAlign: 'center',
+        }}>
+          {badge}
+        </span>
       )}
     </NavLink>
   )
@@ -69,16 +104,15 @@ function NavItem({ to, icon: Icon, label, end, badge, badgeCount, badgeColor }) 
 
 export default function Sidebar() {
   const nav = useNavigate()
-  const { profile, signOut } = useAuth()
+  const location = useLocation()
+  const { profile, despacho, signOut } = useAuth()
+  const [collapsed, setCollapsed]           = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
-  const clientesActivos    = 0
-  const clientesSinLeer    = 0
-
-  const despachoNombre = profile?.despachos?.nombre ?? 'Mi despacho'
-  const plan           = profile?.despachos?.plan   ?? 'estudio'
-  const userName       = profile?.nombre ?? '—'
-  const userInitials   = getInitials(userName)
+  const isIA = location.pathname === '/asistente'
+  const userName = profile?.nombre ?? '—'
+  const despachoNombre = despacho?.nombre ?? profile?.despachos?.[0]?.nombre ?? 'Mi despacho'
+  const plan = despacho?.plan ?? profile?.despachos?.[0]?.plan ?? 'estudio'
 
   async function handleSignOut() {
     await signOut()
@@ -87,94 +121,190 @@ export default function Sidebar() {
 
   return (
     <aside style={{
-      background: 'var(--sidebar-bg)',
-      borderRight: '1px solid var(--border)',
-      padding: '18px 12px',
-      display: 'flex', flexDirection: 'column', gap: 2,
-      position: 'sticky', top: 0, height: '100vh',
-      overflowY: 'auto',
+      width: collapsed ? 64 : 'var(--sidebar)',
+      height: '100vh',
+      background: 'var(--s1)',
+      borderRight: '1px solid var(--bd)',
+      display: 'flex', flexDirection: 'column', flexShrink: 0,
+      transition: 'width .2s ease', overflow: 'hidden',
+      position: 'relative', zIndex: 10,
     }}>
+
       {/* Brand */}
-      <div style={{ padding: '6px 10px 18px' }}>
-        <VinclaLogo />
+      <div style={{
+        height: 'var(--hdr)', display: 'flex', alignItems: 'center',
+        padding: collapsed ? '0 17px' : '0 16px', gap: 10,
+        borderBottom: '1px solid var(--bd)', flexShrink: 0,
+      }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: 8, background: 'var(--ac)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, boxShadow: '0 0 16px rgba(78,126,255,.4)',
+        }}>
+          <Scale size={15} color="#fff" strokeWidth={2.2} />
+        </div>
+        {!collapsed && (
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--tx1)', letterSpacing: '-.02em' }}>
+            Vincla
+          </span>
+        )}
       </div>
 
-      {/* Nav principal */}
-      {NAV_PRINCIPAL.map(item => (
-        <NavItem
-          key={item.to} {...item} end={item.to === '/'}
-          badgeCount={item.badge ? clientesActivos : undefined}
-          badgeColor={item.badge && clientesSinLeer > 0 ? '#FBBF24' : undefined}
-        />
-      ))}
+      {/* Scrollable nav */}
+      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Separador familia */}
-      <div style={{ padding: '14px 10px 4px' }}>
-        <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Familia</div>
-      </div>
-
-      {/* Nav familia */}
-      {NAV_FAMILIA.map(item => (
-        <NavItem key={item.to} {...item} />
-      ))}
-
-      <div style={{ height: 1, background: 'var(--border)', margin: '10px 8px' }} />
-
-      <NavLink
-        to="/configuracion"
-        style={({ isActive }) => ({
-          position: 'relative',
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '8px 12px', margin: '1px 0',
-          borderRadius: 6, textDecoration: 'none',
-          color: isActive ? 'var(--text)' : 'var(--text-2)',
-          fontSize: 13.5,
-          background: isActive ? 'rgba(79,126,255,0.08)' : 'transparent',
-          transition: 'background 0.15s, color 0.15s',
-        })}
-      >
-        <Settings size={16} strokeWidth={1.5} />
-        <span>Configuración</span>
-      </NavLink>
-
-      {/* Footer */}
-      <div style={{ marginTop: 'auto', padding: '10px 8px 4px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 6, background: '#20232D', display: 'grid', placeItems: 'center', fontSize: 11, color: 'var(--text-2)', fontWeight: 600, flexShrink: 0 }}>
-            {userInitials}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.25, flex: 1, minWidth: 0 }}>
-            <b style={{ color: 'var(--text)', fontWeight: 500, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{despachoNombre}</b>
-            Plan {plan}
-          </div>
+        {/* Featured: Asistente IA */}
+        <div style={{ padding: collapsed ? '10px 8px 6px' : '10px 8px 6px' }}>
           <button
-            onClick={() => setShowLogoutConfirm(true)}
-            title="Cerrar sesión"
-            style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid transparent', color: 'var(--text-3)', cursor: 'pointer', flexShrink: 0, transition: 'color 0.15s, border-color 0.15s', position: 'relative' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.borderColor = 'transparent' }}
+            onClick={() => nav('/asistente')}
+            title={collapsed ? 'Asistente IA' : undefined}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '9px 10px', borderRadius: 'var(--rad-s)',
+              width: '100%', fontSize: 13.5, fontWeight: isIA ? 700 : 600,
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              cursor: 'pointer', transition: 'all .15s',
+              background: isIA
+                ? 'linear-gradient(135deg,rgba(78,126,255,.22),rgba(163,116,249,.18))'
+                : 'linear-gradient(135deg,rgba(78,126,255,.10),rgba(163,116,249,.08))',
+              border: `1px solid ${isIA ? 'rgba(78,126,255,.4)' : 'rgba(78,126,255,.2)'}`,
+              color: isIA ? '#fff' : 'rgba(160,185,255,.9)',
+              boxShadow: isIA ? '0 0 20px rgba(78,126,255,.18)' : 'none',
+            }}
+            onMouseEnter={e => {
+              if (!isIA) {
+                e.currentTarget.style.background = 'linear-gradient(135deg,rgba(78,126,255,.16),rgba(163,116,249,.12))'
+                e.currentTarget.style.color = '#fff'
+              }
+            }}
+            onMouseLeave={e => {
+              if (!isIA) {
+                e.currentTarget.style.background = 'linear-gradient(135deg,rgba(78,126,255,.10),rgba(163,116,249,.08))'
+                e.currentTarget.style.color = 'rgba(160,185,255,.9)'
+              }
+            }}
           >
-            <LogOut size={14} />
+            <Sparkles size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
+            {!collapsed && <span>Asistente IA</span>}
           </button>
         </div>
-        
-        {showLogoutConfirm && (
-          <div style={{ marginTop: 12, padding: '12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 6 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>¿Cerrar sesión?</div>
+
+        {/* Principal */}
+        <div style={{ padding: '4px 8px 8px' }}>
+          {!collapsed && (
+            <div style={{
+              fontSize: 10, fontWeight: 700, color: 'var(--tx3)',
+              letterSpacing: '.09em', textTransform: 'uppercase',
+              padding: '6px 10px 4px', userSelect: 'none',
+            }}>
+              Principal
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {NAV_PRINCIPAL.map(item => (
+              <NavBtn key={item.to} {...item} collapsed={collapsed} />
+            ))}
+          </div>
+        </div>
+
+        {/* Familia */}
+        <div style={{ padding: '4px 8px 8px' }}>
+          {collapsed
+            ? <div style={{ height: 1, background: 'var(--bd)', margin: '6px 4px' }} />
+            : (
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: 'var(--tx3)',
+                letterSpacing: '.09em', textTransform: 'uppercase',
+                padding: '6px 10px 4px', userSelect: 'none',
+              }}>
+                Familia
+              </div>
+            )
+          }
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {NAV_FAMILIA.map(item => (
+              <NavBtn key={item.to} {...item} collapsed={collapsed} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom */}
+      <div style={{
+        padding: '8px', borderTop: '1px solid var(--bd)',
+        flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4,
+      }}>
+        <NavBtn
+          to="/configuracion" icon={Settings}
+          label="Configuración" collapsed={collapsed}
+        />
+
+        {!collapsed ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '8px 10px', borderRadius: 'var(--rad-s)',
+            background: 'var(--s2)', border: '1px solid var(--bd)', marginTop: 2,
+          }}>
+            <AvatarChip name={userName} size={28} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {userName}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--tx3)' }}>{despachoNombre}</div>
+            </div>
+            <button
+              onClick={() => setShowLogoutConfirm(v => !v)}
+              title="Cerrar sesión"
+              style={{
+                width: 26, height: 26, display: 'grid', placeItems: 'center',
+                borderRadius: 5, background: 'transparent', border: '1px solid transparent',
+                color: 'var(--tx3)', cursor: 'pointer', flexShrink: 0, transition: 'color .15s, border-color .15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--rd)'; e.currentTarget.style.borderColor = 'rgba(224,78,83,.3)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--tx3)'; e.currentTarget.style.borderColor = 'transparent' }}
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+            <AvatarChip name={userName} size={30} />
+          </div>
+        )}
+
+        {showLogoutConfirm && !collapsed && (
+          <div style={{
+            marginTop: 4, padding: '12px', background: 'var(--rd-bg)',
+            border: '1px solid rgba(224,78,83,.2)', borderRadius: 'var(--rad-s)',
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--tx1)' }}>
+              ¿Cerrar sesión?
+            </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                style={{ flex: 1, padding: '6px 12px', fontSize: 11, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
+                style={{
+                  flex: 1, padding: '6px 12px', fontSize: 11, borderRadius: 'var(--rad-s)',
+                  border: '1px solid var(--bd)', background: 'var(--s2)',
+                  color: 'var(--tx1)', cursor: 'pointer', fontFamily: 'inherit', transition: 'background .15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--s3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--s2)'}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSignOut}
-                style={{ flex: 1, padding: '6px 12px', fontSize: 11, borderRadius: 4, border: 'none', background: '#F87171', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, transition: 'background 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#EF4444'}
-                onMouseLeave={e => e.currentTarget.style.background = '#F87171'}
+                style={{
+                  flex: 1, padding: '6px 12px', fontSize: 11, borderRadius: 'var(--rad-s)',
+                  border: 'none', background: 'var(--rd)', color: '#fff',
+                  cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, transition: 'background .15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#c03e43'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--rd)'}
               >
                 Salir
               </button>
@@ -182,6 +312,25 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+
+      {/* Collapse toggle */}
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        style={{
+          position: 'absolute', right: -11, top: '50%', transform: 'translateY(-50%)',
+          width: 22, height: 22, borderRadius: '50%',
+          background: 'var(--s2)', border: '1px solid var(--bd1)',
+          color: 'var(--tx2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 20, transition: 'all .13s', cursor: 'pointer',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--s3)'; e.currentTarget.style.color = 'var(--tx1)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'var(--s2)'; e.currentTarget.style.color = 'var(--tx2)' }}
+      >
+        {collapsed
+          ? <ChevronRight size={11} strokeWidth={2.5} />
+          : <ChevronLeft  size={11} strokeWidth={2.5} />
+        }
+      </button>
     </aside>
   )
 }

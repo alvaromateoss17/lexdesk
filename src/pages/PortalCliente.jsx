@@ -27,7 +27,7 @@ const DOCS_DEMO = [
 const ESTADO_DOC = {
   pendiente_firma: { label: 'Pendiente de firma', color: '#FBBF24', bg: 'rgba(251,191,36,0.1)', icon: Clock },
   firmado:         { label: 'Firmado',             color: '#34D399', bg: 'rgba(52,211,153,0.1)', icon: CheckCircle },
-  revisado:        { label: 'Revisado',            color: '#93AFFF', bg: 'rgba(79,126,255,0.1)', icon: Eye },
+  revisado:        { label: 'Revisado',            color: '#93AFFF', bg: 'var(--ac-bg)', icon: Eye },
 }
 
 function DocRow({ doc }) {
@@ -192,7 +192,7 @@ export default function PortalCliente() {
   const hiloCliente = null
 
   return (
-    <div style={{ padding: '28px 32px' }} className="fade-in">
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -225,7 +225,7 @@ export default function PortalCliente() {
           {/* Tarjeta cliente */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
-              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(79,126,255,0.15)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 20, fontWeight: 700 }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 20, fontWeight: 700 }}>
                 {cliente?.nombre?.charAt(0) ?? '?'}
               </div>
               <div>
@@ -285,7 +285,7 @@ export default function PortalCliente() {
                         <div style={{ fontSize: 14, fontWeight: 700 }}>{exp.tipo}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>{exp.ref} · {exp.juzgado ?? 'Sin juzgado asignado'}</div>
                       </div>
-                      <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: exp.prioridad === 'urgente' ? 'rgba(248,113,113,0.1)' : 'rgba(79,126,255,0.1)', color: exp.prioridad === 'urgente' ? '#FCA5A5' : '#93AFFF', border: `1px solid ${exp.prioridad === 'urgente' ? 'rgba(248,113,113,0.25)' : 'rgba(79,126,255,0.25)'}` }}>
+                      <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: exp.prioridad === 'urgente' ? 'rgba(248,113,113,0.1)' : 'var(--ac-bg)', color: exp.prioridad === 'urgente' ? '#FCA5A5' : '#93AFFF', border: `1px solid ${exp.prioridad === 'urgente' ? 'rgba(248,113,113,0.25)' : 'rgba(79,126,255,0.25)'}` }}>
                         {exp.estado}
                       </span>
                     </div>

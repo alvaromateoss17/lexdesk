@@ -383,7 +383,7 @@ export default function ConvenioRegulador() {
   return (
     <div className="fade-in">
       <div style={{ marginBottom: 24 }}>
-        <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Generador de Convenio Regulador</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', margin: 0 }}>Generador de Convenio Regulador</h1>
         <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>Crea un borrador de convenio regulador de forma guiada y descárgalo en PDF.</div>
       </div>
 

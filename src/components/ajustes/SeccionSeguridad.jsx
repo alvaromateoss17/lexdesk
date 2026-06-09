@@ -86,7 +86,7 @@ export default function SeccionSeguridad() {
 
   return (
     <div style={{ maxWidth: 480 }}>
-      <h2 className="serif" style={{ fontSize: 20, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>Seguridad</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em', color: 'var(--tx1)', marginBottom: 4 }}>Seguridad</h2>
       <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 28 }}>Cambia tu contraseña de acceso</p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

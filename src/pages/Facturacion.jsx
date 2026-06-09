@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, TrendingUp, Receipt, AlertCircle, CheckCircle2, Clock, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Receipt, AlertCircle, CheckCircle2, Clock, Trash2, ChevronDown } from 'lucide-react'
+import KPICard from '../components/KPICard'
 import TablaFacturas from '../components/TablaFacturas'
 import FacturaForm from '../components/FacturaForm'
 import FacturacionSkeleton from '../components/FacturacionSkeleton'
@@ -30,18 +31,6 @@ function nombreCliente(f) {
   return '—'
 }
 
-function KpiCard({ label, value, sub, color, icon: Icon }) {
-  return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 20px', boxShadow: 'var(--shadow-sm)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
-        {Icon && <Icon size={16} style={{ color: color ?? 'var(--text-3)' }} strokeWidth={1.5} />}
-      </div>
-      <div className="num" style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: color ?? 'var(--text)' }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{sub}</div>}
-    </div>
-  )
-}
 
 export function descargarPDFFactura(factura) {
   const ventana = window.open('', '_blank')
@@ -241,12 +230,17 @@ export default function Facturacion() {
     { id: 'rentabilidad', label: 'Rentabilidad' },
   ]
 
+  const fmt = n => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0)
+  const totalForBar  = totalCobrado + totalPendiente + (totalVencidas > 0 ? totalPendiente * 0.2 : 0)
+  const cobradoPct   = totalForBar ? (totalCobrado / totalForBar * 100) : 0
+  const pendientePct = totalForBar ? (totalPendiente / totalForBar * 100) : 0
+
   return (
-    <div className="fade-in">
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 2000, background: '#1a2235', border: '1px solid rgba(52,211,153,0.35)', color: '#6EE7B7', borderRadius: 8, padding: '12px 18px', fontSize: 13, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', flexShrink: 0 }} />
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 2000, background: 'var(--s2)', border: '1px solid rgba(55,196,136,.35)', color: 'var(--gr)', borderRadius: 'var(--radius)', padding: '12px 18px', fontSize: 13, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gr)', flexShrink: 0 }} />
           {toast}
         </div>
       )}
@@ -254,23 +248,20 @@ export default function Facturacion() {
       {/* Modal confirmar eliminar */}
       {facturaAEliminar && (
         <div onClick={() => setFacturaAEliminar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'grid', placeItems: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 28, maxWidth: 400, width: '90%', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}>
-            <div style={{ fontWeight: 500, marginBottom: 10 }}>¿Eliminar factura {nombreFactura(facturaAEliminar)}?</div>
-            <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 22 }}>Esta acción no se puede deshacer.</div>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)', padding: 28, maxWidth: 400, width: '90%', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontWeight: 600, marginBottom: 10 }}>¿Eliminar factura {nombreFactura(facturaAEliminar)}?</div>
+            <div style={{ fontSize: 13, color: 'var(--tx2)', marginBottom: 22 }}>Esta acción no se puede deshacer.</div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setFacturaAEliminar(null)} style={btnStyle()}>Cancelar</button>
-              <button onClick={() => handleEliminar(facturaAEliminar.id)} style={{ ...btnStyle(), background: 'rgba(248,113,113,0.15)', color: '#FCA5A5', borderColor: 'rgba(248,113,113,0.3)' }}>Eliminar</button>
+              <button onClick={() => handleEliminar(facturaAEliminar.id)} style={{ ...btnStyle(), background: 'var(--rd-bg)', color: 'var(--rd)', borderColor: 'rgba(224,78,83,.3)' }}>Eliminar</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22 }}>
-        <div>
-          <h1 className="serif" style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.015em', margin: 0 }}>Facturación</h1>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>Gestiona facturas, gastos y rentabilidad del despacho.</div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>Facturación</h1>
         <button style={btnStyle(true)} onClick={() => { setEditando(null); setShowForm(true) }}>
           <Plus size={14} /> Nueva factura
         </button>
@@ -278,27 +269,52 @@ export default function Facturacion() {
 
       {/* Error */}
       {error && (
-        <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#FCA5A5' }}>
+        <div style={{ background: 'var(--rd-bg)', border: '1px solid rgba(224,78,83,.3)', borderRadius: 'var(--rad-s)', padding: '12px 16px', fontSize: 13, color: 'var(--rd)' }}>
           Error al cargar facturas: {error}
         </div>
       )}
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-        <KpiCard label="Total facturado" value={`${totalFacturado.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €`} sub="Sin anuladas" icon={Receipt} />
-        <KpiCard label="Cobrado" value={`${totalCobrado.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €`} sub="Efectivamente ingresado" color="#34D399" icon={CheckCircle2} />
-        <KpiCard label="Pendiente" value={`${totalPendiente.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €`} sub={`${facturas.filter(f => f.estado === 'emitida').length} facturas emitidas`} color="#FBBF24" icon={Clock} />
-        <KpiCard label="Vencidas" value={totalVencidas} sub="Requieren atención" color={totalVencidas > 0 ? '#F87171' : undefined} icon={AlertCircle} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+        <KPICard label="Total facturado"    value={fmt(totalFacturado)}  sub="Sin anuladas"                                      accent="blue"  icon={Receipt} />
+        <KPICard label="Cobrado"            value={fmt(totalCobrado)}    sub="Efectivamente ingresado"                            accent="green" icon={CheckCircle2} />
+        <KPICard label="Pendiente de cobro" value={fmt(totalPendiente)}  sub={`${facturas.filter(f => f.estado === 'emitida').length} facturas emitidas`} accent="amber" icon={Clock} />
+        <KPICard label="Vencidas"           value={totalVencidas}        sub="Requieren atención"                                 accent="red"   icon={AlertCircle} alert={totalVencidas > 0} />
+      </div>
+
+      {/* Distribución */}
+      <div style={{ background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)', padding: '16px 20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Distribución de facturación</span>
+          <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{fmt(totalFacturado)} total</span>
+        </div>
+        <div style={{ height: 8, borderRadius: 100, overflow: 'hidden', display: 'flex', gap: 2 }}>
+          <div style={{ width: `${cobradoPct}%`,   background: 'var(--gr)',  borderRadius: 100, transition: 'width .4s' }} />
+          <div style={{ width: `${pendientePct}%`, background: 'var(--am)',  borderRadius: 100, transition: 'width .4s' }} />
+          <div style={{ width: `${Math.max(0, 100-cobradoPct-pendientePct)}%`, background: 'var(--rd)', borderRadius: 100 }} />
+        </div>
+        <div style={{ display: 'flex', gap: 20, marginTop: 10 }}>
+          {[
+            { label: 'Cobrado',   color: 'var(--gr)', value: fmt(totalCobrado) },
+            { label: 'Pendiente', color: 'var(--am)', value: fmt(totalPendiente) },
+          ].map(({ label, color, value }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--tx2)' }}>{label}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx1)', fontFamily: "'JetBrains Mono',monospace" }}>{value}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--bd)' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             height: 36, padding: '0 16px', border: 0, background: 'transparent', cursor: 'pointer',
-            fontFamily: 'inherit', fontSize: 13.5, color: tab === t.id ? 'var(--text)' : 'var(--text-2)',
-            borderBottom: `2px solid ${tab === t.id ? 'var(--blue)' : 'transparent'}`,
-            fontWeight: tab === t.id ? 500 : 400, transition: 'color 0.15s', marginBottom: -1,
+            fontFamily: 'inherit', fontSize: 13.5, color: tab === t.id ? 'var(--tx1)' : 'var(--tx2)',
+            borderBottom: `2px solid ${tab === t.id ? 'var(--ac)' : 'transparent'}`,
+            fontWeight: tab === t.id ? 600 : 400, transition: 'color 0.15s', marginBottom: -1,
           }}>
             {t.label}
           </button>
@@ -378,7 +394,7 @@ function TabPorCliente({ facturas }) {
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(79,126,255,0.15)', display: 'grid', placeItems: 'center', color: '#93B4FF', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', color: '#93B4FF', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
                 {(c.nombre || '?').slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
@@ -562,15 +578,15 @@ function TabRentabilidad({ facturas, gastos }) {
   )
 }
 
-const td = { padding: '11px 14px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', color: 'var(--text)' }
+const td = { padding: '11px 16px', verticalAlign: 'middle', color: 'var(--tx1)' }
 
 function btnStyle(primary) {
   return {
-    height: 34, padding: '0 14px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+    height: 32, padding: '0 12px', borderRadius: 'var(--rad-s)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
     display: 'inline-flex', alignItems: 'center', gap: 7,
-    background: primary ? 'var(--blue)' : 'var(--surface)',
-    border: `1px solid ${primary ? 'var(--blue)' : 'var(--border-2)'}`,
-    color: primary ? '#fff' : 'var(--text)',
-    transition: 'background 0.15s',
+    background: primary ? 'var(--ac)' : 'var(--s2)',
+    border: `1px solid ${primary ? 'var(--ac)' : 'var(--bd)'}`,
+    color: primary ? '#fff' : 'var(--tx1)',
+    transition: 'all .14s',
   }
 }

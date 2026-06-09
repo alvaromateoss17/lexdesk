@@ -65,7 +65,7 @@ export default function CalendarioTareas({ tasks, monthOffset, onMonthChange, on
           <ChevronLeft size={16} />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span className="serif" style={{ fontSize: 18, color: 'var(--text)', fontWeight: 500 }}>
+          <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em', color: 'var(--tx1)' }}>
             {MESES[month]} {year}
           </span>
           {monthOffset !== 0 && (

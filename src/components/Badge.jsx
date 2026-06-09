@@ -1,37 +1,51 @@
-export default function Badge({ status, children }) {
-  const s = status || children;
+const STATUS_MAP = {
+  /* Estados expediente */
+  'Activo':         { c: 'var(--ac)',  bg: 'var(--ac-bg)',  br: 'var(--ac-bdr)' },
+  'En juicio':      { c: 'var(--am)',  bg: 'var(--am-bg)',  br: 'rgba(240,167,66,.24)' },
+  'Pendiente':      { c: 'var(--tx2)', bg: 'var(--s3)',     br: 'var(--bd1)' },
+  'Resuelto':       { c: 'var(--gr)',  bg: 'var(--gr-bg)',  br: 'rgba(55,196,136,.24)' },
+  'Archivado':      { c: 'var(--tx3)', bg: 'var(--s2)',     br: 'var(--bd)' },
+  /* Estados factura */
+  'Cobrada':        { c: 'var(--gr)',  bg: 'var(--gr-bg)',  br: 'rgba(55,196,136,.24)' },
+  'Vencida':        { c: 'var(--rd)',  bg: 'var(--rd-bg)',  br: 'rgba(224,78,83,.24)' },
+  /* Tipos expediente */
+  'Civil':          { c: 'var(--ac)',  bg: 'var(--ac-bg)',  br: 'var(--ac-bdr)' },
+  'Laboral':        { c: 'var(--am)',  bg: 'var(--am-bg)',  br: 'rgba(240,167,66,.24)' },
+  'Familia':        { c: 'var(--pu)',  bg: 'var(--pu-bg)',  br: 'rgba(163,116,249,.24)' },
+  'Mercantil':      { c: 'var(--gr)',  bg: 'var(--gr-bg)',  br: 'rgba(55,196,136,.24)' },
+  'Administrativo': { c: 'var(--tx2)', bg: 'var(--s3)',     br: 'var(--bd1)' },
+  /* Tipos evento */
+  'Juicio':         { c: 'var(--am)',  bg: 'var(--am-bg)',  br: 'rgba(240,167,66,.24)' },
+  'Plazo':          { c: 'var(--rd)',  bg: 'var(--rd-bg)',  br: 'rgba(224,78,83,.24)' },
+  'Reunión':        { c: 'var(--ac)',  bg: 'var(--ac-bg)',  br: 'var(--ac-bdr)' },
+  'Notificación':   { c: 'var(--pu)',  bg: 'var(--pu-bg)',  br: 'rgba(163,116,249,.24)' },
+  /* Tipos cliente */
+  'Empresa':        { c: 'var(--ac)',  bg: 'var(--ac-bg)',  br: 'var(--ac-bdr)' },
+  'Particular':     { c: 'var(--tx2)', bg: 'var(--s3)',     br: 'var(--bd1)' },
+  /* Legacy (old app) */
+  'Urgente':        { c: 'var(--rd)',  bg: 'var(--rd-bg)',  br: 'rgba(224,78,83,.24)' },
+  'Próximo':        { c: 'var(--am)',  bg: 'var(--am-bg)',  br: 'rgba(240,167,66,.24)' },
+  'activo':         { c: 'var(--gr)',  bg: 'var(--gr-bg)',  br: 'rgba(55,196,136,.24)' },
+  'urgente':        { c: 'var(--rd)',  bg: 'var(--rd-bg)',  br: 'rgba(224,78,83,.24)' },
+  'archivado':      { c: 'var(--tx3)', bg: 'var(--s2)',     br: 'var(--bd)' },
+  'proximo':        { c: 'var(--am)',  bg: 'var(--am-bg)',  br: 'rgba(240,167,66,.24)' },
+}
 
-  const configs = {
-    activo:    { dot: '#34D399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.25)',  text: '#6EE7B7',  label: 'Activo' },
-    Activo:    { dot: '#34D399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.25)',  text: '#6EE7B7',  label: 'Activo' },
-    urgente:   { dot: '#F87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.25)', text: '#FCA5A5',  label: 'Urgente' },
-    Urgente:   { dot: '#F87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.25)', text: '#FCA5A5',  label: 'Urgente' },
-    archivado: { dot: '#5C5F6A', bg: 'rgba(92,95,106,0.14)',   border: 'rgba(92,95,106,0.30)',   text: '#8A8A8A',  label: 'Archivado' },
-    Archivado: { dot: '#5C5F6A', bg: 'rgba(92,95,106,0.14)',   border: 'rgba(92,95,106,0.30)',   text: '#8A8A8A',  label: 'Archivado' },
-    proximo:   { dot: '#FBBF24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.25)',  text: '#FCD34D',  label: 'Próximo' },
-    Próximo:   { dot: '#FBBF24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.25)',  text: '#FCD34D',  label: 'Próximo' },
-  };
+export { STATUS_MAP }
 
-  const c = configs[s];
-  if (!c) {
-    return (
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        fontSize: 12, padding: '2px 8px', borderRadius: 4,
-        background: 'var(--surface-2)', color: 'var(--text-2)',
-        border: '1px solid var(--border-2)',
-      }}>{s}</span>
-    );
-  }
-
+export default function Badge({ label, status, children }) {
+  const text = label ?? status ?? children ?? ''
+  const s = STATUS_MAP[text] || { c: 'var(--tx2)', bg: 'var(--s3)', br: 'var(--bd1)' }
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      fontSize: 12, padding: '2px 8px', borderRadius: 4,
-      background: c.bg, color: c.text, border: `1px solid ${c.border}`,
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '2px 8px', fontSize: 11, fontWeight: 500,
+      color: s.c, background: s.bg,
+      border: `1px solid ${s.br}`, borderRadius: 100,
+      whiteSpace: 'nowrap',
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
-      {c.label}
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.c, flexShrink: 0 }} />
+      {text}
     </span>
-  );
+  )
 }

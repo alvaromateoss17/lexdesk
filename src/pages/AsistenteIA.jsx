@@ -147,9 +147,9 @@ export default function AsistenteIA() {
         <div style={{ padding: '12px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <button onClick={nuevaConversacion} style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 7, padding: '8px 12px', borderRadius: 8,
-            border: '1px solid rgba(79,126,255,0.35)', background: 'rgba(79,126,255,0.08)',
-            color: 'var(--blue)', fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+            gap: 7, padding: '8px 12px', borderRadius: 'var(--rad-s)',
+            border: '1px solid var(--ac-bdr)', background: 'var(--ac-bg)',
+            color: 'var(--ac)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
           }}>
             <Plus size={14} /> Nueva conversación
           </button>
@@ -174,8 +174,8 @@ export default function AsistenteIA() {
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '7px 8px', borderRadius: 7, cursor: 'pointer', marginBottom: 2,
-                      background: conv.id === idActual ? 'rgba(79,126,255,0.1)' : 'transparent',
-                      border: conv.id === idActual ? '1px solid rgba(79,126,255,0.2)' : '1px solid transparent',
+                      background: conv.id === idActual ? 'var(--ac-bg)' : 'transparent',
+                      border: conv.id === idActual ? '1px solid var(--ac-bdr)' : '1px solid transparent',
                     }}>
                     <span style={{
                       fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis',
@@ -220,7 +220,7 @@ export default function AsistenteIA() {
           <div style={{
             width: 30, height: 30, borderRadius: '50%',
             background: 'linear-gradient(135deg, #4F7EFF22, #A78BFA22)',
-            border: '1px solid rgba(79,126,255,0.3)',
+            border: '1px solid var(--ac-bdr)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <Sparkles size={14} color="var(--blue)" />
@@ -244,16 +244,17 @@ export default function AsistenteIA() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center',
               justifyContent: 'center', height: '100%', gap: 20, paddingBottom: 40 }}>
               <div style={{
-                width: 58, height: 58, borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(79,126,255,0.15), rgba(167,139,250,0.15))',
-                border: '1px solid rgba(79,126,255,0.25)',
+                width: 56, height: 56, borderRadius: 16,
+                background: 'linear-gradient(135deg, var(--ac-bg), var(--pu-bg))',
+                border: '1px solid var(--ac-bdr)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 0 28px rgba(78,126,255,.15)',
               }}>
                 <Sparkles size={26} color="var(--blue)" />
               </div>
               <div style={{ textAlign: 'center' }}>
-                <p className="serif" style={{ fontSize: 20, fontWeight: 500, color: 'var(--text)', margin: '0 0 6px' }}>
-                  Asistente del despacho
+                <p style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.025em', color: 'var(--tx1)', margin: '0 0 6px' }}>
+                  ¿En qué puedo ayudarte?
                 </p>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>
                   Pregunta sobre expedientes, redacta escritos o analiza documentos
@@ -268,7 +269,7 @@ export default function AsistenteIA() {
                     color: 'var(--text-2)', fontSize: 12, textAlign: 'left',
                     transition: 'border-color .15s, color .15s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(79,126,255,0.35)'; e.currentTarget.style.color = 'var(--text)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ac-bdr)'; e.currentTarget.style.color = 'var(--text)'; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-2)'; }}>
                     <span style={{ fontSize: 16 }}>{p.icon}</span>
                     {p.label}
@@ -301,9 +302,9 @@ export default function AsistenteIA() {
                 <div style={{
                   padding: '10px 14px',
                   borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
-                  background: msg.role === 'user' ? 'rgba(79,126,255,0.18)' : 'var(--surface)',
-                  border: msg.role === 'user' ? '1px solid rgba(79,126,255,0.3)' : '1px solid var(--border)',
-                  fontSize: 14, lineHeight: 1.6, color: 'var(--text)',
+                  background: msg.role === 'user' ? 'var(--ac)' : 'var(--s1)',
+                  border: msg.role === 'user' ? 'none' : '1px solid var(--bd)',
+                  fontSize: 13.5, lineHeight: 1.65, color: msg.role === 'user' ? '#fff' : 'var(--tx1)',
                 }}>
                   {msg.role === 'assistant' ? (
                     <>
@@ -424,8 +425,8 @@ export default function AsistenteIA() {
           {/* Área de texto */}
           <div style={{
             display: 'flex', gap: 8, alignItems: 'flex-end',
-            background: 'var(--surface-2)', border: '1px solid var(--border-2)',
-            borderRadius: 12, padding: '8px 8px 8px 12px',
+            background: 'var(--s2)', border: '1px solid var(--bd)',
+            borderRadius: 'var(--radius)', padding: '8px 8px 8px 12px',
           }}>
             <button onClick={() => fileInputRef.current?.click()} disabled={isStreaming}
               style={{ background: 'none', border: 'none', cursor: isStreaming ? 'not-allowed' : 'pointer',
@@ -458,8 +459,8 @@ export default function AsistenteIA() {
               disabled={!input.trim() || isStreaming}
               style={{
                 width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-                background: !input.trim() || isStreaming ? 'transparent' : 'var(--blue)',
-                border: '1px solid var(--border)',
+                background: !input.trim() || isStreaming ? 'transparent' : 'var(--ac)',
+                border: '1px solid var(--bd)',
                 cursor: !input.trim() || isStreaming ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background .15s',
@@ -469,8 +470,8 @@ export default function AsistenteIA() {
             </button>
           </div>
 
-          <p style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center', marginTop: 7 }}>
-            Enter para enviar · Shift+Enter para nueva línea · Adjunta PDFs o imágenes
+          <p style={{ fontSize: 11, color: 'var(--tx3)', textAlign: 'center', marginTop: 7 }}>
+            Vincla IA · Powered by Claude · Los resultados son orientativos — consulta siempre la legislación vigente
           </p>
         </div>
       </div>

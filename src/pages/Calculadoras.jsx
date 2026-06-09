@@ -365,10 +365,10 @@ export default function Calculadoras() {
   }
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 760, margin: '0 auto' }} className="fade-in">
+    <div style={{ padding: 24, maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(79,126,255,0.12)', display: 'grid', placeItems: 'center', color: '#4F7EFF' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', color: '#4F7EFF' }}>
           <Calculator size={18} strokeWidth={1.5} />
         </div>
         <div>

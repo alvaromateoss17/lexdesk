@@ -42,7 +42,7 @@ export default function Modal({ title, children, onClose, size = 'md' }) {
             borderBottom: '1px solid var(--border)',
             flexShrink: 0,
           }}>
-            <div className="serif" style={{ fontSize: 17, fontWeight: 500, letterSpacing: '-0.01em' }}>{title}</div>
+            <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.01em' }}>{title}</div>
             <button
               onClick={onClose}
               style={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid transparent', color: 'var(--text-2)', cursor: 'pointer', transition: 'color 0.15s, border-color 0.15s' }}

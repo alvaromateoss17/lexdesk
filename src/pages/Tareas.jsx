@@ -22,13 +22,13 @@ export default function Tareas() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="serif" style={{ fontSize: 24, fontWeight: 500, color: 'var(--text)', margin: 0 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', margin: 0 }}>
             Tareas
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2, marginBottom: 0 }}>
+          <p style={{ fontSize: 13, color: 'var(--tx2)', marginTop: 2, marginBottom: 0 }}>
             Gestiona las tareas del despacho
           </p>
         </div>
@@ -36,15 +36,15 @@ export default function Tareas() {
           onClick={() => { setModalDate(null); setModalOpen(true); }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '9px 20px', borderRadius: 10,
-            background: 'transparent', border: '1px solid rgba(79,126,255,0.45)',
-            color: 'var(--blue)', fontSize: 14, fontWeight: 500, cursor: 'pointer',
-            transition: 'background .15s',
+            padding: '8px 14px', borderRadius: 'var(--rad-s)',
+            background: 'var(--ac)', border: '1px solid var(--ac)',
+            color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            transition: 'all .14s', fontFamily: 'inherit',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,126,255,0.1)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#3A6BFF'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--ac)'; }}
         >
-          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
           Nueva tarea
         </button>
       </div>

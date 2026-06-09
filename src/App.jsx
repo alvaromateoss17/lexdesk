@@ -25,11 +25,16 @@ function EmptyScreen({ name }) {
   return (
     <div style={{ display: 'grid', placeItems: 'center', padding: '120px 0', textAlign: 'center' }}>
       <div>
-        <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', display: 'grid', placeItems: 'center', margin: '0 auto 18px', color: 'var(--text-2)', fontSize: 22 }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: 'var(--radius)',
+          background: 'var(--s2)', border: '1px solid var(--bd)',
+          display: 'grid', placeItems: 'center', margin: '0 auto 18px',
+          color: 'var(--tx2)', fontSize: 22,
+        }}>
           ⚙️
         </div>
-        <h2 className="serif" style={{ fontSize: 22, fontWeight: 500, margin: 0 }}>{name}</h2>
-        <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-2)' }}>Próximamente disponible.</div>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-.02em' }}>{name}</h2>
+        <div style={{ marginTop: 6, fontSize: 13, color: 'var(--tx2)' }}>Próximamente disponible.</div>
       </div>
     </div>
   )
@@ -37,14 +42,19 @@ function EmptyScreen({ name }) {
 
 function Layout({ children, fullHeight }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <TopBar />
-        <div style={{ padding: fullHeight ? 0 : '28px 32px 56px', minWidth: 0, flex: 1 }}>
+        <main style={{
+          flex: 1,
+          overflow: fullHeight ? 'hidden' : 'auto',
+          background: 'var(--bg)',
+          padding: fullHeight ? 0 : '0',
+        }}>
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

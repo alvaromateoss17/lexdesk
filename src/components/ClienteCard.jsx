@@ -53,7 +53,7 @@ export default function ClienteCard({ cliente, onVerDetalle, onEnviarMensaje }) 
           background: cliente.color + '33',
           border: `1.5px solid ${cliente.color}`,
           display: 'grid', placeItems: 'center',
-          color: cliente.color, fontFamily: 'Fraunces, serif', fontSize: 16, fontWeight: 500,
+          color: cliente.color, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 14, fontWeight: 700,
         }}>
           {initiales(cliente.nombre)}
         </div>

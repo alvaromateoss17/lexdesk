@@ -44,11 +44,11 @@ export default function VinclaLogo({ collapsed = false }) {
 
       {!collapsed && (
         <span style={{
-          fontFamily: "'Fraunces', serif",
+          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
           fontSize: 18,
-          fontWeight: 500,
-          letterSpacing: '0.02em',
-          color: '#F1F0EC',
+          fontWeight: 800,
+          letterSpacing: '-0.02em',
+          color: 'var(--tx1)',
           lineHeight: 1,
           userSelect: 'none',
         }}>

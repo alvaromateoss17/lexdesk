@@ -46,7 +46,7 @@ function Avatar({ nombre, color, size = 44 }) {
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
       background: color + '33', border: `1.5px solid ${color}`,
       display: 'grid', placeItems: 'center',
-      color, fontFamily: 'Fraunces, serif', fontSize: size * 0.36, fontWeight: 500,
+      color, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: size * 0.35, fontWeight: 700,
     }}>
       {initiales(nombre)}
     </div>
@@ -673,7 +673,7 @@ export default function ClienteDetalle() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Avatar nombre={cliente.nombre} color={cliente.color} size={64} />
           <div>
-            <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, fontFamily: 'Fraunces, serif' }}>{cliente.nombre}</h1>
+            <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, letterSpacing: '-.02em' }}>{cliente.nombre}</h1>
             <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8 }}>
               {cliente.profesion}{cliente.estadoCivil ? ` · ${cliente.estadoCivil}` : ''}
             </div>

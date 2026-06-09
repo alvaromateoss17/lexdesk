@@ -1,35 +1,68 @@
-export default function KPICard({ label, value, delta, deltaGood, badge, alert }) {
+import { TrendingUp, TrendingDown } from 'lucide-react'
+
+const ACCENT_MAP = {
+  blue:   ['var(--ac)',  'var(--ac-bg)'],
+  green:  ['var(--gr)',  'var(--gr-bg)'],
+  amber:  ['var(--am)',  'var(--am-bg)'],
+  red:    ['var(--rd)',  'var(--rd-bg)'],
+  purple: ['var(--pu)',  'var(--pu-bg)'],
+}
+
+export default function KPICard({ label, value, sub, trend, trendLabel, accent = 'blue', icon: Ic, alert, delta }) {
+  const [ac, acBg] = ACCENT_MAP[accent] || ACCENT_MAP.blue
+
+  const trendVal = trend !== undefined ? trend : (delta ? parseFloat(delta) : undefined)
+
   return (
     <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 8, padding: '18px 18px 16px',
-      boxShadow: 'var(--shadow-sm)',
+      background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)',
+      padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14,
+      position: 'relative', overflow: 'hidden',
     }}>
-      <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 }}>
-        {label}
+      {/* Glow */}
+      <div style={{
+        position: 'absolute', top: -24, right: -24, width: 90, height: 90,
+        borderRadius: '50%', background: ac, opacity: .06,
+        filter: 'blur(28px)', pointerEvents: 'none',
+      }} />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx2)', letterSpacing: '.01em' }}>
+          {label}
+        </span>
+        {Ic && (
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: acBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: ac,
+          }}>
+            <Ic size={15} />
+          </div>
+        )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
-        <div className="serif num" style={{
-          fontSize: 40, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em',
-          color: alert ? 'var(--red)' : 'var(--text)',
+
+      <div>
+        <div style={{
+          fontSize: 26, fontWeight: 700, letterSpacing: '-.025em',
+          color: alert ? 'var(--rd)' : 'var(--tx1)', lineHeight: 1,
         }}>
           {value}
         </div>
-        {badge && (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 12, padding: '2px 8px', borderRadius: 4,
-            background: 'rgba(248,113,113,0.10)', borderColor: 'rgba(248,113,113,0.25)',
-            border: '1px solid rgba(248,113,113,0.25)', color: '#FCA5A5',
+        {sub && <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 5 }}>{sub}</div>}
+        {trendVal !== undefined && (
+          <div style={{
+            marginTop: 6, display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: 12, color: trendVal >= 0 ? 'var(--gr)' : 'var(--rd)',
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F87171', boxShadow: '0 0 0 3px rgba(248,113,113,0.14)' }} />
-            {badge}
-          </span>
+            {trendVal >= 0
+              ? <TrendingUp size={12} />
+              : <TrendingDown size={12} />
+            }
+            <span style={{ fontWeight: 600 }}>{Math.abs(trendVal)}%</span>
+            {trendLabel && <span style={{ color: 'var(--tx3)', marginLeft: 1 }}>{trendLabel}</span>}
+          </div>
         )}
       </div>
-      {delta && (
-        <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-2)' }}>{delta}</div>
-      )}
     </div>
-  );
+  )
 }

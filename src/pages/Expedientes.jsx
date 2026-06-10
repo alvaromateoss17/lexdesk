@@ -362,7 +362,7 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
         )}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-          <button onClick={onClose} style={btnStyle()} disabled={guardando}>Cancelar</button>
+          <button onClick={onClose} style={btnStyle()}>Cancelar</button>
           <button onClick={handleGuardar} style={btnStyle(true)} disabled={guardando}>
             {guardando ? (esEdicion ? 'Guardando…' : 'Creando…') : (esEdicion ? 'Guardar cambios' : 'Crear expediente')}
           </button>

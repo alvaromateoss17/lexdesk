@@ -173,6 +173,10 @@ export async function actualizarExpediente(id, cambios) {
   if (camposDB.estado) {
     camposDB.estado = normalizarEstadoDB(camposDB.estado)
   }
+  // Sincronizar el enum tipo cuando cambia el titulo
+  if (camposDB.titulo) {
+    camposDB.tipo = detectarTipoEnum(camposDB.titulo)
+  }
 
   const { data, error } = await supabase
     .from('expedientes')

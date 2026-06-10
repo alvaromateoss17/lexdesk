@@ -256,13 +256,14 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
         contraparte:    form.contraparte || null,
         juzgado:        form.seccionTribunal || null,
         numero_autos:   form.numeroProcedimiento || null,
-        fecha_apertura: form.fechaApertura || null,
+        fecha_apertura: form.fechaApertura || new Date().toISOString().split('T')[0],
         descripcion:    form.notasLibres || null,
         estado:         form.estado,
       }, expediente?.id)
       onClose()
     } catch (err) {
-      setErrorForm(err.message)
+      console.error('[handleGuardar]', err)
+      setErrorForm(err.message || 'Error desconocido al guardar.')
     } finally {
       setGuardando(false)
     }

@@ -108,6 +108,7 @@ export async function crearCliente(datos) {
       telefono_secundario: datos.telefonoSecundario?.trim() || datos.telefono_secundario?.trim() || null,
       dni:                 datos.dni?.trim()                || null,
       direccion:           datos.direccion?.trim()          || null,
+      codigo_postal:       datos.codigo_postal?.trim()      || null,
       ciudad:              datos.ciudad?.trim()             || null,
       fecha_nacimiento:    datos.fechaNacimiento            || datos.fecha_nacimiento || null,
       notas:               (typeof datos.notaInicial === 'string' ? datos.notaInicial.trim() : '') ||

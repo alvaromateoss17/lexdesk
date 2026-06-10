@@ -89,8 +89,8 @@ function CampoFormulario({ label, error, children, col }) {
 function ModalNuevoCliente({ onClose, onCrear }) {
   const [form, setForm] = useState({
     nombre: '', dni: '',
-    email: '', telefono: '', telefonoSecundario: '', 
-    numero: '', piso: '', letra: '', localidad: '',
+    email: '', telefono: '', telefonoSecundario: '',
+    direccion: '', codigo_postal: '', ciudad: '',
     etiquetas: [], notaInicial: '',
   })
   const [errores, setErrores] = useState({})
@@ -171,17 +171,14 @@ function ModalNuevoCliente({ onClose, onCrear }) {
                 <input value={form.telefonoSecundario} onChange={e => set('telefonoSecundario', e.target.value)} style={inStyle} placeholder="Opcional" />
               </Campo>
               <div></div>
-              <Campo label="Número">
-                <input value={form.numero} onChange={e => set('numero', e.target.value)} style={inStyle} placeholder="Ej: 42" />
+              <Campo label="Calle" col={2}>
+                <input value={form.direccion} onChange={e => set('direccion', e.target.value)} style={inStyle} placeholder="Ej: Calle Mayor 42, 3ºB" />
               </Campo>
-              <Campo label="Piso">
-                <input value={form.piso} onChange={e => set('piso', e.target.value)} style={inStyle} placeholder="Ej: 3" />
-              </Campo>
-              <Campo label="Letra">
-                <input value={form.letra} onChange={e => set('letra', e.target.value)} style={inStyle} placeholder="Ej: B" />
+              <Campo label="Código postal">
+                <input value={form.codigo_postal} onChange={e => set('codigo_postal', e.target.value)} style={inStyle} placeholder="Ej: 10004" />
               </Campo>
               <Campo label="Localidad">
-                <input value={form.localidad} onChange={e => set('localidad', e.target.value)} style={inStyle} placeholder="Ej: Madrid" />
+                <input value={form.ciudad} onChange={e => set('ciudad', e.target.value)} style={inStyle} placeholder="Ej: Cáceres" />
               </Campo>
             </div>
           </div>

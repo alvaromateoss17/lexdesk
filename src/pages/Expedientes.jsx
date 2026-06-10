@@ -9,6 +9,8 @@ import ExpedientesSkeleton from '../components/ExpedientesSkeleton'
 import { TIPOS_EXPEDIENTE } from '../data/tiposExpediente'
 import { useExpedientes } from '../hooks/useExpedientes'
 import { buscarClientes } from '../services/expedientesService'
+import { crearCliente } from '../services/clientesService'
+import { useAuth } from '../contexts/AuthContext'
 
 const HUES = { L: 220, D: 270, P: 160, I: 30, M: 340, A: 200 }
 function AvatarMini({ name }) {
@@ -66,7 +68,7 @@ function EstadoBadge({ estado }) {
   )
 }
 
-function ExpedienteCard({ exp, onVer, onEliminar }) {
+function ExpedienteCard({ exp, onVer, onEliminar, onEditar }) {
   const [hovered, setHovered] = useState(false)
   return (
     <div
@@ -105,48 +107,115 @@ function ExpedienteCard({ exp, onVer, onEliminar }) {
           </div>
         )}
       </div>
-      <button
-        onClick={() => onVer(exp)}
-        style={{
-          marginTop: 4, width: '100%', padding: '7px 0', borderRadius: 'var(--rad-s)', cursor: 'pointer',
-          background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx2)',
-          fontSize: 12, fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ac-bdr)'; e.currentTarget.style.color = 'var(--ac)' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx2)' }}
-      >
-        Ver expediente →
-      </button>
+      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+        <button
+          onClick={() => onEditar(exp)}
+          style={{ flex: '0 0 auto', padding: '7px 12px', borderRadius: 'var(--rad-s)', cursor: 'pointer', background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx2)', fontSize: 12, fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s', display: 'flex', alignItems: 'center', gap: 5 }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ac-bdr)'; e.currentTarget.style.color = 'var(--ac)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx2)' }}
+        >
+          <Pencil size={12} /> Editar
+        </button>
+        <button
+          onClick={() => onVer(exp)}
+          style={{ flex: 1, padding: '7px 0', borderRadius: 'var(--rad-s)', cursor: 'pointer', background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx2)', fontSize: 12, fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ac-bdr)'; e.currentTarget.style.color = 'var(--ac)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx2)' }}
+        >
+          Ver expediente →
+        </button>
+      </div>
     </div>
   )
 }
 
-// Selector de cliente que carga desde Supabase
-function SelectorCliente({ value, onChange, disabled }) {
-  const [clientes, setClientes] = useState([])
-  const [cargando, setCargando] = useState(true)
+// Combobox de cliente: búsqueda en vivo + crear cliente inline
+function ClienteCombobox({ clienteId, clienteNombre, onChange, despachoId, disabled }) {
+  const [query, setQuery]     = useState(clienteNombre || '')
+  const [opciones, setOpciones] = useState([])
+  const [abierto, setAbierto] = useState(false)
+  const [creando, setCreando] = useState(false)
+  const wrapRef = useRef(null)
 
   useEffect(() => {
-    buscarClientes()
-      .then(setClientes)
-      .catch(() => setClientes([]))
-      .finally(() => setCargando(false))
+    buscarClientes().then(setOpciones).catch(() => setOpciones([]))
   }, [])
 
+  useEffect(() => { setQuery(clienteNombre || '') }, [clienteNombre])
+
+  useEffect(() => {
+    const fn = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAbierto(false) }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [])
+
+  const nombre = c => `${c.nombre} ${c.apellidos || ''}`.trim()
+  const filtradas = query.trim()
+    ? opciones.filter(c => nombre(c).toLowerCase().includes(query.toLowerCase()))
+    : opciones
+
+  async function handleCrearCliente() {
+    if (!despachoId || !query.trim()) return
+    setCreando(true)
+    try {
+      const nuevo = await crearCliente({ nombre: query.trim(), despacho_id: despachoId })
+      setOpciones(prev => [...prev, nuevo])
+      onChange(nuevo.id, query.trim())
+      setAbierto(false)
+    } catch { /* el usuario puede intentarlo de nuevo */ }
+    finally { setCreando(false) }
+  }
+
   return (
-    <select
-      value={value || ''}
-      onChange={e => onChange(e.target.value || null)}
-      disabled={disabled || cargando}
-      style={{ ...inputStyle, color: value ? 'var(--text)' : 'var(--text-2)' }}
-    >
-      <option value="">{cargando ? 'Cargando clientes…' : 'Sin cliente asignado'}</option>
-      {clientes.map(c => (
-        <option key={c.id} value={c.id}>
-          {c.nombre} {c.apellidos || ''}
-        </option>
-      ))}
-    </select>
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        value={query}
+        onChange={e => { setQuery(e.target.value); if (!e.target.value) onChange(null, ''); setAbierto(true) }}
+        onFocus={() => setAbierto(true)}
+        placeholder="Escribe el nombre del cliente…"
+        disabled={disabled || creando}
+        autoComplete="off"
+        style={{ ...inputStyle, color: clienteId ? 'var(--text)' : 'var(--text-2)' }}
+      />
+      {clienteId && query && (
+        <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', background: 'var(--gr)' }} title="Cliente vinculado" />
+      )}
+      {abierto && (
+        <div style={{ position: 'absolute', zIndex: 200, width: '100%', marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxHeight: 220, overflowY: 'auto' }}>
+          {filtradas.length === 0 && !query.trim() && (
+            <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-3)' }}>No hay clientes aún. Escribe para crear uno.</div>
+          )}
+          {filtradas.map(c => (
+            <button key={c.id} type="button"
+              onClick={() => { onChange(c.id, nombre(c)); setQuery(nombre(c)); setAbierto(false) }}
+              style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: 13, background: 'transparent', border: 0, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)', transition: 'background .1s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {nombre(c)}
+            </button>
+          ))}
+          {query.trim() && filtradas.length === 0 && (
+            <button type="button" onClick={handleCrearCliente} disabled={creando}
+              style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: 13, background: 'transparent', border: 0, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ac)', fontWeight: 500 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--ac-bg)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {creando ? 'Creando…' : `+ Crear cliente "${query.trim()}"`}
+            </button>
+          )}
+          {query.trim() && filtradas.length > 0 && (
+            <button type="button" onClick={handleCrearCliente} disabled={creando}
+              style={{ width: '100%', textAlign: 'left', padding: '6px 12px', fontSize: 12, background: 'transparent', borderTop: '1px solid var(--border)', border: '0', borderTopWidth: 1, borderTopStyle: 'solid', borderTopColor: 'var(--border)', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-3)' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--ac)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+            >
+              {creando ? 'Creando…' : `+ Crear cliente "${query.trim()}"`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -154,12 +223,19 @@ function SelectorCliente({ value, onChange, disabled }) {
 const ESTADOS_MODAL = ['activo', 'en_espera', 'cerrado', 'archivado']
 const ESTADO_LABELS_MODAL = { activo: 'Activo', en_espera: 'En espera', cerrado: 'Cerrado', archivado: 'Archivado' }
 
-function ModalNuevoExpediente({ onClose, onCrear }) {
+function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
+  const { despacho } = useAuth()
+  const esEdicion = !!expediente
   const [form, setForm] = useState({
-    tipo: '', cliente_id: null, contraparte: '',
-    seccionTribunal: '', numeroProcedimiento: '', fechaApertura: '',
-    notasLibres: '',
-    estado: 'activo',
+    tipo:                expediente?.titulo             || '',
+    cliente_id:          expediente?.cliente_id         || null,
+    clienteNombre:       expediente?.clientes ? `${expediente.clientes.nombre} ${expediente.clientes.apellidos || ''}`.trim() : '',
+    contraparte:         expediente?.contraparte        || '',
+    seccionTribunal:     expediente?.juzgado            || '',
+    numeroProcedimiento: expediente?.numero_autos       || '',
+    fechaApertura:       expediente?.fecha_apertura?.split('T')[0] || '',
+    notasLibres:         expediente?.descripcion        || '',
+    estado:              expediente?.estado             || 'activo',
   })
   const [errorForm, setErrorForm] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -183,7 +259,7 @@ function ModalNuevoExpediente({ onClose, onCrear }) {
         fecha_apertura: form.fechaApertura || null,
         descripcion:    form.notasLibres || null,
         estado:         form.estado,
-      })
+      }, expediente?.id)
       onClose()
     } catch (err) {
       setErrorForm(err.message)
@@ -193,7 +269,7 @@ function ModalNuevoExpediente({ onClose, onCrear }) {
   }
 
   return (
-    <Modal title="Nuevo expediente" onClose={onClose} size="lg">
+    <Modal title={esEdicion ? 'Editar expediente' : 'Nuevo expediente'} onClose={onClose} size="lg">
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, maxHeight: '75vh', overflowY: 'auto' }}>
 
         {/* Sección 1 — Información básica */}
@@ -202,7 +278,13 @@ function ModalNuevoExpediente({ onClose, onCrear }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <Label>Cliente</Label>
-              <SelectorCliente value={form.cliente_id} onChange={v => set('cliente_id', v)} disabled={guardando} />
+              <ClienteCombobox
+                clienteId={form.cliente_id}
+                clienteNombre={form.clienteNombre}
+                onChange={(id, nombre) => { set('cliente_id', id); set('clienteNombre', nombre || '') }}
+                despachoId={despacho?.id}
+                disabled={guardando}
+              />
             </div>
             <div>
               <Label>Tipo de procedimiento *</Label>
@@ -281,7 +363,7 @@ function ModalNuevoExpediente({ onClose, onCrear }) {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
           <button onClick={onClose} style={btnStyle()} disabled={guardando}>Cancelar</button>
           <button onClick={handleGuardar} style={btnStyle(true)} disabled={guardando}>
-            {guardando ? 'Creando…' : 'Crear expediente'}
+            {guardando ? (esEdicion ? 'Guardando…' : 'Creando…') : (esEdicion ? 'Guardar cambios' : 'Crear expediente')}
           </button>
         </div>
       </div>
@@ -289,7 +371,7 @@ function ModalNuevoExpediente({ onClose, onCrear }) {
   )
 }
 
-function AccionesDropdown({ expediente, onEliminar }) {
+function AccionesDropdown({ expediente, onEliminar, onEditar }) {
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -303,7 +385,7 @@ function AccionesDropdown({ expediente, onEliminar }) {
 
   const acciones = [
     { icon: Eye,      label: 'Ver expediente',   onClick: () => nav(`/expedientes/${expediente.id}`) },
-    { icon: Pencil,   label: 'Editar',            onClick: () => nav(`/expedientes/${expediente.id}`) },
+    { icon: Pencil,   label: 'Editar',            onClick: () => onEditar(expediente) },
     { icon: Activity, label: 'Nueva actuación',   onClick: () => nav(`/expedientes/${expediente.id}`) },
     { icon: Trash2,   label: 'Eliminar',          onClick: () => onEliminar(expediente.id), danger: true },
   ]
@@ -347,7 +429,8 @@ export default function Expedientes() {
     return saved !== 'tabla'
   })
 
-  const { expedientes, cargando, error, crear, eliminar } = useExpedientes()
+  const { expedientes, cargando, error, crear, actualizar, eliminar } = useExpedientes()
+  const [expedienteEditando, setExpedienteEditando] = useState(null)
 
   // Filtrado en cliente (búsqueda de texto)
   const allRows = expedientes.filter(r => {
@@ -454,6 +537,7 @@ export default function Expedientes() {
                 exp={r}
                 onVer={exp => nav(`/expedientes/${exp.id}`)}
                 onEliminar={handleEliminar}
+                onEditar={setExpedienteEditando}
               />
             ))}
           </div>
@@ -496,7 +580,7 @@ export default function Expedientes() {
                   <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--tx3)' }}>{r.ultMov}</td>
                   <td style={td}><EstadoBadge estado={r.estado} /></td>
                   <td style={{ ...td, paddingRight: 12 }}>
-                    <AccionesDropdown expediente={r} onEliminar={handleEliminar} />
+                    <AccionesDropdown expediente={r} onEliminar={handleEliminar} onEditar={setExpedienteEditando} />
                   </td>
                 </tr>
               ))}
@@ -513,12 +597,18 @@ export default function Expedientes() {
         </div>
       )}
 
-      {showModal && (
+      {(showModal || expedienteEditando) && (
         <ModalNuevoExpediente
-          onClose={() => setShowModal(false)}
-          onCrear={async (datos) => {
-            await crear(datos)
-            mostrarToast('Expediente creado correctamente.')
+          onClose={() => { setShowModal(false); setExpedienteEditando(null) }}
+          expediente={expedienteEditando}
+          onCrear={async (datos, id) => {
+            if (id) {
+              await actualizar(id, datos)
+              mostrarToast('Expediente actualizado correctamente.')
+            } else {
+              await crear(datos)
+              mostrarToast('Expediente creado correctamente.')
+            }
           }}
         />
       )}

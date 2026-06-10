@@ -7,7 +7,7 @@ function normalize(row) {
     ...row,
     fechaFmt:    formatDate(row.fecha),
     dias,
-    expediente:  row.expedientes?.ref ?? '—',
+    expediente:  row.expedientes?.numero ?? '—',
     expedienteId: row.expediente_id,
   }
 }
@@ -16,7 +16,7 @@ export async function getProximosPlazos(limit = 5) {
   const today = new Date().toISOString().split('T')[0]
   const { data, error } = await supabase
     .from('plazos')
-    .select('*, expedientes(ref, id)')
+    .select('*, expedientes(numero, id)')
     .gte('fecha', today)
     .eq('completado', false)
     .order('fecha', { ascending: true })
@@ -42,7 +42,7 @@ export async function getPlazosMes(year, month) {
 
   const { data, error } = await supabase
     .from('plazos')
-    .select('*, expedientes(ref)')
+    .select('*, expedientes(numero)')
     .gte('fecha', from)
     .lte('fecha', to)
     .order('fecha', { ascending: true })
@@ -54,7 +54,7 @@ export async function createPlazo({ despachoId, expedienteId, tipo, fecha, hora,
   const { data, error } = await supabase
     .from('plazos')
     .insert({ despacho_id: despachoId, expediente_id: expedienteId, tipo, fecha, hora, descripcion, urgencia })
-    .select('*, expedientes(ref)')
+    .select('*, expedientes(numero)')
     .single()
   if (error) return { data: null, error }
   return { data: normalize(data), error: null }

@@ -45,7 +45,7 @@ export default function SeccionPerfil() {
 
       if (nombre !== (profile?.nombre ?? '')) {
         updates.push(
-          supabase.from('profiles').update({ nombre }).eq('id', user.id)
+          supabase.from('usuarios').update({ nombre }).eq('auth_user_id', user.id)
         );
       }
 

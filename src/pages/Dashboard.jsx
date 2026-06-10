@@ -36,16 +36,18 @@ export default function Dashboard() {
     }, 8000)
 
     try {
-      const [expRes, clientesRes, tareasRes] = await Promise.all([
+      const [expRes, clientesRes, tareasRes, docsRes, criticasRes] = await Promise.all([
         supabase.from('expedientes').select('*', { count: 'exact', head: true }).in('estado', ['activo', 'pendiente']),
         supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
         supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
+        supabase.from('documentos').select('*', { count: 'exact', head: true }),
+        supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente').in('prioridad', ['alta', 'urgente']),
       ])
       setKpis({
-        expedientesActivos: expRes.count     ?? 0,
-        plazos:             tareasRes.count  ?? 0,
-        plazosCriticos:     0,
-        documentos:         0,
+        expedientesActivos: expRes.count      ?? 0,
+        plazos:             tareasRes.count   ?? 0,
+        plazosCriticos:     criticasRes.count ?? 0,
+        documentos:         docsRes.count     ?? 0,
         clientes:           clientesRes.count ?? 0,
       })
 

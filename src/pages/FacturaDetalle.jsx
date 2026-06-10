@@ -6,11 +6,11 @@ import { descargarPDFFactura } from './Facturacion'
 import { obtenerFactura, actualizarFactura, reemplazarLineasFactura } from '../services/facturacionService'
 
 const ESTADO_MAP = {
-  borrador: { label: 'Borrador',  color: 'var(--text-2)',  bg: 'rgba(138,138,138,0.12)', border: 'var(--border)',           icon: Clock },
-  emitida:  { label: 'Emitida',   color: '#93B4FF',        bg: 'var(--ac-bg)',  border: 'rgba(79,126,255,0.3)',    icon: Clock },
-  cobrada:  { label: 'Cobrada',   color: '#6EE7B7',        bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',    icon: CheckCircle2 },
-  vencida:  { label: 'Vencida',   color: '#FCA5A5',        bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)',   icon: AlertCircle },
-  anulada:  { label: 'Anulada',   color: '#FCD34D',        bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.25)',   icon: Ban },
+  borrador:  { label: 'Borrador',  color: 'var(--text-2)',  bg: 'rgba(138,138,138,0.12)', border: 'var(--border)',           icon: Clock },
+  emitida:   { label: 'Emitida',   color: '#93B4FF',        bg: 'var(--ac-bg)',  border: 'rgba(79,126,255,0.3)',    icon: Clock },
+  pagada:    { label: 'Cobrada',   color: '#6EE7B7',        bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',    icon: CheckCircle2 },
+  vencida:   { label: 'Vencida',   color: '#FCA5A5',        bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)',   icon: AlertCircle },
+  cancelada: { label: 'Anulada',   color: '#FCD34D',        bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.25)',   icon: Ban },
 }
 
 function EstadoBadge({ estado }) {
@@ -112,7 +112,7 @@ export default function FacturaDetalle() {
           <button style={btn()} onClick={() => descargarPDFFactura(factura)}><Download size={13} /> PDF</button>
           {factura.estado === 'emitida' && (
             <button
-              onClick={() => persistirCambio({ estado: 'cobrada' })}
+              onClick={() => persistirCambio({ estado: 'pagada' })}
               style={btn(true)}
             >
               <CheckCircle2 size={13} /> Marcar cobrada
@@ -219,7 +219,7 @@ export default function FacturaDetalle() {
             <EstadoBadge estado={factura.estado} />
             {(factura.estado === 'emitida' || factura.estado === 'vencida') && (
               <button
-                onClick={() => persistirCambio({ estado: 'cobrada' })}
+                onClick={() => persistirCambio({ estado: 'pagada' })}
                 style={{ ...btn(true), marginTop: 12, width: '100%', justifyContent: 'center' }}
               >
                 <CheckCircle2 size={13} /> Registrar cobro
@@ -232,9 +232,9 @@ export default function FacturaDetalle() {
             <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Acciones</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <button onClick={() => descargarPDFFactura(factura)} style={{ ...btn(), width: '100%', justifyContent: 'flex-start' }}><Download size={13} /> Descargar PDF</button>
-              {factura.estado !== 'anulada' && (
+              {factura.estado !== 'cancelada' && (
                 <button
-                  onClick={() => persistirCambio({ estado: 'anulada' })}
+                  onClick={() => persistirCambio({ estado: 'cancelada' })}
                   style={{ ...btn(), width: '100%', justifyContent: 'flex-start', color: 'var(--red)', borderColor: 'rgba(248,113,113,0.3)' }}
                 >
                   <Ban size={13} /> Anular factura

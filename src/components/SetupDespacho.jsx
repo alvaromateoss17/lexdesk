@@ -1,12 +1,19 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function SetupDespacho() {
   const { signOut, user, refrescarPerfil } = useAuth()
+  const nav = useNavigate()
   const [nombre,   setNombre]   = useState('')
   const [cargando, setCargando] = useState(false)
   const [error,    setError]    = useState('')
+
+  async function handleSignOut() {
+    await signOut()
+    nav('/login', { replace: true })
+  }
 
   async function handleCrear(e) {
     e.preventDefault()
@@ -23,8 +30,8 @@ export default function SetupDespacho() {
         p_despacho_nombre: nombre.trim(),
       })
 
-      if (rpcError) throw new Error(rpcError.message)
-      if (!data) throw new Error('No se recibió respuesta del servidor.')
+      if (rpcError) throw new Error(`Error del servidor: ${rpcError.message}`)
+      if (!data) throw new Error('El servidor no devolvió respuesta. Revisa los logs de Supabase.')
 
       await refrescarPerfil()
     } catch (err) {
@@ -104,7 +111,7 @@ export default function SetupDespacho() {
         <p style={{ textAlign: 'center', fontSize: 12, color: '#4A5270', marginTop: 16 }}>
           Sesión: {user?.email} ·{' '}
           <button
-            onClick={signOut}
+            onClick={handleSignOut}
             style={{ background: 'none', border: 'none', color: '#4F7EFF', cursor: 'pointer', fontSize: 12, padding: 0 }}
           >
             Cerrar sesión

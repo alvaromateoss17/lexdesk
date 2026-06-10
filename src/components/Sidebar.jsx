@@ -111,8 +111,8 @@ export default function Sidebar() {
 
   const isIA = location.pathname === '/asistente'
   const userName = profile?.nombre ?? '—'
-  const despachoNombre = despacho?.nombre ?? profile?.despachos?.[0]?.nombre ?? 'Mi despacho'
-  const plan = despacho?.plan ?? profile?.despachos?.[0]?.plan ?? 'estudio'
+  const despachoNombre = despacho?.nombre ?? profile?.despachos?.nombre ?? 'Mi despacho'
+  const plan = despacho?.plan ?? profile?.despachos?.plan ?? 'estudio'
 
   async function handleSignOut() {
     await signOut()

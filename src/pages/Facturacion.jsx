@@ -36,9 +36,9 @@ export function descargarPDFFactura(factura) {
   const ventana = window.open('', '_blank')
   if (!ventana) return
   const fmt = (n) => (n || 0).toFixed(2) + ' €'
-  const estadoColor = factura.estado === 'cobrada' ? '#dcfce7' : factura.estado === 'vencida' ? '#fee2e2' : '#dbeafe'
-  const estadoText = factura.estado === 'cobrada' ? '#166534' : factura.estado === 'vencida' ? '#991b1b' : '#1e40af'
-  const estadoLabel = { borrador: 'Borrador', emitida: 'Emitida', cobrada: 'Cobrada', vencida: 'Vencida', anulada: 'Anulada' }[factura.estado] || factura.estado
+  const estadoColor = factura.estado === 'pagada' ? '#dcfce7' : factura.estado === 'vencida' ? '#fee2e2' : '#dbeafe'
+  const estadoText = factura.estado === 'pagada' ? '#166534' : factura.estado === 'vencida' ? '#991b1b' : '#1e40af'
+  const estadoLabel = { borrador: 'Borrador', emitida: 'Emitida', pagada: 'Cobrada', vencida: 'Vencida', cancelada: 'Anulada' }[factura.estado] || factura.estado
 
   // Adaptar campos Supabase para el PDF
   const numeroVisible = nombreFactura(factura)
@@ -150,9 +150,9 @@ export default function Facturacion() {
   }, [toast])
 
   // ─── KPIs ─────────────────────────────────────────────────────────────────────
-  const facturasActivas = facturas.filter(f => f.estado !== 'anulada')
+  const facturasActivas = facturas.filter(f => f.estado !== 'cancelada')
   const totalFacturado  = facturasActivas.reduce((s, f) => s + Number(f.total || 0), 0)
-  const totalCobrado    = facturas.filter(f => f.estado === 'cobrada').reduce((s, f) => s + Number(f.total || 0), 0)
+  const totalCobrado    = facturas.filter(f => f.estado === 'pagada').reduce((s, f) => s + Number(f.total || 0), 0)
   const totalPendiente  = facturas.filter(f => f.estado === 'emitida').reduce((s, f) => s + Number(f.total || 0), 0)
   const totalVencidas   = facturas.filter(f => f.estado === 'vencida').length
   const totalGastos     = movimientos.filter(m => m.tipo === 'gasto').reduce((s, m) => s + Number(m.importe || 0), 0)
@@ -277,7 +277,7 @@ export default function Facturacion() {
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         <KPICard label="Total facturado"    value={fmt(totalFacturado)}  sub="Sin anuladas"                                      accent="blue"  icon={Receipt} />
-        <KPICard label="Cobrado"            value={fmt(totalCobrado)}    sub="Efectivamente ingresado"                            accent="green" icon={CheckCircle2} />
+        <KPICard label="Cobrado"             value={fmt(totalCobrado)}    sub="Efectivamente ingresado"                            accent="green" icon={CheckCircle2} />
         <KPICard label="Pendiente de cobro" value={fmt(totalPendiente)}  sub={`${facturas.filter(f => f.estado === 'emitida').length} facturas emitidas`} accent="amber" icon={Clock} />
         <KPICard label="Vencidas"           value={totalVencidas}        sub="Requieren atención"                                 accent="red"   icon={AlertCircle} alert={totalVencidas > 0} />
       </div>
@@ -363,19 +363,19 @@ export default function Facturacion() {
 function TabPorCliente({ facturas }) {
   const [expandidos, setExpandidos] = useState({})
 
-  const porCliente = facturas.filter(f => f.estado !== 'anulada').reduce((acc, f) => {
+  const porCliente = facturas.filter(f => f.estado !== 'cancelada').reduce((acc, f) => {
     const nombre = f.clientes ? `${f.clientes.nombre} ${f.clientes.apellidos || ''}`.trim() : 'Sin cliente'
     if (!acc[nombre]) acc[nombre] = { nombre, facturas: [], totalFacturado: 0, totalCobrado: 0, totalPendiente: 0 }
     acc[nombre].facturas.push(f)
     acc[nombre].totalFacturado += Number(f.total || 0)
-    if (f.estado === 'cobrada') acc[nombre].totalCobrado += Number(f.total || 0)
+    if (f.estado === 'pagada') acc[nombre].totalCobrado += Number(f.total || 0)
     if (f.estado === 'emitida' || f.estado === 'vencida') acc[nombre].totalPendiente += Number(f.total || 0)
     return acc
   }, {})
 
   const rows = Object.values(porCliente).sort((a, b) => b.totalFacturado - a.totalFacturado)
 
-  const ESTADO_COLOR = { borrador: '#9CA3AF', emitida: '#93B4FF', cobrada: '#6EE7B7', vencida: '#FCA5A5', anulada: '#FCD34D' }
+  const ESTADO_COLOR = { borrador: '#9CA3AF', emitida: '#93B4FF', pagada: '#6EE7B7', vencida: '#FCA5A5', cancelada: '#FCD34D' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -428,7 +428,7 @@ function TabPorCliente({ facturas }) {
                         <td style={td}><span className="num">{Number(f.total || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
                         <td style={td}>
                           <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: `${ESTADO_COLOR[f.estado] || '#9CA3AF'}18`, color: ESTADO_COLOR[f.estado] || '#9CA3AF', border: `1px solid ${ESTADO_COLOR[f.estado] || '#9CA3AF'}35` }}>
-                            {{ borrador: 'Borrador', emitida: 'Emitida', cobrada: 'Cobrada', vencida: 'Vencida', anulada: 'Anulada' }[f.estado] || f.estado}
+                            {{ borrador: 'Borrador', emitida: 'Emitida', pagada: 'Cobrada', vencida: 'Vencida', cancelada: 'Anulada' }[f.estado] || f.estado}
                           </span>
                         </td>
                       </tr>
@@ -523,18 +523,18 @@ function TabGastos({ gastos, onEliminar }) {
 // ─── Tab: Rentabilidad ────────────────────────────────────────────────────────
 
 function TabRentabilidad({ facturas, gastos }) {
-  const totalCobrado   = facturas.filter(f => f.estado === 'cobrada').reduce((s, f) => s + Number(f.total || 0), 0)
+  const totalCobrado   = facturas.filter(f => f.estado === 'pagada').reduce((s, f) => s + Number(f.total || 0), 0)
   const totalGastos    = gastos.reduce((s, g) => s + Number(g.importe || 0), 0)
   const margen         = totalCobrado > 0 ? ((totalCobrado - totalGastos) / totalCobrado * 100) : 0
 
   const mesesData = (() => {
     const map = {}
     facturas.forEach(f => {
-      if (f.estado === 'anulada' || !f.fecha_emision) return
+      if (f.estado === 'cancelada' || !f.fecha_emision) return
       const mes = f.fecha_emision.slice(0, 7)
       if (!map[mes]) map[mes] = { facturado: 0, cobrado: 0 }
       map[mes].facturado += Number(f.total || 0)
-      if (f.estado === 'cobrada') map[mes].cobrado += Number(f.total || 0)
+      if (f.estado === 'pagada') map[mes].cobrado += Number(f.total || 0)
     })
     return Object.entries(map).sort().slice(-6)
   })()

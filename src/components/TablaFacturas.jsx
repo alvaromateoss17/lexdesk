@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Search, ChevronDown, Check, MoreHorizontal, Eye, Pencil, Download, X, Trash2, Copy, Archive, CheckCircle, AlertCircle, Send } from 'lucide-react'
 
 const ESTADO_MAP = {
-  borrador: { bg: 'rgba(138,138,138,0.12)', color: 'var(--text-2)',  border: 'var(--border)', label: 'Borrador' },
-  emitida:  { bg: 'rgba(79,126,255,0.12)',  color: '#93B4FF',        border: 'rgba(79,126,255,0.3)', label: 'Emitida' },
-  cobrada:  { bg: 'rgba(52,211,153,0.12)',  color: '#6EE7B7',        border: 'rgba(52,211,153,0.3)', label: 'Cobrada' },
-  vencida:  { bg: 'rgba(248,113,113,0.12)', color: '#FCA5A5',        border: 'rgba(248,113,113,0.3)', label: 'Vencida' },
-  anulada:  { bg: 'rgba(251,191,36,0.10)',  color: '#FCD34D',        border: 'rgba(251,191,36,0.25)', label: 'Anulada' },
+  borrador:  { bg: 'rgba(138,138,138,0.12)', color: 'var(--text-2)',  border: 'var(--border)', label: 'Borrador' },
+  emitida:   { bg: 'rgba(79,126,255,0.12)',  color: '#93B4FF',        border: 'rgba(79,126,255,0.3)', label: 'Emitida' },
+  pagada:    { bg: 'rgba(52,211,153,0.12)',  color: '#6EE7B7',        border: 'rgba(52,211,153,0.3)', label: 'Cobrada' },
+  vencida:   { bg: 'rgba(248,113,113,0.12)', color: '#FCA5A5',        border: 'rgba(248,113,113,0.3)', label: 'Vencida' },
+  cancelada: { bg: 'rgba(251,191,36,0.10)',  color: '#FCD34D',        border: 'rgba(251,191,36,0.25)', label: 'Anulada' },
 }
 
 function EstadoBadge({ estado }) {
@@ -61,9 +61,9 @@ function AccionesFact({ factura, onEditar, onEliminar, onCambiarEstado, onDuplic
 
   const acciones = [
     { icon: Eye,    label: 'Ver detalle', onClick: () => nav(`/facturacion/${factura.id}`) },
-    { icon: Pencil, label: 'Editar',      onClick: () => onEditar(factura), disabled: factura.estado === 'cobrada' },
+    { icon: Pencil, label: 'Editar',      onClick: () => onEditar(factura), disabled: factura.estado === 'pagada' },
     ...(factura.estado === 'borrador' ? [{ icon: Send,          label: 'Marcar como emitida',  onClick: () => onCambiarEstado(factura.id, 'emitida'),  color: '#93B4FF' }] : []),
-    ...(['emitida','vencida'].includes(factura.estado) ? [{ icon: CheckCircle, label: 'Marcar como cobrada', onClick: () => onCambiarEstado(factura.id, 'cobrada'), color: '#6EE7B7' }] : []),
+    ...(['emitida','vencida'].includes(factura.estado) ? [{ icon: CheckCircle, label: 'Marcar como cobrada', onClick: () => onCambiarEstado(factura.id, 'pagada'), color: '#6EE7B7' }] : []),
     ...(factura.estado === 'emitida' ? [{ icon: AlertCircle, label: 'Marcar como vencida',  onClick: () => onCambiarEstado(factura.id, 'vencida'), color: '#FBBF24' }] : []),
     { separador: true },
     { icon: Copy,     label: 'Duplicar',       onClick: () => onDuplicar(factura) },
@@ -125,7 +125,7 @@ export default function TablaFacturas({ facturas, onEditar, onEliminar, onCambia
   })
 
   const totalPendiente = filtered.filter(f => f.estado === 'emitida' || f.estado === 'vencida').reduce((s, f) => s + f.total, 0)
-  const totalCobrado   = filtered.filter(f => f.estado === 'cobrada').reduce((s, f) => s + f.total, 0)
+  const totalCobrado   = filtered.filter(f => f.estado === 'pagada').reduce((s, f) => s + f.total, 0)
 
   return (
     <div>
@@ -141,7 +141,7 @@ export default function TablaFacturas({ facturas, onEditar, onEliminar, onCambia
             />
             {q && <button onClick={() => setQ('')} style={{ ...ghostBtn, padding: '0 2px' }}><X size={12} /></button>}
           </div>
-          <FilterChip label="Estado" value={estado} options={['Todos', 'Borrador', 'Emitida', 'Cobrada', 'Vencida', 'Anulada']} onChange={setEstado} />
+          <FilterChip label="Estado" value={estado} options={['Todos', 'Borrador', 'Emitida', 'Pagada', 'Vencida', 'Cancelada']} onChange={setEstado} />
           <FilterChip label="Serie"  value={serie}  options={series}                                                               onChange={setSerie}  />
           <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-2)' }}>
             <span style={{ color: '#6EE7B7', fontWeight: 500 }}>{totalCobrado.toLocaleString('es-ES', { minimumFractionDigits: 2 })} € cobrado</span>

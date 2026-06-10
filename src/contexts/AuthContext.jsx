@@ -42,9 +42,9 @@ export function AuthProvider({ children }) {
       if (perfil) {
         setProfile(perfil)
         setSinPerfil(false)
-        // Guardar despacho en localStorage
-        if (Array.isArray(perfil.despachos) && perfil.despachos[0]) {
-          localStorage.setItem('vincla_despacho_id', perfil.despachos[0].id)
+        // Guardar despacho en localStorage (despachos es objeto en relación muchos-a-uno)
+        if (perfil.despachos?.id) {
+          localStorage.setItem('vincla_despacho_id', perfil.despachos.id)
         }
       } else {
         setProfile(null)
@@ -98,7 +98,10 @@ export function AuthProvider({ children }) {
       async (evento, session) => {
         if (!activo) return
         if (evento === 'SIGNED_IN')    { await procesarUsuario(session?.user ?? null) }
-        if (evento === 'SIGNED_OUT')   { setUser(null); setProfile(null); setSinPerfil(false) }
+        if (evento === 'SIGNED_OUT')   {
+          setUser(null); setProfile(null); setSinPerfil(false)
+          localStorage.removeItem('vincla_despacho_id')
+        }
         if (evento === 'TOKEN_REFRESHED' && session?.user && !profile) {
           await procesarUsuario(session.user)
         }
@@ -144,7 +147,7 @@ export function AuthProvider({ children }) {
     // Nuevos nombres (usados por SetupDespacho, PrivateRoute)
     sinPerfil,
     estaAutenticado: !!user,
-    despacho: Array.isArray(profile?.despachos) && profile.despachos.length > 0 ? profile.despachos[0] : { id: localStorage.getItem('vincla_despacho_id') },
+    despacho: profile?.despachos?.id ? profile.despachos : { id: localStorage.getItem('vincla_despacho_id') },
     refrescarPerfil,
 
     // El signUp real con código de invitación se sigue haciendo en authService

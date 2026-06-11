@@ -94,8 +94,19 @@ function ModalNuevoCliente({ onClose, onCrear }) {
     etiquetas: [], notaInicial: '',
   })
   const [errores, setErrores] = useState({})
+  const [errorGeneral, setErrorGeneral] = useState('')
+  const [creando, setCreando] = useState(false)
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  // Al editar un campo se limpia su error para que no queden mensajes obsoletos
+  const set = (k, v) => {
+    setForm(p => ({ ...p, [k]: v }))
+    setErrores(p => {
+      if (!p[k]) return p
+      const { [k]: _omitido, ...resto } = p
+      return resto
+    })
+    setErrorGeneral('')
+  }
 
   function validar() {
     const e = {}
@@ -106,31 +117,26 @@ function ModalNuevoCliente({ onClose, onCrear }) {
     return e
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
+    if (creando) return
     const err = validar()
     if (Object.keys(err).length) { setErrores(err); return }
 
     const colorIdx = Math.floor(Math.random() * COLORS_AVATAR.length)
     const nuevoCliente = {
       ...form,
-      id: Date.now(),
       color: COLORS_AVATAR[colorIdx],
-      estado: 'activo',
-      fechaAlta: new Date().toISOString().split('T')[0],
-      avatar: null,
-      expedientesIds: [],
-      mensajes: [],
-      pagos: [],
-      documentos: [],
-      notas: form.notaInicial.trim() ? [{
-        id: 1, autor: 'Sistema',
-        fecha: new Date().toISOString().split('T')[0],
-        hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-        texto: form.notaInicial.trim(), privada: true,
-      }] : [],
     }
-    onCrear(nuevoCliente)
+    setCreando(true)
+    setErrorGeneral('')
+    try {
+      await onCrear(nuevoCliente)
+    } catch (err) {
+      setErrorGeneral('No se pudo crear el cliente. Inténtalo de nuevo.' + (err?.message ? ` Detalle: ${err.message}` : ''))
+    } finally {
+      setCreando(false)
+    }
   }
 
   // Alias local para no cambiar todos los usos en el JSX
@@ -204,9 +210,17 @@ function ModalNuevoCliente({ onClose, onCrear }) {
             />
           </div>
 
+          {errorGeneral && (
+            <div style={{ fontSize: 13, color: 'var(--rd)', background: 'var(--rd-bg)', border: '1px solid rgba(224,78,83,.25)', borderRadius: 'var(--rad-s)', padding: '10px 14px' }}>
+              {errorGeneral}
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
             <button type="button" onClick={onClose} style={btnSec}>Cancelar</button>
-            <button type="submit" style={btnPri}>Crear cliente</button>
+            <button type="submit" style={{ ...btnPri, opacity: creando ? 0.7 : 1, cursor: creando ? 'default' : 'pointer' }} disabled={creando}>
+              {creando ? 'Creando…' : 'Crear cliente'}
+            </button>
           </div>
         </form>
       </div>
@@ -267,14 +281,11 @@ export default function Clientes() {
     nav(`/clientes/${cliente.id}`)
   }
 
+  // Si falla, el error se propaga al modal, que lo muestra al usuario
   async function handleCrearCliente(nuevo) {
-    try {
-      await crear(nuevo)
-      setShowModal(false)
-      setToast('Cliente creado correctamente')
-    } catch (err) {
-      setToast('Error al crear cliente: ' + err.message)
-    }
+    await crear(nuevo)
+    setShowModal(false)
+    setToast('Cliente creado correctamente')
   }
 
   return (

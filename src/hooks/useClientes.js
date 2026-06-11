@@ -37,23 +37,12 @@ export function useClientes({ soloActivos = true } = {}) {
   useEffect(() => { cargar() }, [cargar])
 
   const crear = useCallback(async (datos) => {
-    if (!despacho?.id) {
-      // Esperar hasta 3 segundos para que el perfil cargue
-      for (let i = 0; i < 3; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        if (despacho?.id) break
-      }
-      if (!despacho?.id) {
-        console.error('[useClientes] Despacho undefined después de esperar:', { 
-          despacho, 
-          hasDespacho: !!despacho,
-          despachoId: despacho?.id,
-          localStorage: localStorage.getItem('vincla_despacho_id')
-        })
-        throw new Error('No se pudo conectar con el despacho. Recarga la página.')
-      }
+    // Fallback a localStorage: el closure de `despacho` puede ser anterior a la carga del perfil
+    const despachoId = despacho?.id || localStorage.getItem('vincla_despacho_id')
+    if (!despachoId) {
+      throw new Error('No se pudo conectar con el despacho. Recarga la página.')
     }
-    const nuevo = await crearCliente({ ...datos, despacho_id: despacho.id })
+    const nuevo = await crearCliente({ ...datos, despacho_id: despachoId })
     setClientes(prev => [nuevo, ...prev].sort((a, b) => a.nombre.localeCompare(b.nombre)))
     return nuevo
   }, [despacho?.id])

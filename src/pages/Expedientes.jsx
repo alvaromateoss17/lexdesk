@@ -262,7 +262,6 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
       }, expediente?.id)
       onClose()
     } catch (err) {
-      console.error('[handleGuardar]', err)
       setErrorForm(err.message || 'Error desconocido al guardar.')
     } finally {
       setGuardando(false)

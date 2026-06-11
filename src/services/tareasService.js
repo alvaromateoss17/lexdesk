@@ -46,7 +46,7 @@ export async function obtenerTareas({ estado, mes, ano } = {}) {
   let query = supabase
     .from('tareas')
     .select(SELECT_TAREA)
-    .order('fecha_vencimiento', { ascending: true, nullsLast: true })
+    .order('fecha_vencimiento', { ascending: true, nullsFirst: false })
 
   if (estado) query = query.eq('estado', mapEstadoADB(estado))
 

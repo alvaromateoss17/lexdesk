@@ -17,28 +17,8 @@ import Mediacion from './pages/Mediacion'
 import PortalCliente from './pages/PortalCliente'
 import Facturacion from './pages/Facturacion'
 import FacturaDetalle from './pages/FacturaDetalle'
-import Tareas from './pages/Tareas'
 import Configuracion from './pages/Configuracion'
 import InstallPrompt from './components/InstallPrompt'
-
-function EmptyScreen({ name }) {
-  return (
-    <div style={{ display: 'grid', placeItems: 'center', padding: '120px 0', textAlign: 'center' }}>
-      <div>
-        <div style={{
-          width: 56, height: 56, borderRadius: 'var(--radius)',
-          background: 'var(--s2)', border: '1px solid var(--bd)',
-          display: 'grid', placeItems: 'center', margin: '0 auto 18px',
-          color: 'var(--tx2)', fontSize: 22,
-        }}>
-          ⚙️
-        </div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-.02em' }}>{name}</h2>
-        <div style={{ marginTop: 6, fontSize: 13, color: 'var(--tx2)' }}>Próximamente disponible.</div>
-      </div>
-    </div>
-  )
-}
 
 function Layout({ children, fullHeight }) {
   return (

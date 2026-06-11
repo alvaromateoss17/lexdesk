@@ -1,12 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Plus, Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, X, Eye, Pencil, Activity, Trash2, Upload, LayoutGrid, List, Clock, User } from 'lucide-react'
+import { Download, Plus, Search, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Eye, Pencil, Activity, Trash2, Upload, LayoutGrid, List, Clock, User } from 'lucide-react'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import ImportarExpedientesModal from '../components/ImportarExpedientesModal'
-import AutocompleteInput from '../components/AutocompleteInput'
 import ExpedientesSkeleton from '../components/ExpedientesSkeleton'
-import { TIPOS_EXPEDIENTE } from '../data/tiposExpediente'
 import { useExpedientes } from '../hooks/useExpedientes'
 import { buscarClientes } from '../services/expedientesService'
 import { crearCliente } from '../services/clientesService'
@@ -68,7 +66,7 @@ function EstadoBadge({ estado }) {
   )
 }
 
-function ExpedienteCard({ exp, onVer, onEliminar, onEditar }) {
+function ExpedienteCard({ exp, onVer, onEditar }) {
   const [hovered, setHovered] = useState(false)
   return (
     <div
@@ -564,7 +562,6 @@ export default function Expedientes() {
                 key={r.id}
                 exp={r}
                 onVer={exp => nav(`/expedientes/${exp.id}`)}
-                onEliminar={handleEliminar}
                 onEditar={setExpedienteEditando}
               />
             ))}
@@ -651,8 +648,10 @@ export default function Expedientes() {
               try {
                 await crear({
                   titulo:         e.tipo || e.titulo || 'Sin título',
+                  cliente_id:     e.cliente_id || null,
                   contraparte:    e.contraparte || null,
                   juzgado:        e.juzgado || null,
+                  numero_autos:   e.ref || null,
                   descripcion:    e.descripcion || null,
                   estado:         e.estado || 'activo',
                 })

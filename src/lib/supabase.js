@@ -15,16 +15,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: 'vincla-auth',
   },
 })
-
-export const getUsuarioActual = async () => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: usuario } = await supabase
-    .from('usuarios')
-    .select('*, despachos(*)')
-    .eq('auth_user_id', user.id)
-    .single()
-
-  return usuario
-}

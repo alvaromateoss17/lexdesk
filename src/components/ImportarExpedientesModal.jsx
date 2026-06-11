@@ -6,7 +6,6 @@ import {
   validarExpediente, mapearFila,
   descargarPlantillaExpedientes,
 } from '../utils/importUtils'
-import { createExpediente } from '../services/expedientes'
 
 // ─── Estilos base ─────────────────────────────────────────────────────────────
 
@@ -332,7 +331,7 @@ function Paso3({ filas, mapeo, expedientesExistentes, onImportar, onAtras, impor
 
 // ─── Modal principal ──────────────────────────────────────────────────────────
 
-export default function ImportarExpedientesModal({ onClose, onImportados, expedientesExistentes = [], clientesExistentes = [], profile }) {
+export default function ImportarExpedientesModal({ onClose, onImportados, expedientesExistentes = [], clientesExistentes = [] }) {
   const [paso,      setPaso]      = useState(1)
   const [cabeceras, setCabeceras] = useState([])
   const [filas,     setFilas]     = useState([])
@@ -348,27 +347,15 @@ export default function ImportarExpedientesModal({ onClose, onImportados, expedi
 
   async function handleImportar(datos) {
     setImportando(true)
-    const despachoId = profile?.despacho_id ?? profile?.despachos?.id
-
-    const importados = []
-    for (const d of datos) {
-      // Intentar match con cliente existente
+    // La creación real la hace la página (onImportados) con el servicio de
+    // expedientes actual; aquí solo se enriquecen las filas con el cliente
+    // existente si el nombre coincide.
+    const importados = datos.map(d => {
       const clienteMatch = clientesExistentes.find(c =>
-        c.nombre?.toLowerCase().includes((d.cliente || '').toLowerCase())
+        d.cliente && c.nombre?.toLowerCase().includes(d.cliente.toLowerCase())
       )
-      const { data, error } = await createExpediente({
-        despachoId,
-        clienteId:   clienteMatch?.id ?? null,
-        abogadoId:   null,
-        tipo:        d.tipo        || 'General',
-        juzgado:     d.juzgado     || '',
-        descripcion: d.descripcion || '',
-        cuantia:     null,
-        procedimiento: d.ref || '',
-      })
-      if (!error && data) importados.push(data)
-      else importados.push({ id: Date.now() + Math.random(), ...d })
-    }
+      return { ...d, cliente_id: clienteMatch?.id ?? null }
+    })
 
     setImportando(false)
     onImportados(importados)

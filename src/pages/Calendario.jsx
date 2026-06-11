@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Clock, Bell, CheckCircle2, AlarmClock, Printer } from 'lucide-react'
-import { getPlazosMes } from '../services/plazos'
+import { ChevronLeft, ChevronRight, Plus, Pencil, FolderOpen, X, Bell, CheckCircle2, AlarmClock, Printer } from 'lucide-react'
 import Modal from '../components/Modal'
 import { useTareas } from '../hooks/useTareas'
 import AutocompleteInput from '../components/AutocompleteInput'
@@ -324,8 +323,11 @@ export default function Calendario() {
   const [year,     setYear]     = useState(today.getFullYear())
   const [month,    setMonth]    = useState(today.getMonth() + 1)
   const [selected, setSelected] = useState(today.getDate())
-  const [plazos,   setPlazos]   = useState([])
-  const [loading,  setLoading]  = useState(true)
+  // La tabla "plazos" no existe en Supabase: los plazos reales son tareas con
+  // fecha de vencimiento (useTareas). Se mantiene el array vacío por
+  // compatibilidad con el renderizado existente.
+  const plazos = []
+  const loading = false
   const [eventos,  setEventos]  = useState(() => {
     try { return JSON.parse(localStorage.getItem('vincla_eventos') || '[]') } catch { return [] }
   })
@@ -339,7 +341,7 @@ export default function Calendario() {
   const [modalTareaFecha, setModalTareaFecha] = useState(null)
   const [detailTask,      setDetailTask]      = useState(null)
 
-  const { tareas, cargando: cargandoTareas, crear: crearTarea, setStatus, deleteTask, moveToNextDay } = useTareas()
+  const { tareas, crear: crearTarea, setStatus, deleteTask, moveToNextDay } = useTareas()
 
   // Persistir eventos en localStorage
   useEffect(() => {
@@ -354,14 +356,6 @@ export default function Calendario() {
     const t = setTimeout(() => setToast(null), 3500)
     return () => clearTimeout(t)
   }, [toast])
-
-  useEffect(() => {
-    setLoading(true)
-    getPlazosMes(year, month).then(({ data }) => {
-      setPlazos(data)
-      setLoading(false)
-    })
-  }, [year, month])
 
   function prevMonth() {
     if (month === 1) { setYear(y => y - 1); setMonth(12) }
@@ -526,10 +520,8 @@ export default function Calendario() {
     }
   })
 
-  const selectedKey     = toDateKey(year, month, selected)
   const selectedPlazos  = byDay[selected] ?? []
   const selectedEventos = eventosByDay[selected] ?? []
-  const selectedTareas  = (tareasByDay[selected] ?? [])
   const totalSelected   = selectedPlazos.length + selectedEventos.length
   const criticos        = plazos.filter(p => p.urgencia === 'Urgente').length
 

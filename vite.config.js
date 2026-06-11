@@ -6,14 +6,15 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   server: {
     proxy: {
+      // En producción /api/chat lo sirve la función serverless api/chat.js (Groq).
+      // Este proxy replica ese comportamiento en desarrollo local.
       '/api/chat': {
-        target: 'https://api.anthropic.com',
+        target: 'https://api.groq.com',
         changeOrigin: true,
-        rewrite: () => '/v1/messages',
+        rewrite: () => '/openai/v1/chat/completions',
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('x-api-key', process.env.ANTHROPIC_API_KEY || '');
-            proxyReq.setHeader('anthropic-version', '2023-06-01');
+            proxyReq.setHeader('Authorization', `Bearer ${process.env.GROQ_API_KEY || ''}`);
             proxyReq.removeHeader('origin');
           });
         },

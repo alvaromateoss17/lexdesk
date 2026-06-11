@@ -38,15 +38,12 @@ export function useTareas(filtros = {}) {
   useEffect(() => { cargar() }, [cargar])
 
   const crear = useCallback(async (datos) => {
-    if (!despacho?.id) {
-      // Esperar hasta 3 segundos para que el perfil cargue
-      for (let i = 0; i < 3; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        if (despacho?.id) break
-      }
-      if (!despacho?.id) throw new Error('No se pudo conectar con el despacho. Recarga la página.')
+    // Fallback a localStorage: el closure de `despacho` puede ser anterior a la carga del perfil
+    const despachoId = despacho?.id || localStorage.getItem('vincla_despacho_id')
+    if (!despachoId) {
+      throw new Error('No se pudo conectar con el despacho. Recarga la página.')
     }
-    const nueva = await crearTarea({ ...datos, despacho_id: despacho.id })
+    const nueva = await crearTarea({ ...datos, despacho_id: despachoId })
     setTareas(prev => [...prev, nueva].sort(
       (a, b) => (a.fecha_vencimiento || '') < (b.fecha_vencimiento || '') ? -1 : 1
     ))

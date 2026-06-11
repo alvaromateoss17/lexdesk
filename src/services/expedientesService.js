@@ -186,11 +186,14 @@ export async function actualizarExpediente(id, cambios) {
     .single()
 
   if (error) {
-    console.error('[actualizarExpediente] Supabase error:', error)
+    // PGRST116 = 0 filas devueltas: el UPDATE no afectó a ningún registro (RLS o id inexistente)
+    if (error.code === 'PGRST116') {
+      throw new Error('No se pudo guardar el expediente: la operación no afectó a ningún registro (posible restricción de permisos).')
+    }
     throw new Error('Error al actualizar el expediente: ' + (error.message || JSON.stringify(error)))
   }
   if (!data) {
-    throw new Error('El expediente no se encontró o no tienes permisos para editarlo.')
+    throw new Error('No se pudo guardar el expediente: la operación no afectó a ningún registro (posible restricción de permisos).')
   }
   return normalize(data)
 }
@@ -208,7 +211,12 @@ export async function cambiarEstadoExpediente(id, nuevoEstado) {
     .select(SELECT_EXPEDIENTES)
     .single()
 
-  if (error) throw new Error('Error al cambiar estado: ' + error.message)
+  if (error) {
+    if (error.code === 'PGRST116') {
+      throw new Error('No se pudo cambiar el estado: la operación no afectó a ningún registro (posible restricción de permisos).')
+    }
+    throw new Error('Error al cambiar estado: ' + error.message)
+  }
   return normalize(data)
 }
 

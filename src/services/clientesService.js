@@ -157,7 +157,16 @@ export async function actualizarCliente(id, cambios) {
     .select()
     .single()
 
-  if (error) throw new Error('Error al actualizar el cliente: ' + error.message)
+  if (error) {
+    // PGRST116 = 0 filas devueltas: el UPDATE no afectó a ningún registro (RLS o id inexistente)
+    if (error.code === 'PGRST116') {
+      throw new Error('No se pudo guardar el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
+    }
+    throw new Error('Error al actualizar el cliente: ' + error.message)
+  }
+  if (!data) {
+    throw new Error('No se pudo guardar el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
+  }
   return normalize(data)
 }
 
@@ -171,7 +180,12 @@ export async function desactivarCliente(id) {
     .select()
     .single()
 
-  if (error) throw new Error('Error al archivar el cliente: ' + error.message)
+  if (error) {
+    if (error.code === 'PGRST116') {
+      throw new Error('No se pudo archivar el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
+    }
+    throw new Error('Error al archivar el cliente: ' + error.message)
+  }
   return normalize(data)
 }
 
@@ -183,7 +197,12 @@ export async function reactivarCliente(id) {
     .select()
     .single()
 
-  if (error) throw new Error('Error al reactivar el cliente: ' + error.message)
+  if (error) {
+    if (error.code === 'PGRST116') {
+      throw new Error('No se pudo reactivar el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
+    }
+    throw new Error('Error al reactivar el cliente: ' + error.message)
+  }
   return normalize(data)
 }
 

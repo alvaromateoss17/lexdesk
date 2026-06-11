@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { registrarUsuario } from '../services/authService'
 
@@ -27,6 +27,12 @@ export function AuthProvider({ children }) {
   const [profile,   setProfile]   = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [sinPerfil, setSinPerfil] = useState(false)
+
+  // Ref con el perfil actual: el callback de onAuthStateChange se crea una sola
+  // vez y su closure de `profile` queda obsoleto (siempre null). Con la ref el
+  // guard "solo refetchear si no hay perfil" funciona de verdad.
+  const profileRef = useRef(null)
+  useEffect(() => { profileRef.current = profile }, [profile])
 
   // ── Carga perfil una vez; si no existe, marca sinPerfil ──
   const procesarUsuario = useCallback(async (authUser) => {
@@ -94,16 +100,23 @@ export function AuthProvider({ children }) {
         clearTimeout(timeout)
       })
 
+    // IMPORTANTE: no hacer await de queries de Supabase DENTRO de este callback.
+    // El callback se ejecuta mientras el cliente de auth retiene su lock interno;
+    // una query dentro espera a ese mismo lock → deadlock: a partir de ahí TODAS
+    // las peticiones de la app se quedan colgadas (botones "Creando…" infinitos,
+    // secciones que no cargan). setTimeout(0) saca el trabajo fuera del lock.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (evento, session) => {
+      (evento, session) => {
         if (!activo) return
-        if (evento === 'SIGNED_IN')    { await procesarUsuario(session?.user ?? null) }
-        if (evento === 'SIGNED_OUT')   {
+        if (evento === 'SIGNED_IN' && !profileRef.current) {
+          setTimeout(() => { if (activo) procesarUsuario(session?.user ?? null) }, 0)
+        }
+        if (evento === 'SIGNED_OUT') {
           setUser(null); setProfile(null); setSinPerfil(false)
           localStorage.removeItem('vincla_despacho_id')
         }
-        if (evento === 'TOKEN_REFRESHED' && session?.user && !profile) {
-          await procesarUsuario(session.user)
+        if (evento === 'TOKEN_REFRESHED' && session?.user && !profileRef.current) {
+          setTimeout(() => { if (activo) procesarUsuario(session.user) }, 0)
         }
       }
     )

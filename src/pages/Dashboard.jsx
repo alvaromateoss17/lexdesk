@@ -36,12 +36,20 @@ export default function Dashboard() {
     }, 8000)
 
     try {
-      const [expRes, clientesRes, tareasRes, docsRes, criticasRes] = await Promise.all([
+      const hoy = new Date().toISOString().split('T')[0]
+      // Todas las queries en paralelo: contadores + próximos plazos en una sola tanda
+      const [expRes, clientesRes, tareasRes, docsRes, criticasRes, proximasRes] = await Promise.all([
         supabase.from('expedientes').select('*', { count: 'exact', head: true }).in('estado', ['activo', 'pendiente']),
         supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
         supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
         supabase.from('documentos').select('*', { count: 'exact', head: true }),
         supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente').in('prioridad', ['alta', 'urgente']),
+        supabase.from('tareas')
+          .select('*, expedientes(numero, titulo, clientes(nombre, apellidos))')
+          .eq('estado', 'pendiente')
+          .gte('fecha_vencimiento', hoy)
+          .order('fecha_vencimiento', { ascending: true })
+          .limit(6),
       ])
       setKpis({
         expedientesActivos: expRes.count      ?? 0,
@@ -51,14 +59,7 @@ export default function Dashboard() {
         clientes:           clientesRes.count ?? 0,
       })
 
-      const hoy = new Date().toISOString().split('T')[0]
-      const { data: tareasProximas } = await supabase
-        .from('tareas')
-        .select('*, expedientes(numero, titulo, clientes(nombre, apellidos))')
-        .eq('estado', 'pendiente')
-        .gte('fecha_vencimiento', hoy)
-        .order('fecha_vencimiento', { ascending: true })
-        .limit(6)
+      const tareasProximas = proximasRes.data
 
       setPlazos((tareasProximas || []).map(t => ({
         ...t,

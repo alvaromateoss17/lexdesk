@@ -185,7 +185,13 @@ export async function actualizarExpediente(id, cambios) {
     .select(SELECT_EXPEDIENTES)
     .single()
 
-  if (error) throw new Error('Error al actualizar el expediente: ' + error.message)
+  if (error) {
+    console.error('[actualizarExpediente] Supabase error:', error)
+    throw new Error('Error al actualizar el expediente: ' + (error.message || JSON.stringify(error)))
+  }
+  if (!data) {
+    throw new Error('El expediente no se encontró o no tienes permisos para editarlo.')
+  }
   return normalize(data)
 }
 

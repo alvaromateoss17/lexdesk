@@ -1,12 +1,20 @@
-import { useState, useEffect } from 'react'
-import { UserCircle, FileText, MessageSquare, CheckCircle, Clock, AlertCircle, Download, Send, Eye, Lock } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  UserCircle, FileText, MessageSquare, CheckCircle, AlertCircle,
+  Download, Send, Lock, Mail, Phone, CreditCard, MapPin, FolderOpen, Upload,
+} from 'lucide-react'
 import { useClientes } from '../hooks/useClientes'
+import { obtenerExpedientes } from '../services/expedientesService'
+import { obtenerTareas } from '../services/tareasService'
+import { storageService } from '../services/storageService'
+import { idbGet } from '../services/idbStorage'
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 
 function fmtFecha(f) {
   if (!f) return '—'
-  return new Date(f + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+  return new Date((f.includes('T') ? f : f + 'T00:00:00')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function fmtFechaHora(f) {
@@ -15,92 +23,54 @@ function fmtFechaHora(f) {
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
 }
 
-// ─── Documentos del cliente ───────────────────────────────────────────────────
-
-const DOCS_DEMO = [
-  { id: 1, nombre: 'Convenio regulador — Borrador v1', fecha: '2024-03-10', tipo: 'Borrador', estado: 'pendiente_firma', size: '142 KB' },
-  { id: 2, nombre: 'Poder notarial de representación', fecha: '2024-02-18', tipo: 'Firmado', estado: 'firmado', size: '89 KB' },
-  { id: 3, nombre: 'Propuesta de custodia compartida', fecha: '2024-03-05', tipo: 'Informe', estado: 'revisado', size: '204 KB' },
-  { id: 4, nombre: 'Listado de bienes gananciales', fecha: '2024-01-22', tipo: 'Documento', estado: 'firmado', size: '61 KB' },
-]
-
-const ESTADO_DOC = {
-  pendiente_firma: { label: 'Pendiente de firma', color: '#FBBF24', bg: 'rgba(251,191,36,0.1)', icon: Clock },
-  firmado:         { label: 'Firmado',             color: '#34D399', bg: 'rgba(52,211,153,0.1)', icon: CheckCircle },
-  revisado:        { label: 'Revisado',            color: '#93AFFF', bg: 'var(--ac-bg)', icon: Eye },
+function nombreCompletoDe(c) {
+  if (!c) return ''
+  return [c.nombre, c.apellidos].filter(Boolean).join(' ').trim()
 }
 
-function DocRow({ doc }) {
-  const es = ESTADO_DOC[doc.estado] || ESTADO_DOC.revisado
-  const EsIcon = es.icon
+// El documento se vincula por el nombre de cliente escrito al subirlo
+function coincideCliente(textoDoc, nombreCliente) {
+  const a = (textoDoc || '').trim().toLowerCase()
+  const b = (nombreCliente || '').trim().toLowerCase()
+  if (!a || !b) return false
+  return a === b || a.includes(b) || b.includes(a)
+}
+
+const ESTADO_EXP = {
+  activo:    { label: 'Activo',     color: '#34D399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.25)' },
+  pendiente: { label: 'Pendiente',  color: '#FBBF24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.25)' },
+  suspendido:{ label: 'Suspendido', color: '#FCA5A5', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.25)' },
+  archivado: { label: 'Archivado',  color: 'var(--text-3)', bg: 'var(--surface-2)', border: 'var(--border)' },
+  cerrado:   { label: 'Cerrado',    color: 'var(--text-3)', bg: 'var(--surface-2)', border: 'var(--border)' },
+}
+
+// ─── Fila de documento real del despacho ──────────────────────────────────────
+
+function DocRow({ doc, onDescargar }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
       background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8,
     }}>
       <FileText size={16} color="var(--text-2)" style={{ flexShrink: 0 }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 500 }}>{doc.nombre}</div>
-        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{doc.tipo} · {fmtFecha(doc.fecha)} · {doc.size}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+          {[doc.tag, doc.fecha, doc.size].filter(Boolean).join(' · ')}
+        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: es.color, background: es.bg, padding: '3px 8px', borderRadius: 4 }}>
-        <EsIcon size={11} />
-        {es.label}
-      </div>
-      {doc.estado === 'pendiente_firma' && (
-        <button
-          onClick={() => alert('Firmando documento digitalmente...')}
-          style={{ height: 28, padding: '0 12px', borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, background: '#4F7EFF', border: 'none', color: '#fff' }}
-        >
-          Firmar
-        </button>
+      {doc.tipo && (
+        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--ac-bg)', color: '#93AFFF', textTransform: 'uppercase', fontWeight: 600, flexShrink: 0 }}>
+          {doc.tipo}
+        </span>
       )}
       <button
-        onClick={() => alert('Descargando...')}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', padding: '4px', display: 'grid', placeItems: 'center' }}
+        onClick={() => onDescargar(doc)}
+        title="Descargar"
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', padding: '4px', display: 'grid', placeItems: 'center', flexShrink: 0 }}
       >
         <Download size={14} />
       </button>
-    </div>
-  )
-}
-
-// ─── Panel expediente ─────────────────────────────────────────────────────────
-
-const FASES_DIVORCIO = [
-  { label: 'Documentación recopilada', hecho: true },
-  { label: 'Demanda presentada', hecho: true },
-  { label: 'Ratificación convenio', hecho: false },
-  { label: 'Sentencia',  hecho: false },
-  { label: 'Inscripción registral', hecho: false },
-]
-
-function FaseStepper({ fases }) {
-  return (
-    <div style={{ display: 'flex', gap: 0 }}>
-      {fases.map((f, i) => {
-        const done = f.hecho
-        const current = !done && (i === 0 || fases[i - 1]?.hecho)
-        return (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-            {/* Línea */}
-            {i < fases.length - 1 && (
-              <div style={{ position: 'absolute', top: 11, left: '50%', right: '-50%', height: 2, background: done ? '#34D399' : 'var(--border)', zIndex: 0 }} />
-            )}
-            {/* Nodo */}
-            <div style={{
-              width: 22, height: 22, borderRadius: '50%', zIndex: 1, display: 'grid', placeItems: 'center',
-              background: done ? '#34D399' : current ? '#4F7EFF' : 'var(--surface-2)',
-              border: `2px solid ${done ? '#34D399' : current ? '#4F7EFF' : 'var(--border)'}`,
-              color: done || current ? '#fff' : 'var(--text-3)',
-              marginBottom: 6,
-            }}>
-              {done ? <CheckCircle size={11} strokeWidth={2.5} /> : <span style={{ fontSize: 9, fontWeight: 700 }}>{i + 1}</span>}
-            </div>
-            <div style={{ fontSize: 10, color: done ? 'var(--text)' : current ? '#93AFFF' : 'var(--text-3)', textAlign: 'center', lineHeight: 1.3 }}>{f.label}</div>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -181,20 +151,90 @@ const TABS = [
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function PortalCliente() {
+  const nav = useNavigate()
   const [tab, setTab] = useState('estado')
-  const [clienteIdx, setClienteIdx] = useState(0)
-  
-  // Cargar clientes reales desde el hook
-  const { clientes: clientesState } = useClientes({ soloActivos: true })
+  const [toast, setToast] = useState(null)
 
-  const cliente = clientesState[clienteIdx] ?? null
-  const expCliente = []  // Aquí irían los expedientes del cliente
-  const hiloCliente = null
+  // Clientes reales del despacho (Supabase)
+  const { clientes, cargando: cargandoClientes } = useClientes({ soloActivos: true })
+  const [clienteId, setClienteId] = useState(null)
+
+  // Cliente seleccionado; por defecto el primero disponible
+  const cliente = clientes.find(c => String(c.id) === String(clienteId)) ?? clientes[0] ?? null
+  const nombreCompleto = nombreCompletoDe(cliente)
+
+  // Expedientes y tareas reales del despacho (se filtran por cliente)
+  const [expedientes, setExpedientes] = useState([])
+  const [tareas, setTareas] = useState([])
+  useEffect(() => {
+    let activo = true
+    obtenerExpedientes()
+      .then(rows => { if (activo) setExpedientes(rows) })
+      .catch(() => { /* sin conexión: se muestra vacío */ })
+    obtenerTareas({ estado: 'pendiente' })
+      .then(rows => { if (activo) setTareas(rows) })
+      .catch(() => { /* sin conexión: se muestra vacío */ })
+    return () => { activo = false }
+  }, [])
+
+  // Documentos reales subidos por el despacho (localStorage)
+  const documentos = useMemo(() => storageService.getAll('documentos'), [])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  // ── Derivados del cliente seleccionado ──
+  const expCliente = cliente ? expedientes.filter(e => String(e.cliente_id) === String(cliente.id)) : []
+  const expIds = new Set(expCliente.map(e => e.id))
+  const tareasCliente = tareas.filter(t => t.expediente_id && expIds.has(t.expediente_id))
+  const docsCliente = cliente ? documentos.filter(d => coincideCliente(d.clienteTexto, nombreCompleto)) : []
+
+  async function descargarDoc(doc) {
+    const contenido = doc.contenido || await idbGet(doc.id)
+    if (!contenido) { setToast(`"${doc.nombre}" no tiene contenido guardado en este navegador. Vuelve a subirlo en Documentos.`); return }
+    const link = document.createElement('a')
+    link.href = contenido
+    link.download = doc.nombre
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Sin clientes: estado vacío con acceso directo
+  if (!cargandoClientes && clientes.length === 0) {
+    return (
+      <div style={{ padding: 24 }} className="fade-up">
+        <div style={{ padding: '64px 24px', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <UserCircle size={40} strokeWidth={1.2} style={{ color: 'var(--text-3)', margin: '0 auto 14px' }} />
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Aún no hay clientes</div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 18 }}>
+            El Portal del Cliente muestra el estado de los casos de cada cliente. Crea tu primer cliente para empezar.
+          </div>
+          <button onClick={() => nav('/clientes')} style={btnPrimary}>Ir a Clientes</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 2000,
+          background: 'var(--surface)', border: '1px solid rgba(251,191,36,0.4)',
+          borderRadius: 8, padding: '12px 16px', fontSize: 13, maxWidth: 380,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        }}>
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(52,211,153,0.12)', display: 'grid', placeItems: 'center', color: '#34D399' }}>
             <UserCircle size={18} strokeWidth={1.5} />
@@ -206,45 +246,79 @@ export default function PortalCliente() {
         </div>
         {/* Selector cliente */}
         <select
-          value={clienteIdx} onChange={e => setClienteIdx(Number(e.target.value))}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
+          value={cliente?.id ?? ''} onChange={e => setClienteId(e.target.value)}
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', maxWidth: 260 }}
         >
-          {clientesState.length === 0 ? (
-            <option value={0}>Sin clientes disponibles</option>
-          ) : (
-            clientesState.map((c, i) => (
-              <option key={i} value={i}>{c.nombre}</option>
-            ))
-          )}
+          {clientes.map(c => (
+            <option key={c.id} value={c.id}>{nombreCompletoDe(c)}</option>
+          ))}
         </select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20 }}>
         {/* Sidebar cliente */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Tarjeta cliente */}
+          {/* Tarjeta cliente con su información real */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center', marginBottom: 14 }}>
               <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--ac-bg)', display: 'grid', placeItems: 'center', color: '#93AFFF', fontSize: 20, fontWeight: 700 }}>
-                {cliente?.nombre?.charAt(0) ?? '?'}
+                {nombreCompleto.charAt(0).toUpperCase() || '?'}
               </div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700 }}>{cliente?.nombre}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>cliente@email.com</div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{nombreCompleto || '—'}</div>
+                {expCliente.length > 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                    {expCliente.length} expediente{expCliente.length > 1 ? 's' : ''}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#34D399', background: 'rgba(52,211,153,0.1)', padding: '3px 10px', borderRadius: 10 }}>
-                <Lock size={10} /> Acceso activo
+                <Lock size={10} /> Cliente activo
               </div>
             </div>
+
+            {/* Datos de contacto reales */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <InfoRow Icon={Mail}       valor={cliente?.email}    vacio="Sin email" />
+              <InfoRow Icon={Phone}      valor={cliente?.telefono} vacio="Sin teléfono" />
+              <InfoRow Icon={CreditCard} valor={cliente?.dni}      vacio="Sin DNI" />
+              {(cliente?.direccion || cliente?.ciudad) && (
+                <InfoRow
+                  Icon={MapPin}
+                  valor={[cliente?.direccion, [cliente?.codigo_postal, cliente?.ciudad].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                />
+              )}
+            </div>
+
+            {cliente?.etiquetas?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 12 }}>
+                {cliente.etiquetas.map(e => (
+                  <span key={e} style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 4, background: 'var(--ac-bg)', border: '1px solid rgba(79,126,255,0.25)', color: '#93AFFF' }}>
+                    {e}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => cliente && nav(`/clientes/${cliente.id}`)}
+              style={{ ...btnSecondary, width: '100%', justifyContent: 'center', marginTop: 14 }}
+            >
+              Ver ficha completa
+            </button>
           </div>
 
           {/* Expedientes del cliente */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, marginBottom: 10 }}>Expedientes</div>
             {expCliente.map((e, i) => (
-              <div key={i} style={{ padding: '8px 0', borderBottom: i < expCliente.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{e.ref}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 1 }}>{e.tipo}</div>
+              <div
+                key={e.id}
+                onClick={() => nav(`/expedientes/${e.id}`)}
+                style={{ padding: '8px 0', borderBottom: i < expCliente.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer' }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#93AFFF' }}>{e.numero || '—'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 1 }}>{e.titulo || e.tipo || 'Expediente'}</div>
               </div>
             ))}
             {expCliente.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin expedientes activos.</div>}
@@ -268,67 +342,113 @@ export default function PortalCliente() {
               >
                 <t.icon size={14} strokeWidth={1.5} />
                 {t.label}
+                {t.id === 'docs' && docsCliente.length > 0 && (
+                  <span style={{ fontSize: 10, background: 'var(--ac-bg)', color: '#93AFFF', padding: '1px 6px', borderRadius: 10 }}>{docsCliente.length}</span>
+                )}
               </button>
             ))}
           </div>
 
           <div style={{ padding: '20px 22px' }}>
-            {/* Tab: Estado */}
+            {/* Tab: Estado — expedientes reales del cliente */}
             {tab === 'estado' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {expCliente.length === 0 ? (
-                  <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No hay expedientes para mostrar.</div>
-                ) : expCliente.map((exp, idx) => (
-                  <div key={idx}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700 }}>{exp.tipo}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>{exp.ref} · {exp.juzgado ?? 'Sin juzgado asignado'}</div>
-                      </div>
-                      <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: exp.prioridad === 'urgente' ? 'rgba(248,113,113,0.1)' : 'var(--ac-bg)', color: exp.prioridad === 'urgente' ? '#FCA5A5' : '#93AFFF', border: `1px solid ${exp.prioridad === 'urgente' ? 'rgba(248,113,113,0.25)' : 'rgba(79,126,255,0.25)'}` }}>
-                        {exp.estado}
-                      </span>
+                  <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+                    Este cliente no tiene expedientes todavía.
+                    <div style={{ marginTop: 14 }}>
+                      <button onClick={() => nav('/expedientes')} style={btnSecondary}>
+                        <FolderOpen size={13} /> Crear expediente
+                      </button>
                     </div>
-                    <FaseStepper fases={FASES_DIVORCIO} />
+                  </div>
+                ) : expCliente.map((exp, idx) => {
+                  const es = ESTADO_EXP[exp.estado] || ESTADO_EXP.activo
+                  const tareasExp = tareasCliente.filter(t => t.expediente_id === exp.id)
+                  return (
+                    <div key={exp.id}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700 }}>{exp.titulo || exp.tipo || 'Expediente'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                            <span style={{ fontVariantNumeric: 'tabular-nums', color: '#93AFFF' }}>{exp.numero || '—'}</span>
+                            {' · '}{exp.juzgado || 'Sin juzgado asignado'}
+                            {exp.numero_autos ? ` · Autos ${exp.numero_autos}` : ''}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: es.bg, color: es.color, border: `1px solid ${es.border}`, flexShrink: 0 }}>
+                          {es.label}
+                        </span>
+                      </div>
 
-                    {exp.plazosCriticos?.length > 0 && (
-                      <div style={{ marginTop: 16 }}>
+                      <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-2)', marginBottom: 12, flexWrap: 'wrap' }}>
+                        <span>Apertura: <b style={{ color: 'var(--text)', fontWeight: 500 }}>{fmtFecha(exp.fecha_apertura)}</b></span>
+                        {exp.contraparte && <span>Contraparte: <b style={{ color: 'var(--text)', fontWeight: 500 }}>{exp.contraparte}</b></span>}
+                      </div>
+
+                      {/* Próximas actuaciones: tareas pendientes reales del expediente */}
+                      <div>
                         <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500, marginBottom: 8 }}>Próximas actuaciones</div>
-                        {exp.plazosCriticos.map((p, pi) => (
-                          <div key={pi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 6 }}>
-                            <AlertCircle size={13} color="#FBBF24" />
-                            <span style={{ fontSize: 12, flex: 1 }}>{p.descripcion}</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{fmtFecha(p.fecha)}</span>
+                        {tareasExp.length === 0 ? (
+                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin actuaciones pendientes.</div>
+                        ) : tareasExp.map(t => (
+                          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 6 }}>
+                            <AlertCircle size={13} color="#FBBF24" style={{ flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, flex: 1 }}>{t.text}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>{t.dateKey ? fmtFecha(t.dateKey) : 'Sin fecha'}</span>
                           </div>
                         ))}
                       </div>
-                    )}
-                    {idx < expCliente.length - 1 && <div style={{ height: 1, background: 'var(--border)', margin: '16px 0' }} />}
-                  </div>
-                ))}
+
+                      {idx < expCliente.length - 1 && <div style={{ height: 1, background: 'var(--border)', margin: '18px 0' }} />}
+                    </div>
+                  )
+                })}
               </div>
             )}
 
-            {/* Tab: Documentos */}
+            {/* Tab: Documentos — documentos reales subidos por el despacho */}
             {tab === 'docs' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{DOCS_DEMO.length} documentos compartidos</span>
-                  <button style={btnSecondary} onClick={() => alert('Subiendo documento...')}>
-                    <FileText size={12} /> Subir documento
+                  <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                    {docsCliente.length === 0 ? 'Sin documentos de este cliente' : `${docsCliente.length} documento${docsCliente.length > 1 ? 's' : ''} de ${nombreCompleto}`}
+                  </span>
+                  <button style={btnSecondary} onClick={() => nav('/documentos')}>
+                    <Upload size={12} /> Subir documento
                   </button>
                 </div>
-                {DOCS_DEMO.map(d => <DocRow key={d.id} doc={d} />)}
+                {docsCliente.length === 0 ? (
+                  <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+                    No hay documentos asociados a este cliente.
+                    <div style={{ fontSize: 12, marginTop: 6 }}>
+                      Sube documentos en la sección Documentos indicando el nombre del cliente.
+                    </div>
+                  </div>
+                ) : docsCliente.map(d => <DocRow key={d.id} doc={d} onDescargar={descargarDoc} />)}
               </div>
             )}
 
             {/* Tab: Mensajes */}
             {tab === 'mensajes' && (
-              <ChatPanel hilo={hiloCliente} />
+              <ChatPanel hilo={null} />
             )}
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── Fila de información de contacto ──────────────────────────────────────────
+
+function InfoRow({ Icon, valor, vacio }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12 }}>
+      <Icon size={13} style={{ color: 'var(--text-3)', flexShrink: 0, marginTop: 1 }} />
+      <span style={{ color: valor ? 'var(--text)' : 'var(--text-3)', wordBreak: 'break-word' }}>
+        {valor || vacio}
+      </span>
     </div>
   )
 }

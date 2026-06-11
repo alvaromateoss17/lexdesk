@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, Sparkles, AlertTriangle,
-  FolderOpen, Receipt, AlertCircle, TrendingUp, Plus, Upload, Calendar, Users,
+  FolderOpen, Receipt, TrendingUp, Plus, Upload, Calendar, Users,
 } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import Badge from '../components/Badge'
@@ -32,18 +32,17 @@ export default function Dashboard() {
     const timeoutId = setTimeout(() => {
       setLoading(false)
       setError('La carga tardó demasiado. Comprueba tu conexión.')
-      setKpis({ expedientesActivos: 0, plazos: 0, plazosCriticos: 0, documentos: 0, clientes: 0 })
+      setKpis({ expedientesActivos: 0, tareasPendientes: 0, eventosProximos: 0, documentos: 0, clientes: 0 })
     }, 8000)
 
     try {
       const hoy = new Date().toISOString().split('T')[0]
       // Todas las queries en paralelo: contadores + próximos plazos en una sola tanda
-      const [expRes, clientesRes, tareasRes, docsRes, criticasRes, proximasRes] = await Promise.all([
+      const [expRes, clientesRes, tareasRes, docsRes, proximasRes] = await Promise.all([
         supabase.from('expedientes').select('*', { count: 'exact', head: true }).in('estado', ['activo', 'pendiente']),
         supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
         supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
         supabase.from('documentos').select('*', { count: 'exact', head: true }),
-        supabase.from('tareas').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente').in('prioridad', ['alta', 'urgente']),
         supabase.from('tareas')
           .select('*, expedientes(numero, titulo, clientes(nombre, apellidos))')
           .eq('estado', 'pendiente')
@@ -51,10 +50,18 @@ export default function Dashboard() {
           .order('fecha_vencimiento', { ascending: true })
           .limit(6),
       ])
+
+      // Eventos del calendario (se guardan en localStorage) de hoy en adelante
+      let eventosProximos = 0
+      try {
+        const eventos = JSON.parse(localStorage.getItem('vincla_eventos') || '[]')
+        eventosProximos = eventos.filter(ev => ev.fecha && ev.fecha >= hoy).length
+      } catch { /* sin eventos guardados */ }
+
       setKpis({
         expedientesActivos: expRes.count      ?? 0,
-        plazos:             tareasRes.count   ?? 0,
-        plazosCriticos:     criticasRes.count ?? 0,
+        tareasPendientes:   tareasRes.count   ?? 0,
+        eventosProximos,
         documentos:         docsRes.count     ?? 0,
         clientes:           clientesRes.count ?? 0,
       })
@@ -81,7 +88,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error('[Dashboard] Error cargando KPIs:', err)
       setError(err.message)
-      setKpis({ expedientesActivos: 0, plazos: 0, plazosCriticos: 0, documentos: 0, clientes: 0 })
+      setKpis({ expedientesActivos: 0, tareasPendientes: 0, eventosProximos: 0, documentos: 0, clientes: 0 })
       setPlazos([])
       setActividad([])
     } finally {
@@ -131,10 +138,10 @@ export default function Dashboard() {
           trend={undefined}
         />
         <KPICard
-          label="Plazos pendientes"
-          value={kpis?.plazos ?? 0}
-          accent="amber" icon={AlertCircle}
-          sub={kpis?.plazosCriticos > 0 ? `${kpis.plazosCriticos} críticos` : undefined}
+          label="Tareas y eventos"
+          value={(kpis?.tareasPendientes ?? 0) + (kpis?.eventosProximos ?? 0)}
+          accent="amber" icon={Calendar}
+          sub={`${kpis?.tareasPendientes ?? 0} tareas · ${kpis?.eventosProximos ?? 0} eventos pendientes`}
         />
         <KPICard
           label="Documentos subidos"

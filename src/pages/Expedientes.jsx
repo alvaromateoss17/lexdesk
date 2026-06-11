@@ -295,8 +295,8 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
   }
 
   return (
-    <Modal title={esEdicion ? 'Editar expediente' : 'Nuevo expediente'} onClose={onClose} size="lg">
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, maxHeight: '75vh', overflowY: 'auto' }}>
+    <Modal title={esEdicion ? 'Editar expediente' : 'Nuevo expediente'} onClose={onClose} width={700}>
+      <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Sección 1 — Información básica */}
         <div>

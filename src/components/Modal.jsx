@@ -4,8 +4,9 @@ import { X } from 'lucide-react'
 /**
  * Modal reutilizable. Acepta título, children y onClose.
  * size: 'sm' | 'md' | 'lg' (default 'md')
+ * width: ancho máximo en px (tiene prioridad sobre size)
  */
-export default function Modal({ title, children, onClose, size = 'md' }) {
+export default function Modal({ title, children, onClose, size = 'md', width }) {
   const widths = { sm: 420, md: 600, lg: 860 }
 
   useEffect(() => {
@@ -20,18 +21,21 @@ export default function Modal({ title, children, onClose, size = 'md' }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(0,0,0,0.65)',
-        display: 'grid', placeItems: 'center',
+        // flex + margin:auto en el hijo: centra el modal y, si no cabe,
+        // el overlay hace scroll sin cortar nunca la parte superior
+        display: 'flex', overflowY: 'auto',
         padding: '24px 16px',
       }}
     >
       <div style={{
-        width: '100%', maxWidth: widths[size],
+        width: '100%', maxWidth: width ?? widths[size],
+        margin: 'auto',
         background: 'var(--surface)',
         border: '1px solid var(--border)',
         borderRadius: 10,
         boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
         display: 'flex', flexDirection: 'column',
-        maxHeight: 'calc(100vh - 48px)',
+        maxHeight: 'calc(100vh - 64px)',
         overflow: 'hidden',
       }}>
         {/* Header */}

@@ -147,12 +147,15 @@ function ModalNuevoCliente({ onClose, onCrear }) {
 
   return (
     <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalStyle, maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      {/* Cabecera y pie fijos; solo el cuerpo del formulario hace scroll.
+          Así el título nunca queda cortado por arriba. */}
+      <div style={{ ...modalStyle, padding: 0, maxWidth: 620, margin: 'auto', maxHeight: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--bd)', flexShrink: 0 }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Nuevo cliente</h2>
           <button onClick={onClose} style={closeBtn}>×</button>
         </div>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <div style={{ overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Datos personales */}
           <div>
             <div style={sectionLabel}>Datos personales</div>
@@ -218,13 +221,14 @@ function ModalNuevoCliente({ onClose, onCrear }) {
               {errorGeneral}
             </div>
           )}
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
-            <button type="button" onClick={onClose} style={btnSec}>Cancelar</button>
-            <button type="submit" style={{ ...btnPri, opacity: creando ? 0.7 : 1, cursor: creando ? 'default' : 'pointer' }} disabled={creando}>
-              {creando ? 'Creando…' : 'Crear cliente'}
-            </button>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: '1px solid var(--bd)', flexShrink: 0 }}>
+          <button type="button" onClick={onClose} style={btnSec}>Cancelar</button>
+          <button type="submit" style={{ ...btnPri, opacity: creando ? 0.7 : 1, cursor: creando ? 'default' : 'pointer' }} disabled={creando}>
+            {creando ? 'Creando…' : 'Crear cliente'}
+          </button>
+        </div>
         </form>
       </div>
     </div>
@@ -408,5 +412,7 @@ const sectionLabel = { fontSize: 11, color: 'var(--tx3)', textTransform: 'upperc
 const btnPri      = { height: 32, padding: '0 14px', borderRadius: 'var(--rad-s)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, background: 'var(--ac)', border: '1px solid var(--ac)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 5 }
 const btnSec      = { height: 32, padding: '0 14px', borderRadius: 'var(--rad-s)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: 'var(--s2)', border: '1px solid var(--bd)', color: 'var(--tx1)', display: 'inline-flex', alignItems: 'center', gap: 5 }
 const closeBtn    = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx2)', fontSize: 22, lineHeight: 1, padding: '2px 4px' }
-const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(2px)' }
+// flex + margin:auto en el hijo: centra el modal y, si la ventana es pequeña,
+// el overlay hace scroll sin cortar nunca la parte superior
+const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', overflowY: 'auto', padding: '24px 16px', zIndex: 1000, backdropFilter: 'blur(2px)' }
 const modalStyle   = { background: 'var(--s1)', border: '1px solid var(--bd)', borderRadius: 'var(--radius)', padding: '24px', width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Users, Search, Plus, CheckCircle, X, Upload, Archive } from 'lucide-react'
 import ImportarClientesModal from '../components/ImportarClientesModal'
@@ -145,7 +146,9 @@ function ModalNuevoCliente({ onClose, onCrear }) {
   // Alias local para no cambiar todos los usos en el JSX
   const Campo = CampoFormulario
 
-  return (
+  // Portal a document.body: el overlay cubre siempre el viewport completo
+  // aunque la página tenga transforms (animación fade-up)
+  return createPortal(
     <div style={overlayStyle} onClick={onClose}>
       {/* Cabecera y pie fijos; solo el cuerpo del formulario hace scroll.
           Así el título nunca queda cortado por arriba. */}
@@ -231,7 +234,8 @@ function ModalNuevoCliente({ onClose, onCrear }) {
         </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

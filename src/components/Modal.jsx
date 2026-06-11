@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 /**
@@ -15,7 +16,9 @@ export default function Modal({ title, children, onClose, size = 'md', width }) 
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  // Portal a document.body: ningún transform/filter de la página puede
+  // convertir el overlay fixed en un "rectángulo" recortado
+  return createPortal(
     <div
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{
@@ -62,6 +65,7 @@ export default function Modal({ title, children, onClose, size = 'md', width }) 
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

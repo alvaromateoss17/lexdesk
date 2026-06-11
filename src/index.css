@@ -116,7 +116,10 @@ select option { background: #1a1e2b; color: var(--tx1); }
 
 /* ─── Utility classes ───────────────────────────────────────────────────────── */
 .fade-in  { animation: fadeIn  0.18s ease; }
-.fade-up  { animation: fadeUp  0.25s ease both; }
+/* fill-mode backwards (no both): si el transform quedara aplicado tras la
+   animación, los position:fixed de dentro (modales, toasts) quedarían
+   atrapados en el contenedor de la página en vez de cubrir el viewport */
+.fade-up  { animation: fadeUp  0.25s ease backwards; }
 .mono  { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .num   { font-variant-numeric: tabular-nums; }
 

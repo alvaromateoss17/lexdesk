@@ -122,7 +122,7 @@ export function AuthProvider({ children }) {
     )
 
     return () => { activo = false; clearTimeout(timeout); subscription.unsubscribe() }
-  }, [procesarUsuario]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [procesarUsuario])
 
   // ── Refrescar perfil manualmente (para después del setup) ─────────────────
   const refrescarPerfil = useCallback(async () => {

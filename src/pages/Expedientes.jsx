@@ -135,6 +135,7 @@ function ClienteCombobox({ clienteId, clienteNombre, onChange, despachoId, disab
   const [opciones, setOpciones] = useState([])
   const [abierto, setAbierto] = useState(false)
   const [creando, setCreando] = useState(false)
+  const [errorCrear, setErrorCrear] = useState('')
   const wrapRef = useRef(null)
 
   useEffect(() => {
@@ -155,22 +156,40 @@ function ClienteCombobox({ clienteId, clienteNombre, onChange, despachoId, disab
     : opciones
 
   async function handleCrearCliente() {
-    if (!despachoId || !query.trim()) return
+    // Fallback a localStorage por si el perfil aún no ha cargado en el contexto
+    const did = despachoId || localStorage.getItem('vincla_despacho_id')
+    if (!did || !query.trim()) return
     setCreando(true)
+    setErrorCrear('')
     try {
-      const nuevo = await crearCliente({ nombre: query.trim(), despacho_id: despachoId })
+      const nuevo = await crearCliente({ nombre: query.trim(), despacho_id: did })
       setOpciones(prev => [...prev, nuevo])
       onChange(nuevo.id, query.trim())
       setAbierto(false)
-    } catch { /* el usuario puede intentarlo de nuevo */ }
+    } catch (err) {
+      // Nunca tragar el error: si la creación falla, el usuario debe saberlo
+      setErrorCrear('No se pudo crear el cliente.' + (err?.message ? ` ${err.message}` : ''))
+    }
     finally { setCreando(false) }
+  }
+
+  // Al teclear: si el texto coincide exactamente con un cliente, se vincula solo;
+  // si no, se propaga el texto con id null para que el formulario pueda detectar
+  // un cliente escrito pero sin vincular antes de guardar.
+  function handleEscribir(v) {
+    setQuery(v)
+    setAbierto(true)
+    setErrorCrear('')
+    const match = opciones.find(c => nombre(c).toLowerCase() === v.trim().toLowerCase())
+    if (match) onChange(match.id, nombre(match))
+    else onChange(null, v)
   }
 
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
       <input
         value={query}
-        onChange={e => { setQuery(e.target.value); if (!e.target.value) onChange(null, ''); setAbierto(true) }}
+        onChange={e => handleEscribir(e.target.value)}
         onFocus={() => setAbierto(true)}
         placeholder="Escribe el nombre del cliente…"
         disabled={disabled || creando}
@@ -179,6 +198,9 @@ function ClienteCombobox({ clienteId, clienteNombre, onChange, despachoId, disab
       />
       {clienteId && query && (
         <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', background: 'var(--gr)' }} title="Cliente vinculado" />
+      )}
+      {errorCrear && (
+        <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{errorCrear}</div>
       )}
       {abierto && (
         <div style={{ position: 'absolute', zIndex: 200, width: '100%', marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxHeight: 220, overflowY: 'auto' }}>
@@ -246,6 +268,12 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
   async function handleGuardar() {
     if (!form.tipo) {
       setErrorForm('El tipo de procedimiento es obligatorio.')
+      return
+    }
+    // Evita el "guardado correctamente" engañoso: si hay un nombre escrito en el
+    // combobox pero sin vincular, el expediente se guardaría sin cliente
+    if (form.clienteNombre.trim() && !form.cliente_id) {
+      setErrorForm(`El cliente "${form.clienteNombre.trim()}" no está vinculado. Selecciónalo en la lista o créalo con la opción "+ Crear cliente".`)
       return
     }
     setGuardando(true)

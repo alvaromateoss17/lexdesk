@@ -91,15 +91,32 @@ export async function obtenerClientesParaSelector() {
 
 // ─── CREACIÓN ──────────────────────────────────────────────────────────────────
 
+// PGRST204 = el payload incluye una columna que no existe en la tabla.
+// Si la base de datos de producción aún no tiene aplicada MIGRACION-PENDIENTE.sql
+// (p. ej. falta codigo_postal), reintentamos la operación quitando esa columna
+// para que crear/editar clientes no quede bloqueado por completo.
+async function ejecutarSinColumnasInexistentes(operacion, payload) {
+  let datos = { ...payload }
+  for (let intento = 0; intento < 5; intento++) {
+    const { data, error } = await operacion(datos)
+    if (!error) return { data, error: null }
+    const esColumnaInexistente = error.code === 'PGRST204' || /column .* schema cache/i.test(error.message || '')
+    const columna = esColumnaInexistente ? error.message?.match(/'([^']+)' column/)?.[1] : null
+    if (!columna || !(columna in datos)) return { data: null, error }
+    delete datos[columna]
+  }
+  return { data: null, error: { message: 'No se pudo completar la operación tras varios intentos.' } }
+}
+
 export async function crearCliente(datos) {
   // El form usa 'nombre' como nombre completo — lo separamos si tiene apellidos
   const partes = (datos.nombre || '').trim().split(' ')
   const nombreDB = partes[0] || datos.nombre
   const apellidosDB = partes.length > 1 ? partes.slice(1).join(' ') : (datos.apellidos || null)
 
-  const { data, error } = await supabase
-    .from('clientes')
-    .insert({
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    payload => supabase.from('clientes').insert(payload).select().single(),
+    {
       despacho_id:         datos.despacho_id,
       nombre:              nombreDB,
       apellidos:           apellidosDB,
@@ -121,9 +138,8 @@ export async function crearCliente(datos) {
       profesion:           datos.profesion?.trim()          || null,
       estado_civil:        datos.estadoCivil?.trim()        || datos.estado_civil?.trim() || null,
       color:               datos.color                      || null,
-    })
-    .select()
-    .single()
+    }
+  )
 
   if (error) {
     if (error.code === '23505') throw new Error('Ya existe un cliente con ese DNI.')
@@ -150,12 +166,10 @@ export async function actualizarCliente(id, cambios) {
   if (cambios.estadoCivil     !== undefined) camposDB.estado_civil     = cambios.estadoCivil
   if (cambios.archivado       !== undefined) camposDB.activo           = !cambios.archivado
 
-  const { data, error } = await supabase
-    .from('clientes')
-    .update(camposDB)
-    .eq('id', id)
-    .select()
-    .single()
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    payload => supabase.from('clientes').update(payload).eq('id', id).select().single(),
+    camposDB
+  )
 
   if (error) {
     // PGRST116 = 0 filas devueltas: el UPDATE no afectó a ningún registro (RLS o id inexistente)

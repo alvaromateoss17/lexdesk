@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MessageCircle, ChevronRight, Phone, Mail, User } from 'lucide-react'
+import { MessageCircle, ChevronRight, Phone, Mail, User, CalendarPlus, UserX, UserCheck } from 'lucide-react'
 
 function initiales(nombre) {
   const partes = nombre.trim().split(' ')
@@ -7,23 +7,28 @@ function initiales(nombre) {
   return nombre.slice(0, 2).toUpperCase()
 }
 
+function fmtFechaCorta(f) {
+  if (!f) return null
+  return new Date(f + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 function EstadoBadge({ estado }) {
-  const activo = estado === 'activo'
+  const alta = estado === 'activo'
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11,
       padding: '2px 8px', borderRadius: 4, fontWeight: 500,
-      color: activo ? '#34D399' : '#8A8A8A',
-      background: activo ? 'rgba(52,211,153,0.1)' : 'rgba(138,138,138,0.1)',
-      border: `1px solid ${activo ? 'rgba(52,211,153,0.25)' : 'rgba(138,138,138,0.2)'}`,
+      color: alta ? '#34D399' : '#FCA5A5',
+      background: alta ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)',
+      border: `1px solid ${alta ? 'rgba(52,211,153,0.25)' : 'rgba(248,113,113,0.2)'}`,
     }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: activo ? '#34D399' : '#8A8A8A' }} />
-      {activo ? 'Activo' : 'Archivado'}
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: alta ? '#34D399' : '#F87171' }} />
+      {alta ? 'Alta' : 'Baja'}
     </span>
   )
 }
 
-export default function ClienteCard({ cliente, onVerDetalle, onEnviarMensaje }) {
+export default function ClienteCard({ cliente, onVerDetalle, onEnviarMensaje, onDarBaja, onDarAlta }) {
   const [hovered, setHovered] = useState(false)
 
   const mensajesSinLeer = cliente.mensajes?.filter(m => !m.leido && m.autor === 'cliente').length ?? 0
@@ -88,6 +93,13 @@ export default function ClienteCard({ cliente, onVerDetalle, onEnviarMensaje }) 
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--text-2)' }}>
           <User size={12} color="var(--text-3)" /> {cliente.abogadoAsignado}
         </div>
+        {cliente.fechaAlta && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--text-2)' }}>
+            <CalendarPlus size={12} color="var(--text-3)" />
+            Alta: {fmtFechaCorta(cliente.fechaAlta)}
+            {cliente.archivado && cliente.fechaBaja && <span style={{ color: '#FCA5A5' }}>· Baja: {fmtFechaCorta(cliente.fechaBaja)}</span>}
+          </div>
+        )}
       </div>
 
       {/* Etiquetas */}
@@ -146,6 +158,40 @@ export default function ClienteCard({ cliente, onVerDetalle, onEnviarMensaje }) 
             </span>
           )}
         </button>
+        {/* Dar de baja / dar de alta */}
+        {cliente.archivado ? (
+          onDarAlta && (
+            <button
+              onClick={() => onDarAlta(cliente)}
+              title="Dar de alta de nuevo"
+              style={{
+                width: 32, height: 32, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+                background: 'transparent', border: '1px solid rgba(52,211,153,0.3)', color: '#34D399',
+                display: 'grid', placeItems: 'center', transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(52,211,153,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <UserCheck size={14} />
+            </button>
+          )
+        ) : (
+          onDarBaja && (
+            <button
+              onClick={() => onDarBaja(cliente)}
+              title="Dar de baja"
+              style={{
+                width: 32, height: 32, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+                background: 'transparent', border: '1px solid var(--border-2)', color: 'var(--text-2)',
+                display: 'grid', placeItems: 'center', transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; e.currentTarget.style.color = '#FCA5A5'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
+            >
+              <UserX size={14} />
+            </button>
+          )
+        )}
       </div>
     </div>
   )

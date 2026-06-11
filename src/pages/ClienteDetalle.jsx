@@ -562,11 +562,11 @@ function AccionesDropdown({ cliente, onArchivar, onEliminar, onNuevoExpediente }
             <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
             {cliente?.archivado ? (
               <button onClick={() => { setOpen(false); onArchivar?.() }} style={{ ...dropItem, color: '#10B981' }}>
-                <Archive size={14} /> Restaurar cliente
+                <Archive size={14} /> Dar de alta de nuevo
               </button>
             ) : (
               <button onClick={() => { setOpen(false); onArchivar?.() }} style={{ ...dropItem, color: '#F59E0B' }}>
-                <Archive size={14} /> Archivar cliente
+                <Archive size={14} /> Dar de baja
               </button>
             )}
             <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
@@ -606,10 +606,10 @@ export default function ClienteDetalle() {
     try {
       if (cliente.archivado) {
         await reactivarCliente(id)
-        setToast('Cliente restaurado correctamente')
+        setToast('Cliente dado de alta de nuevo')
       } else {
         await desactivarCliente(id)
-        setToast('Cliente archivado correctamente')
+        setToast('Cliente dado de baja correctamente')
       }
       recargarCliente()
     } catch (err) {
@@ -659,11 +659,11 @@ export default function ClienteDetalle() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Archive size={15} color="#F59E0B" />
             <span style={{ fontSize: 13, color: '#F59E0B' }}>
-              Este cliente está archivado{cliente.fechaArchivado ? ` desde ${new Date(cliente.fechaArchivado).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
+              Este cliente está dado de baja{cliente.fechaBaja ? ` desde el ${new Date(cliente.fechaBaja + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
             </span>
           </div>
           <button onClick={handleArchivar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F59E0B', fontSize: 13, textDecoration: 'underline' }}>
-            Restaurar
+            Dar de alta
           </button>
         </div>
       )}
@@ -691,7 +691,7 @@ export default function ClienteDetalle() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 10px', borderRadius: 10, background: cliente.archivado ? 'rgba(245,158,11,0.1)' : 'rgba(52,211,153,0.1)', color: cliente.archivado ? '#F59E0B' : '#34D399' }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
-            {cliente.archivado ? 'Archivado' : 'Activo'}
+            {cliente.archivado ? 'Baja' : 'Alta'}
           </div>
           <AccionesDropdown
             cliente={cliente}

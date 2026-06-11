@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { formatRelativeTime } from '../utils/format'
+import { ejecutarSinColumnasInexistentes } from './dbCompat'
 
 // ─── NORMALIZACIÓN ────────────────────────────────────────────────────────────
 // Mapea los campos de Supabase al formato que usa la UI existente,
@@ -118,9 +119,9 @@ export async function obtenerExpediente(id) {
 export async function crearExpediente(datos) {
   const numero = datos.numero || (await generarNumeroExpediente())
 
-  const { data, error } = await supabase
-    .from('expedientes')
-    .insert({
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    payload => supabase.from('expedientes').insert(payload).select(SELECT_EXPEDIENTES).single(),
+    {
       despacho_id:    datos.despacho_id,
       cliente_id:     datos.cliente_id     || null,
       abogado_id:     datos.abogado_id     || null,
@@ -135,9 +136,12 @@ export async function crearExpediente(datos) {
       juzgado:        datos.juzgado        || null,
       numero_autos:   datos.numero_autos   || null,
       contraparte:    datos.contraparte    || null,
-    })
-    .select(SELECT_EXPEDIENTES)
-    .single()
+      // Campos de la migración 006 (descartados si aún no existe la columna)
+      tipo_asunto:    datos.tipo_asunto    || null,
+      procurador:     datos.procurador     || null,
+      nig:            datos.nig            || null,
+    }
+  )
 
   if (error) {
     if (error.code === '23505') throw new Error(`El número de expediente "${numero}" ya existe.`)
@@ -178,12 +182,10 @@ export async function actualizarExpediente(id, cambios) {
     camposDB.tipo = detectarTipoEnum(camposDB.titulo)
   }
 
-  const { data, error } = await supabase
-    .from('expedientes')
-    .update(camposDB)
-    .eq('id', id)
-    .select(SELECT_EXPEDIENTES)
-    .single()
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    payload => supabase.from('expedientes').update(payload).eq('id', id).select(SELECT_EXPEDIENTES).single(),
+    camposDB
+  )
 
   if (error) {
     // PGRST116 = 0 filas devueltas: el UPDATE no afectó a ningún registro (RLS o id inexistente)

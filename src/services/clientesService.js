@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { ejecutarSinColumnasInexistentes } from './dbCompat'
 
 // Colores predeterminados para avatares (igual que el mock)
 const COLORS_AVATAR = ['#4F7EFF', '#A78BFA', '#34D399', '#FBBF24', '#F87171', '#FB923C']
@@ -25,7 +26,9 @@ function normalize(row) {
     profesion:          row.profesion           || '',
     estadoCivil:        row.estado_civil        || '',
     color:              row.color               || computeColor(row.nombre),
-    fechaAlta:          row.created_at?.split('T')[0] || '',
+    // Fecha de alta manual (migración 006); si no existe, se usa created_at
+    fechaAlta:          row.fecha_alta || row.created_at?.split('T')[0] || '',
+    fechaBaja:          row.fecha_baja || '',
     // Arrays que no existen en Supabase aún → vacíos para no romper UI
     mensajes:           [],
     pagos:              [],
@@ -91,23 +94,6 @@ export async function obtenerClientesParaSelector() {
 
 // ─── CREACIÓN ──────────────────────────────────────────────────────────────────
 
-// PGRST204 = el payload incluye una columna que no existe en la tabla.
-// Si la base de datos de producción aún no tiene aplicada MIGRACION-PENDIENTE.sql
-// (p. ej. falta codigo_postal), reintentamos la operación quitando esa columna
-// para que crear/editar clientes no quede bloqueado por completo.
-async function ejecutarSinColumnasInexistentes(operacion, payload) {
-  let datos = { ...payload }
-  for (let intento = 0; intento < 5; intento++) {
-    const { data, error } = await operacion(datos)
-    if (!error) return { data, error: null }
-    const esColumnaInexistente = error.code === 'PGRST204' || /column .* schema cache/i.test(error.message || '')
-    const columna = esColumnaInexistente ? error.message?.match(/'([^']+)' column/)?.[1] : null
-    if (!columna || !(columna in datos)) return { data: null, error }
-    delete datos[columna]
-  }
-  return { data: null, error: { message: 'No se pudo completar la operación tras varios intentos.' } }
-}
-
 export async function crearCliente(datos) {
   // El form usa 'nombre' como nombre completo — lo separamos si tiene apellidos
   const partes = (datos.nombre || '').trim().split(' ')
@@ -138,6 +124,7 @@ export async function crearCliente(datos) {
       profesion:           datos.profesion?.trim()          || null,
       estado_civil:        datos.estadoCivil?.trim()        || datos.estado_civil?.trim() || null,
       color:               datos.color                      || null,
+      fecha_alta:          datos.fechaAlta                  || datos.fecha_alta || null,
     }
   )
 
@@ -155,7 +142,7 @@ export async function actualizarCliente(id, cambios) {
     id: _id, despacho_id: _did, created_at: _cat, expedientes: _exp,
     archivado: _arch, estado: _est, abogadoAsignado: _abog, etiquetas: _et,
     telefonoSecundario: _ts, nacionalidad: _nac, profesion: _pro, estadoCivil: _ec,
-    fechaAlta: _fa, mensajes: _msg, pagos: _pag, expedientesIds: _eid,
+    fechaAlta: _fa, fechaBaja: _fb, mensajes: _msg, pagos: _pag, expedientesIds: _eid,
     ...camposDB
   } = cambios
 
@@ -165,6 +152,7 @@ export async function actualizarCliente(id, cambios) {
   if (cambios.telefonoSecundario !== undefined) camposDB.telefono_secundario = cambios.telefonoSecundario
   if (cambios.estadoCivil     !== undefined) camposDB.estado_civil     = cambios.estadoCivil
   if (cambios.archivado       !== undefined) camposDB.activo           = !cambios.archivado
+  if (cambios.fechaAlta       !== undefined) camposDB.fecha_alta       = cambios.fechaAlta || null
 
   const { data, error } = await ejecutarSinColumnasInexistentes(
     payload => supabase.from('clientes').update(payload).eq('id', id).select().single(),
@@ -187,35 +175,31 @@ export async function actualizarCliente(id, cambios) {
 // ─── SOFT DELETE ───────────────────────────────────────────────────────────────
 
 export async function desactivarCliente(id) {
-  const { data, error } = await supabase
-    .from('clientes')
-    .update({ activo: false })
-    .eq('id', id)
-    .select()
-    .single()
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    payload => supabase.from('clientes').update(payload).eq('id', id).select().single(),
+    { activo: false, fecha_baja: new Date().toISOString().split('T')[0] }
+  )
 
   if (error) {
     if (error.code === 'PGRST116') {
-      throw new Error('No se pudo archivar el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
+      throw new Error('No se pudo dar de baja el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
     }
-    throw new Error('Error al archivar el cliente: ' + error.message)
+    throw new Error('Error al dar de baja el cliente: ' + error.message)
   }
   return normalize(data)
 }
 
 export async function reactivarCliente(id) {
-  const { data, error } = await supabase
-    .from('clientes')
-    .update({ activo: true })
-    .eq('id', id)
-    .select()
-    .single()
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    payload => supabase.from('clientes').update(payload).eq('id', id).select().single(),
+    { activo: true, fecha_baja: null }
+  )
 
   if (error) {
     if (error.code === 'PGRST116') {
-      throw new Error('No se pudo reactivar el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
+      throw new Error('No se pudo dar de alta el cliente: la operación no afectó a ningún registro (posible restricción de permisos).')
     }
-    throw new Error('Error al reactivar el cliente: ' + error.message)
+    throw new Error('Error al dar de alta el cliente: ' + error.message)
   }
   return normalize(data)
 }

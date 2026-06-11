@@ -90,6 +90,7 @@ function CampoFormulario({ label, error, children, col }) {
 function ModalNuevoCliente({ onClose, onCrear }) {
   const [form, setForm] = useState({
     nombre: '', dni: '',
+    fechaAlta: new Date().toISOString().split('T')[0],
     email: '', telefono: '', telefonoSecundario: '',
     direccion: '', codigo_postal: '', ciudad: '',
     etiquetas: [], notaInicial: '',
@@ -168,6 +169,9 @@ function ModalNuevoCliente({ onClose, onCrear }) {
               </Campo>
               <Campo label="DNI / NIE *" error={errores.dni}>
                 <input value={form.dni} onChange={e => set('dni', e.target.value)} style={inStyle} placeholder="12345678A" />
+              </Campo>
+              <Campo label="Fecha de alta">
+                <input type="date" value={form.fechaAlta} onChange={e => set('fechaAlta', e.target.value)} style={inStyle} />
               </Campo>
             </div>
           </div>
@@ -268,7 +272,7 @@ export default function Clientes() {
   const {
     clientes: clientesState, cargando, error: errorClientes,
     busqueda, setBusqueda,
-    crear, desactivar, recargar,
+    crear, desactivar, reactivar,
   } = useClientes({ soloActivos: !verArchivados })
 
   // KPIs
@@ -279,8 +283,10 @@ export default function Clientes() {
   // Etiquetas únicas para el filtro (desde los datos cargados)
   const etiquetasUnicas = [...new Set(clientesState.flatMap(c => c.etiquetas ?? []))].sort()
 
-  // Filtrado local (abogado y etiqueta; la búsqueda la hace el hook)
+  // Filtrado local (abogado y etiqueta; la búsqueda la hace el hook).
+  // En la vista de bajas el hook carga todos: aquí se queda solo con los de baja.
   const clientesFiltrados = clientesState
+    .filter(c => (verArchivados ? c.archivado : !c.archivado))
     .filter(c => !filtroAbogado  || c.abogadoAsignado === filtroAbogado)
     .filter(c => !filtroEtiqueta || c.etiquetas?.includes(filtroEtiqueta))
 
@@ -299,6 +305,25 @@ export default function Clientes() {
     setToast('Cliente creado correctamente')
   }
 
+  async function handleDarBaja(cliente) {
+    if (!window.confirm(`¿Dar de baja a ${cliente.nombre}? Podrás darle de alta de nuevo desde la vista de bajas.`)) return
+    try {
+      await desactivar(cliente.id)
+      setToast(`${cliente.nombre} dado de baja`)
+    } catch (err) {
+      setToast('Error: ' + err.message)
+    }
+  }
+
+  async function handleDarAlta(cliente) {
+    try {
+      await reactivar(cliente.id)
+      setToast(`${cliente.nombre} dado de alta de nuevo`)
+    } catch (err) {
+      setToast('Error: ' + err.message)
+    }
+  }
+
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }} className="fade-up">
       {/* Cabecera */}
@@ -306,7 +331,7 @@ export default function Clientes() {
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>Clientes</h1>
           <div style={{ fontSize: 12, color: 'var(--tx3)', marginTop: 2 }}>
-            {cargando ? 'Cargando…' : <span>{verArchivados ? clientesFiltrados.length + ' archivados' : totalActivos + ' activos'}</span>}
+            {cargando ? 'Cargando…' : <span>{verArchivados ? clientesFiltrados.length + ' de baja' : totalActivos + ' de alta'}</span>}
             {conMensajesSinLeer > 0 && <><span style={{ margin: '0 6px' }}>·</span><span style={{ color: 'var(--am)' }}>{conMensajesSinLeer} con mensajes sin leer</span></>}
             {conPagosPendientes > 0 && <><span style={{ margin: '0 6px' }}>·</span><span style={{ color: 'var(--am)' }}>{conPagosPendientes} con pagos pendientes</span></>}
           </div>
@@ -317,7 +342,7 @@ export default function Clientes() {
             style={{ ...btnSec, color: verArchivados ? '#F59E0B' : undefined, borderColor: verArchivados ? 'rgba(245,158,11,0.4)' : undefined }}
           >
             <Archive size={13} />
-            {verArchivados ? 'Ver activos' : 'Archivados'}
+            {verArchivados ? 'Ver altas' : 'Bajas'}
           </button>
           <button onClick={() => setShowImportModal(true)} style={btnSec}>
             <Upload size={13} /> Importar
@@ -362,9 +387,9 @@ export default function Clientes() {
           {verArchivados ? (
             <>
               <Archive size={42} style={{ marginBottom: 14, opacity: 0.3 }} />
-              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6, color: 'var(--text-2)' }}>No hay clientes archivados</div>
-              <div style={{ fontSize: 13, marginBottom: 20 }}>Los clientes archivados aparecerán aquí</div>
-              <button onClick={() => setVerArchivados(false)} style={btnSec}>← Ver clientes activos</button>
+              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6, color: 'var(--text-2)' }}>No hay clientes de baja</div>
+              <div style={{ fontSize: 13, marginBottom: 20 }}>Los clientes dados de baja aparecerán aquí</div>
+              <button onClick={() => setVerArchivados(false)} style={btnSec}>← Ver clientes de alta</button>
             </>
           ) : (
             <>
@@ -382,6 +407,8 @@ export default function Clientes() {
               key={c.id} cliente={c}
               onVerDetalle={handleVerDetalle}
               onEnviarMensaje={(cl) => nav(`/clientes/${cl.id}?tab=mensajes`)}
+              onDarBaja={handleDarBaja}
+              onDarAlta={handleDarAlta}
             />
           ))}
         </div>

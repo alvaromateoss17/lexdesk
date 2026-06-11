@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Plus, Search, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Eye, Pencil, Activity, Trash2, Upload, LayoutGrid, List, Clock, User } from 'lucide-react'
+import { Download, Plus, Search, ChevronDown, Check, ChevronLeft, ChevronRight, MoreHorizontal, Eye, Pencil, Activity, Trash2, Upload, LayoutGrid, List, Clock, User, Archive } from 'lucide-react'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import ImportarExpedientesModal from '../components/ImportarExpedientesModal'
@@ -66,8 +66,9 @@ function EstadoBadge({ estado }) {
   )
 }
 
-function ExpedienteCard({ exp, onVer, onEditar }) {
+function ExpedienteCard({ exp, onVer, onEditar, onDarBaja }) {
   const [hovered, setHovered] = useState(false)
+  const cerrado = exp.estado === 'cerrado' || exp.estado === 'archivado'
   return (
     <div
       onMouseEnter={() => setHovered(true)}
@@ -122,6 +123,17 @@ function ExpedienteCard({ exp, onVer, onEditar }) {
         >
           Ver expediente →
         </button>
+        {!cerrado && onDarBaja && (
+          <button
+            onClick={() => onDarBaja(exp)}
+            title="Dar de baja (cerrar expediente)"
+            style={{ flex: '0 0 auto', width: 32, padding: '7px 0', borderRadius: 'var(--rad-s)', cursor: 'pointer', background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx2)', fontFamily: 'inherit', display: 'grid', placeItems: 'center', transition: 'border-color 0.15s, color 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)'; e.currentTarget.style.color = '#F59E0B' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx2)' }}
+          >
+            <Archive size={13} />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -256,6 +268,10 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
     fechaApertura:       expediente?.fecha_apertura?.split('T')[0] || '',
     notasLibres:         expediente?.descripcion        || '',
     estado:              expediente?.estado             || 'activo',
+    tipoAsunto:          expediente?.tipo_asunto        || '',
+    procurador:          expediente?.procurador         || '',
+    nig:                 expediente?.nig                || '',
+    fechaCierre:         expediente?.fecha_cierre?.split('T')[0] || '',
   })
   const [errorForm, setErrorForm] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -285,6 +301,10 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
         fecha_apertura: form.fechaApertura || new Date().toISOString().split('T')[0],
         descripcion:    form.notasLibres || null,
         estado:         form.estado,
+        tipo_asunto:    form.tipoAsunto.trim() || null,
+        procurador:     form.procurador.trim() || null,
+        nig:            form.nig.trim() || null,
+        fecha_cierre:   form.fechaCierre || null,
       }, expediente?.id)
       onClose()
     } catch (err) {
@@ -324,10 +344,30 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
               />
             </div>
             <div>
+              <Label>Tipo de asunto</Label>
+              <input
+                value={form.tipoAsunto}
+                onChange={e => set('tipoAsunto', e.target.value)}
+                placeholder="Ej: Civil, Penal, Familia..."
+                style={inputStyle}
+                disabled={guardando}
+              />
+            </div>
+            <div>
               <Label>Estado</Label>
               <select value={form.estado} onChange={e => set('estado', e.target.value)} style={inputStyle}>
                 {ESTADOS_MODAL.map(s => <option key={s} value={s}>{ESTADO_LABELS_MODAL[s]}</option>)}
               </select>
+            </div>
+            <div>
+              <Label>Procurador propio</Label>
+              <input
+                value={form.procurador}
+                onChange={e => set('procurador', e.target.value)}
+                placeholder="Nombre del procurador"
+                style={inputStyle}
+                disabled={guardando}
+              />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <Label>Sección del Tribunal / Juzgado</Label>
@@ -338,8 +378,16 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
               <input value={form.numeroProcedimiento} onChange={e => set('numeroProcedimiento', e.target.value)} placeholder="Ej. 1234/2026" style={inputStyle} disabled={guardando} />
             </div>
             <div>
-              <Label>Fecha de apertura</Label>
+              <Label>NIG</Label>
+              <input value={form.nig} onChange={e => set('nig', e.target.value)} placeholder="Nº de Identificación General" style={inputStyle} disabled={guardando} />
+            </div>
+            <div>
+              <Label>Fecha de alta</Label>
               <input type="date" value={form.fechaApertura} onChange={e => set('fechaApertura', e.target.value)} style={inputStyle} disabled={guardando} />
+            </div>
+            <div>
+              <Label>Fecha de cierre</Label>
+              <input type="date" value={form.fechaCierre} onChange={e => set('fechaCierre', e.target.value)} style={inputStyle} disabled={guardando} />
             </div>
           </div>
         </div>
@@ -397,7 +445,7 @@ function ModalNuevoExpediente({ onClose, onCrear, expediente }) {
   )
 }
 
-function AccionesDropdown({ expediente, onEliminar, onEditar }) {
+function AccionesDropdown({ expediente, onEliminar, onEditar, onDarBaja }) {
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -409,10 +457,12 @@ function AccionesDropdown({ expediente, onEliminar, onEditar }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  const cerrado = expediente.estado === 'cerrado' || expediente.estado === 'archivado'
   const acciones = [
     { icon: Eye,      label: 'Ver expediente',   onClick: () => nav(`/expedientes/${expediente.id}`) },
     { icon: Pencil,   label: 'Editar',            onClick: () => onEditar(expediente) },
     { icon: Activity, label: 'Nueva actuación',   onClick: () => nav(`/expedientes/${expediente.id}`) },
+    ...(!cerrado && onDarBaja ? [{ icon: Archive, label: 'Dar de baja (cerrar)', onClick: () => onDarBaja(expediente) }] : []),
     { icon: Trash2,   label: 'Eliminar',          onClick: () => onEliminar(expediente.id), danger: true },
   ]
 
@@ -505,6 +555,16 @@ export default function Expedientes() {
     }
   }
 
+  async function handleDarBaja(exp) {
+    if (!window.confirm(`¿Dar de baja el expediente ${exp.ref}? Se marcará como cerrado con fecha de hoy.`)) return
+    try {
+      await actualizar(exp.id, { estado: 'cerrado', fecha_cierre: new Date().toISOString().split('T')[0] })
+      mostrarToast(`Expediente ${exp.ref} dado de baja (cerrado).`)
+    } catch (err) {
+      mostrarToast('Error al dar de baja: ' + err.message)
+    }
+  }
+
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }} className="fade-up">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -563,6 +623,7 @@ export default function Expedientes() {
                 exp={r}
                 onVer={exp => nav(`/expedientes/${exp.id}`)}
                 onEditar={setExpedienteEditando}
+                onDarBaja={handleDarBaja}
               />
             ))}
           </div>
@@ -605,7 +666,7 @@ export default function Expedientes() {
                   <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--tx3)' }}>{r.ultMov}</td>
                   <td style={td}><EstadoBadge estado={r.estado} /></td>
                   <td style={{ ...td, paddingRight: 12 }}>
-                    <AccionesDropdown expediente={r} onEliminar={handleEliminar} onEditar={setExpedienteEditando} />
+                    <AccionesDropdown expediente={r} onEliminar={handleEliminar} onEditar={setExpedienteEditando} onDarBaja={handleDarBaja} />
                   </td>
                 </tr>
               ))}

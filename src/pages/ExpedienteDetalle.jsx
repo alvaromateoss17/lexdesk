@@ -220,8 +220,12 @@ export default function ExpedienteDetalle() {
             <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, marginBottom: 12 }}>Datos del expediente</div>
             <KV label="Juzgado"       value={exp.juzgado?.split(',')[0] ?? '—'} />
             <KV label="Procedimiento" value={<span className="mono" style={{ fontSize: 12 }}>{exp.procedimiento ?? '—'}</span>} />
+            {exp.tipo_asunto && <KV label="Tipo de asunto" value={exp.tipo_asunto} />}
+            {exp.nig && <KV label="NIG" value={<span className="mono" style={{ fontSize: 12 }}>{exp.nig}</span>} />}
+            {exp.procurador && <KV label="Procurador" value={exp.procurador} />}
             <KV label="Cuantía"       value={<span className="num">{formatCuantia(exp.cuantia)}</span>} />
-            <KV label="Fecha inicio"  value={exp.fechaInicio} />
+            <KV label="Fecha de alta" value={exp.fechaInicio} />
+            {exp.fecha_cierre && <KV label="Fecha de cierre" value={exp.fecha_cierre?.split('T')[0]} />}
             <KV label="Abogado"       value={exp.abogado} />
           </div>
 

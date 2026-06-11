@@ -1,11 +1,7 @@
 -- =============================================================================
--- VINCLA — MIGRACIÓN PENDIENTE (ejecutar manualmente en el SQL Editor de Supabase)
--- Fecha: 2026-06-11 (v2 — los bloques de la v1 ya están aplicados en producción)
--- URL: https://supabase.com/dashboard/project/yuykzrhujuinjhbiaarl/sql/new
--- Todos los bloques son idempotentes: se pueden re-ejecutar sin peligro.
---
--- La app funciona sin esta migración (descarta los campos que falten al
--- guardar), pero los datos nuevos NO se guardarán hasta ejecutarla.
+-- MIGRACIÓN 006 — Campos de alta/baja (clientes) y datos procesales (expedientes)
+-- Replica los campos de la app de gestión del despacho de referencia.
+-- Todos los bloques son idempotentes.
 -- =============================================================================
 
 -- Clientes: fecha en la que el cliente entró en el despacho y fecha de baja.

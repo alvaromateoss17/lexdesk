@@ -1,9 +1,13 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // loadEnv con prefijo '' incluye variables sin VITE_ (como GROQ_API_KEY de .env.local)
+  const env = loadEnv(mode, process.cwd(), '')
+
+  return {
   server: {
     proxy: {
       // En producción /api/chat lo sirve la función serverless api/chat.js (Groq).
@@ -14,7 +18,7 @@ export default defineConfig({
         rewrite: () => '/openai/v1/chat/completions',
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('Authorization', `Bearer ${process.env.GROQ_API_KEY || ''}`);
+            proxyReq.setHeader('Authorization', `Bearer ${env.GROQ_API_KEY || process.env.GROQ_API_KEY || ''}`);
             proxyReq.removeHeader('origin');
           });
         },
@@ -97,4 +101,5 @@ export default defineConfig({
       },
     }),
   ],
+  }
 })

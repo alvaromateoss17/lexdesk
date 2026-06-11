@@ -112,7 +112,10 @@ function ModalNuevoCliente({ onClose, onCrear }) {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'Campo obligatorio'
     if (!form.dni.trim()) e.dni = 'Campo obligatorio'
-    if (!form.email.trim()) e.email = 'Campo obligatorio'
+    // El email es opcional; si se rellena, se valida su formato
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = 'El formato del email no es válido'
+    }
     if (!form.telefono.trim()) e.telefono = 'Campo obligatorio'
     return e
   }
@@ -167,8 +170,8 @@ function ModalNuevoCliente({ onClose, onCrear }) {
           <div>
             <div style={sectionLabel}>Contacto y Dirección</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Campo label="Email *" error={errores.email}>
-                <input type="email" value={form.email} onChange={e => set('email', e.target.value)} style={inStyle} placeholder="cliente@email.com" />
+              <Campo label="Email" error={errores.email}>
+                <input value={form.email} onChange={e => set('email', e.target.value)} style={inStyle} placeholder="Opcional" />
               </Campo>
               <Campo label="Teléfono principal *" error={errores.telefono}>
                 <input value={form.telefono} onChange={e => set('telefono', e.target.value)} style={inStyle} placeholder="+34 600 000 000" />

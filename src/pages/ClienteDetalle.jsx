@@ -401,8 +401,8 @@ function TabDocumentos({ docsIniciales, clienteNombre, onToast }) {
 
 // ─── TAB Notas ────────────────────────────────────────────────────────────────
 
-function TabNotas({ notasIniciales, onToast }) {
-  const [notas, setNotas] = useState(notasIniciales)
+function TabNotas({ notasIniciales, onToast, onAgregar, onEditar, onEliminar }) {
+  const [notas, setNotas] = useState(Array.isArray(notasIniciales) ? notasIniciales : [])
   const [texto, setTexto] = useState('')
   const [editando, setEditando] = useState(null)
   const [editTexto, setEditTexto] = useState('')
@@ -420,18 +420,21 @@ function TabNotas({ notasIniciales, onToast }) {
       nueva: true,
     }
     setNotas(prev => [nueva, ...prev])
+    onAgregar?.(nueva)
     setTexto('')
     onToast?.('Nota añadida')
   }
 
   function guardarEdicion(id) {
     setNotas(prev => prev.map(n => n.id === id ? { ...n, texto: editTexto } : n))
+    onEditar?.(id, editTexto)
     setEditando(null)
     onToast?.('Nota actualizada')
   }
 
   function eliminarNota(id) {
     setNotas(prev => prev.filter(n => n.id !== id))
+    onEliminar?.(id)
     setConfirm(null)
     onToast?.('Nota eliminada')
   }
@@ -599,6 +602,42 @@ export default function ClienteDetalle() {
   const [toast, setToast] = useState(null)
   const [showModalEliminar, setShowModalEliminar] = useState(false)
 
+  // Pagos y notas se persisten en localStorage (no existen aún en Supabase),
+  // de modo que sobreviven al salir y volver al detalle del cliente.
+  const [pagos, setPagos] = useState([])
+  const [notas, setNotas] = useState([])
+
+  useEffect(() => {
+    if (!id) return
+    setPagos(storageService.getAll('pagos').filter(p => String(p.clienteId) === String(id)))
+    setNotas(storageService.getAll('notasCliente').filter(n => String(n.clienteId) === String(id)))
+  }, [id])
+
+  function handleRegistrarPago(pago) {
+    const guardado = storageService.create('pagos', { ...pago, clienteId: id })
+    setPagos(prev => [...prev, guardado])
+  }
+
+  function handleMarcarCobrado(pagoId) {
+    storageService.update('pagos', pagoId, { estado: 'cobrado' })
+    setPagos(prev => prev.map(p => String(p.id) === String(pagoId) ? { ...p, estado: 'cobrado' } : p))
+  }
+
+  function handleAgregarNota(nota) {
+    storageService.create('notasCliente', { ...nota, clienteId: id })
+    setNotas(prev => [nota, ...prev])
+  }
+
+  function handleEditarNota(notaId, texto) {
+    storageService.update('notasCliente', notaId, { texto })
+    setNotas(prev => prev.map(n => String(n.id) === String(notaId) ? { ...n, texto } : n))
+  }
+
+  function handleEliminarNota(notaId) {
+    storageService.delete('notasCliente', notaId)
+    setNotas(prev => prev.filter(n => String(n.id) !== String(notaId)))
+  }
+
   const { cliente, cargando: loadingCliente, error: errorCliente, recargar: recargarCliente } = useCliente(id)
 
   async function handleArchivar() {
@@ -729,11 +768,11 @@ export default function ClienteDetalle() {
       </div>
 
       {/* Contenido del tab */}
-      {tab === 'resumen'     && <TabResumen cliente={cliente} expedientes={expedientes} />}
+      {tab === 'resumen'     && <TabResumen cliente={{ ...cliente, pagos, notas }} expedientes={expedientes} />}
       {tab === 'expedientes' && <TabExpedientes expedientes={expedientes} />}
       {tab === 'documentos'  && <TabDocumentos docsIniciales={cliente.documentos} clienteNombre={cliente.nombre} onToast={setToast} />}
-      {tab === 'pagos'       && <HistorialPagos pagos={cliente.pagos} mostrarBotonRegistrar />}
-      {tab === 'notas'       && <TabNotas notasIniciales={cliente.notas} onToast={setToast} />}
+      {tab === 'pagos'       && <HistorialPagos pagos={pagos} onRegistrarPago={handleRegistrarPago} onMarcarCobrado={handleMarcarCobrado} mostrarBotonRegistrar />}
+      {tab === 'notas'       && <TabNotas notasIniciales={notas} onToast={setToast} onAgregar={handleAgregarNota} onEditar={handleEditarNota} onEliminar={handleEliminarNota} />}
       {tab === 'mensajes'    && <ChatMensajes mensajes={cliente.mensajes} nombreCliente={cliente.nombre} />}
 
       {toast && <Toast mensaje={toast} onClose={() => setToast(null)} />}

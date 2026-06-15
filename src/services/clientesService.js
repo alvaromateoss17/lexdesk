@@ -29,9 +29,14 @@ function normalize(row) {
     // Fecha de alta manual (migración 006); si no existe, se usa created_at
     fechaAlta:          row.fecha_alta || row.created_at?.split('T')[0] || '',
     fechaBaja:          row.fecha_baja || '',
+    // 'notas' en BD es texto libre (nota inicial al crear el cliente),
+    // pero la UI gestiona las notas como un array de objetos. Preservamos
+    // el texto en 'notaInicial' y exponemos 'notas' como array para no romper UI.
+    notaInicial:        typeof row.notas === 'string' ? row.notas : '',
     // Arrays que no existen en Supabase aún → vacíos para no romper UI
     mensajes:           [],
     pagos:              [],
+    notas:              [],
     // expedientesIds derivado del JOIN (si existe)
     expedientesIds:     (row.expedientes || []).map(e => e.id),
   }

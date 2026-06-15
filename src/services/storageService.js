@@ -5,9 +5,11 @@
 // ============================================================
 
 const KEYS = {
-  clientes:    'vincla_clientes',
-  expedientes: 'vincla_expedientes',
-  documentos:  'vincla_documentos',
+  clientes:     'vincla_clientes',
+  expedientes:  'vincla_expedientes',
+  documentos:   'vincla_documentos',
+  pagos:        'vincla_pagos',
+  notasCliente: 'vincla_notas_cliente',
 }
 
 function readAll(entidad) {
@@ -34,8 +36,10 @@ export const storageService = {
   },
 
   // ── Crear ───────────────────────────────────────────────────
+  // Respeta el id si ya viene en `datos` (para mantenerlo sincronizado
+  // con el estado local del componente que lo generó).
   create(entidad, datos) {
-    const nuevo = { ...datos, id: Date.now(), creadoEn: new Date().toISOString() }
+    const nuevo = { ...datos, id: datos.id ?? Date.now(), creadoEn: new Date().toISOString() }
     const lista = readAll(entidad)
     writeAll(entidad, [...lista, nuevo])
     return nuevo

@@ -38,7 +38,8 @@ function coincideCliente(textoDoc, nombreCliente) {
 
 const ESTADO_EXP = {
   activo:    { label: 'Activo',     color: '#34D399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.25)' },
-  pendiente: { label: 'Pendiente',  color: '#FBBF24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.25)' },
+  pendiente: { label: 'En espera',  color: '#FBBF24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.25)' },
+  en_espera: { label: 'En espera',  color: '#FBBF24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.25)' },
   suspendido:{ label: 'Suspendido', color: '#FCA5A5', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.25)' },
   archivado: { label: 'Archivado',  color: 'var(--text-3)', bg: 'var(--surface-2)', border: 'var(--border)' },
   cerrado:   { label: 'Cerrado',    color: 'var(--text-3)', bg: 'var(--surface-2)', border: 'var(--border)' },

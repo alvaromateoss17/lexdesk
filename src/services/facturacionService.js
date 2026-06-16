@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { ejecutarSinColumnasInexistentes } from './dbCompat'
 
 export async function obtenerFacturas({ estado, clienteId } = {}) {
   let query = supabase
@@ -159,4 +160,81 @@ export async function obtenerResumenFinanciero(año) {
   const ingresos = (movs || []).filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.importe), 0)
   const gastos   = (movs || []).filter(m => m.tipo === 'gasto').reduce((s, m) => s + Number(m.importe), 0)
   return { ingresos, gastos, beneficio: ingresos - gastos, movimientos: movs || [] }
+}
+
+// ─── PAGOS / COBROS ─────────────────────────────────────────────────────────
+// Fuente ÚNICA compartida entre la ficha de cliente y Facturación.
+// Se almacenan en la tabla `movimientos` con tipo = 'ingreso', usando las
+// columnas extra cliente_id, metodo y estado (ver MIGRACION-PENDIENTE.sql).
+// El filtrado por despacho_id lo aplica RLS en Supabase.
+
+function normalizePago(row) {
+  if (!row) return null
+  return {
+    ...row,
+    // La UI de pagos usa 'concepto'; en BD es 'descripcion'
+    concepto: row.descripcion ?? '',
+    metodo:   row.metodo ?? '',
+    estado:   row.estado ?? 'cobrado',
+    importe:  Number(row.importe || 0),
+  }
+}
+
+export async function obtenerPagos({ clienteId } = {}) {
+  const { data, error } = await supabase
+    .from('movimientos')
+    .select('*, clientes ( id, nombre, apellidos )')
+    .eq('tipo', 'ingreso')
+    .order('fecha', { ascending: false })
+
+  if (error) throw new Error('Error al cargar pagos: ' + error.message)
+
+  let rows = (data || []).map(normalizePago)
+  // El filtro por cliente se hace en cliente para no romper si la columna
+  // cliente_id aún no existe (la BD lanzaría error al filtrar por ella).
+  if (clienteId) rows = rows.filter(p => String(p.cliente_id) === String(clienteId))
+  return rows
+}
+
+export async function crearPago(datos) {
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    payload => supabase.from('movimientos').insert(payload).select('*, clientes ( id, nombre, apellidos )').single(),
+    {
+      despacho_id: datos.despacho_id,
+      cliente_id:  datos.cliente_id || null,
+      tipo:        'ingreso',
+      descripcion: datos.concepto || datos.descripcion || 'Pago',
+      importe:     datos.importe || 0,
+      fecha:       datos.fecha || new Date().toISOString().split('T')[0],
+      metodo:      datos.metodo || null,
+      estado:      datos.estado || 'cobrado',
+      categoria:   datos.categoria || null,
+    }
+  )
+  if (error) throw new Error('Error al registrar el pago: ' + error.message)
+  return normalizePago(data)
+}
+
+export async function actualizarPago(id, cambios) {
+  const payload = {}
+  if (cambios.concepto   !== undefined) payload.descripcion = cambios.concepto
+  if (cambios.descripcion !== undefined) payload.descripcion = cambios.descripcion
+  if (cambios.importe    !== undefined) payload.importe     = cambios.importe
+  if (cambios.fecha      !== undefined) payload.fecha       = cambios.fecha
+  if (cambios.metodo     !== undefined) payload.metodo      = cambios.metodo
+  if (cambios.estado     !== undefined) payload.estado      = cambios.estado
+  if (cambios.cliente_id !== undefined) payload.cliente_id  = cambios.cliente_id
+
+  const { data, error } = await ejecutarSinColumnasInexistentes(
+    p => supabase.from('movimientos').update(p).eq('id', id).select('*, clientes ( id, nombre, apellidos )').single(),
+    payload
+  )
+  if (error) throw new Error('Error al actualizar el pago: ' + error.message)
+  return normalizePago(data)
+}
+
+export async function eliminarPago(id) {
+  const { error } = await supabase.from('movimientos').delete().eq('id', id)
+  if (error) throw new Error('Error al eliminar el pago: ' + error.message)
+  return true
 }

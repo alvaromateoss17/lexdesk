@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Plus, Receipt, AlertCircle, CheckCircle2, Clock, Trash2, ChevronDown } from 'lucide-react'
+import { Plus, Receipt, CheckCircle2, Clock, Trash2, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import TablaFacturas from '../components/TablaFacturas'
 import FacturaForm from '../components/FacturaForm'
 import FacturacionSkeleton from '../components/FacturacionSkeleton'
-import { useFacturas, useMovimientos } from '../hooks/useFacturacion'
+import { useFacturas, useMovimientos, usePagos } from '../hooks/useFacturacion'
 
 const ABOGADO_DEFAULT = (() => {
   try {
@@ -140,7 +140,8 @@ export default function Facturacion() {
   const [facturaAEliminar, setFacturaAEliminar] = useState(null)
 
   const { facturas, cargando, error, crear, actualizar, cambiarEstado, eliminar } = useFacturas()
-  const { movimientos, crear: crearMov, eliminar: eliminarMov } = useMovimientos()
+  const { movimientos, eliminar: eliminarMov } = useMovimientos()
+  const { pagos } = usePagos()
 
   // ─── Toast ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -149,13 +150,13 @@ export default function Facturacion() {
     return () => clearTimeout(t)
   }, [toast])
 
-  // ─── KPIs ─────────────────────────────────────────────────────────────────────
-  const facturasActivas = facturas.filter(f => f.estado !== 'cancelada')
-  const totalFacturado  = facturasActivas.reduce((s, f) => s + Number(f.total || 0), 0)
-  const totalCobrado    = facturas.filter(f => f.estado === 'pagada').reduce((s, f) => s + Number(f.total || 0), 0)
-  const totalPendiente  = facturas.filter(f => f.estado === 'emitida').reduce((s, f) => s + Number(f.total || 0), 0)
-  const totalVencidas   = facturas.filter(f => f.estado === 'vencida').length
+  // ─── KPIs (calculados desde los pagos reales, fuente compartida con la ficha) ──
+  const totalFacturado  = pagos.reduce((s, p) => s + Number(p.importe || 0), 0)
+  const totalCobrado    = pagos.filter(p => p.estado === 'cobrado').reduce((s, p) => s + Number(p.importe || 0), 0)
+  const totalPendiente  = pagos.filter(p => p.estado === 'pendiente').reduce((s, p) => s + Number(p.importe || 0), 0)
+  const pagosPendientes = pagos.filter(p => p.estado === 'pendiente').length
   const totalGastos     = movimientos.filter(m => m.tipo === 'gasto').reduce((s, m) => s + Number(m.importe || 0), 0)
+  const beneficio       = totalCobrado - totalGastos
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   async function handleGuardar(data) {
@@ -231,7 +232,7 @@ export default function Facturacion() {
   ]
 
   const fmt = n => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0)
-  const totalForBar  = totalCobrado + totalPendiente + (totalVencidas > 0 ? totalPendiente * 0.2 : 0)
+  const totalForBar  = totalCobrado + totalPendiente
   const cobradoPct   = totalForBar ? (totalCobrado / totalForBar * 100) : 0
   const pendientePct = totalForBar ? (totalPendiente / totalForBar * 100) : 0
 
@@ -276,10 +277,10 @@ export default function Facturacion() {
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        <KPICard label="Total facturado"    value={fmt(totalFacturado)}  sub="Sin anuladas"                                      accent="blue"  icon={Receipt} />
-        <KPICard label="Cobrado"             value={fmt(totalCobrado)}    sub="Efectivamente ingresado"                            accent="green" icon={CheckCircle2} />
-        <KPICard label="Pendiente de cobro" value={fmt(totalPendiente)}  sub={`${facturas.filter(f => f.estado === 'emitida').length} facturas emitidas`} accent="amber" icon={Clock} />
-        <KPICard label="Vencidas"           value={totalVencidas}        sub="Requieren atención"                                 accent="red"   icon={AlertCircle} alert={totalVencidas > 0} />
+        <KPICard label="Total facturado"    value={fmt(totalFacturado)} sub="Cobrado + pendiente"     accent="blue"  icon={Receipt} />
+        <KPICard label="Cobrado"            value={fmt(totalCobrado)}   sub="Efectivamente ingresado" accent="green" icon={CheckCircle2} />
+        <KPICard label="Pendiente de cobro" value={fmt(totalPendiente)} sub={`${pagosPendientes} pago${pagosPendientes !== 1 ? 's' : ''} pendiente${pagosPendientes !== 1 ? 's' : ''}`} accent="amber" icon={Clock} />
+        <KPICard label="Beneficio"          value={fmt(beneficio)}      sub="Cobrado − gastos"        accent={beneficio >= 0 ? 'green' : 'red'} icon={TrendingUp} />
       </div>
 
       {/* Distribución */}
@@ -336,7 +337,7 @@ export default function Facturacion() {
       )}
 
       {tab === 'cliente' && (
-        <TabPorCliente facturas={facturas} />
+        <TabPorCliente pagos={pagos} />
       )}
 
       {tab === 'gastos' && (
@@ -344,7 +345,7 @@ export default function Facturacion() {
       )}
 
       {tab === 'rentabilidad' && (
-        <TabRentabilidad facturas={facturas} gastos={movimientos.filter(m => m.tipo === 'gasto')} />
+        <TabRentabilidad pagos={pagos} gastos={movimientos.filter(m => m.tipo === 'gasto')} />
       )}
 
       {showForm && (
@@ -360,28 +361,27 @@ export default function Facturacion() {
 
 // ─── Tab: Por cliente ─────────────────────────────────────────────────────────
 
-function TabPorCliente({ facturas }) {
+function TabPorCliente({ pagos }) {
   const [expandidos, setExpandidos] = useState({})
 
-  const porCliente = facturas.filter(f => f.estado !== 'cancelada').reduce((acc, f) => {
-    const nombre = f.clientes ? `${f.clientes.nombre} ${f.clientes.apellidos || ''}`.trim() : 'Sin cliente'
-    if (!acc[nombre]) acc[nombre] = { nombre, facturas: [], totalFacturado: 0, totalCobrado: 0, totalPendiente: 0 }
-    acc[nombre].facturas.push(f)
-    acc[nombre].totalFacturado += Number(f.total || 0)
-    if (f.estado === 'pagada') acc[nombre].totalCobrado += Number(f.total || 0)
-    if (f.estado === 'emitida' || f.estado === 'vencida') acc[nombre].totalPendiente += Number(f.total || 0)
+  const porCliente = pagos.reduce((acc, p) => {
+    const nombre = p.clientes ? `${p.clientes.nombre} ${p.clientes.apellidos || ''}`.trim() : 'Sin cliente'
+    if (!acc[nombre]) acc[nombre] = { nombre, pagos: [], totalFacturado: 0, totalCobrado: 0, totalPendiente: 0 }
+    const imp = Number(p.importe || 0)
+    acc[nombre].pagos.push(p)
+    acc[nombre].totalFacturado += imp
+    if (p.estado === 'cobrado') acc[nombre].totalCobrado += imp
+    else                        acc[nombre].totalPendiente += imp
     return acc
   }, {})
 
   const rows = Object.values(porCliente).sort((a, b) => b.totalFacturado - a.totalFacturado)
 
-  const ESTADO_COLOR = { borrador: '#9CA3AF', emitida: '#93B4FF', pagada: '#6EE7B7', vencida: '#FCA5A5', cancelada: '#FCD34D' }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {rows.length === 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 40, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>
-          No hay facturas todavía.
+          No hay pagos registrados todavía.
         </div>
       )}
       {rows.map(c => {
@@ -400,7 +400,7 @@ function TabPorCliente({ facturas }) {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 500, fontSize: 14 }}>{c.nombre}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
-                  {c.facturas.length} factura{c.facturas.length !== 1 ? 's' : ''} ·
+                  {c.pagos.length} pago{c.pagos.length !== 1 ? 's' : ''} ·
                   Facturado: <span className="num" style={{ color: 'var(--text)' }}>{c.totalFacturado.toLocaleString('es-ES', { minimumFractionDigits: 0 })} €</span>
                 </div>
               </div>
@@ -421,14 +421,14 @@ function TabPorCliente({ facturas }) {
               <div style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
                 <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
                   <tbody>
-                    {c.facturas.map(f => (
-                      <tr key={f.id}>
-                        <td style={td}><span className="mono" style={{ fontSize: 12 }}>{`${f.serie || 'A'}-${String(f.numero).padStart(3, '0')}`}</span></td>
-                        <td style={td}><span style={{ color: 'var(--text-2)' }}>{f.fecha_emision}</span></td>
-                        <td style={td}><span className="num">{Number(f.total || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
+                    {c.pagos.map(p => (
+                      <tr key={p.id}>
+                        <td style={td}><span style={{ color: 'var(--text)' }}>{p.concepto || '—'}</span></td>
+                        <td style={td}><span style={{ color: 'var(--text-2)' }}>{p.fecha}</span></td>
+                        <td style={td}><span className="num">{Number(p.importe || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span></td>
                         <td style={td}>
-                          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: `${ESTADO_COLOR[f.estado] || '#9CA3AF'}18`, color: ESTADO_COLOR[f.estado] || '#9CA3AF', border: `1px solid ${ESTADO_COLOR[f.estado] || '#9CA3AF'}35` }}>
-                            {{ borrador: 'Borrador', emitida: 'Emitida', pagada: 'Cobrada', vencida: 'Vencida', cancelada: 'Anulada' }[f.estado] || f.estado}
+                          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: p.estado === 'cobrado' ? 'rgba(110,231,183,0.12)' : 'rgba(252,165,165,0.12)', color: p.estado === 'cobrado' ? '#6EE7B7' : '#FCA5A5', border: `1px solid ${p.estado === 'cobrado' ? 'rgba(110,231,183,0.3)' : 'rgba(252,165,165,0.3)'}` }}>
+                            {p.estado === 'cobrado' ? 'Cobrado' : 'Pendiente'}
                           </span>
                         </td>
                       </tr>
@@ -522,19 +522,19 @@ function TabGastos({ gastos, onEliminar }) {
 
 // ─── Tab: Rentabilidad ────────────────────────────────────────────────────────
 
-function TabRentabilidad({ facturas, gastos }) {
-  const totalCobrado   = facturas.filter(f => f.estado === 'pagada').reduce((s, f) => s + Number(f.total || 0), 0)
+function TabRentabilidad({ pagos, gastos }) {
+  const totalCobrado   = pagos.filter(p => p.estado === 'cobrado').reduce((s, p) => s + Number(p.importe || 0), 0)
   const totalGastos    = gastos.reduce((s, g) => s + Number(g.importe || 0), 0)
   const margen         = totalCobrado > 0 ? ((totalCobrado - totalGastos) / totalCobrado * 100) : 0
 
   const mesesData = (() => {
     const map = {}
-    facturas.forEach(f => {
-      if (f.estado === 'cancelada' || !f.fecha_emision) return
-      const mes = f.fecha_emision.slice(0, 7)
+    pagos.forEach(p => {
+      if (!p.fecha) return
+      const mes = p.fecha.slice(0, 7)
       if (!map[mes]) map[mes] = { facturado: 0, cobrado: 0 }
-      map[mes].facturado += Number(f.total || 0)
-      if (f.estado === 'pagada') map[mes].cobrado += Number(f.total || 0)
+      map[mes].facturado += Number(p.importe || 0)
+      if (p.estado === 'cobrado') map[mes].cobrado += Number(p.importe || 0)
     })
     return Object.entries(map).sort().slice(-6)
   })()
@@ -574,6 +574,18 @@ function TabRentabilidad({ facturas, gastos }) {
           Crea facturas para ver la evolución mensual.
         </div>
       )}
+    </div>
+  )
+}
+
+function KpiCard({ label, value, color, icon: Ic }) {
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{label}</span>
+        {Ic && <Ic size={15} style={{ color }} />}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 700, color, letterSpacing: '-0.02em' }}>{value}</div>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { storageService } from '../services/storageService'
 import { useCliente } from '../hooks/useClientes'
+import { usePagos } from '../hooks/useFacturacion'
 import { desactivarCliente, reactivarCliente, eliminarClientePermanente } from '../services/clientesService'
 import {
   ChevronRight, MoreHorizontal, Edit2, FolderPlus, MessageSquare, Archive,
@@ -602,25 +603,32 @@ export default function ClienteDetalle() {
   const [toast, setToast] = useState(null)
   const [showModalEliminar, setShowModalEliminar] = useState(false)
 
-  // Pagos y notas se persisten en localStorage (no existen aún en Supabase),
-  // de modo que sobreviven al salir y volver al detalle del cliente.
-  const [pagos, setPagos] = useState([])
+  // Las notas del cliente se persisten en localStorage (aún sin tabla en
+  // Supabase). Los pagos sí van en Supabase (tabla movimientos) vía usePagos,
+  // de modo que se reflejan automáticamente en Facturación.
   const [notas, setNotas] = useState([])
+
+  const { pagos, crear: crearPago, actualizar: actualizarPago, eliminar: eliminarPago } = usePagos({ clienteId: id })
 
   useEffect(() => {
     if (!id) return
-    setPagos(storageService.getAll('pagos').filter(p => String(p.clienteId) === String(id)))
     setNotas(storageService.getAll('notasCliente').filter(n => String(n.clienteId) === String(id)))
   }, [id])
 
-  function handleRegistrarPago(pago) {
-    const guardado = storageService.create('pagos', { ...pago, clienteId: id })
-    setPagos(prev => [...prev, guardado])
+  function handleRegistrarPago(datos) {
+    return crearPago({ ...datos, cliente_id: id })
+  }
+
+  function handleEditarPago(pagoId, cambios) {
+    return actualizarPago(pagoId, cambios)
+  }
+
+  function handleEliminarPago(pagoId) {
+    return eliminarPago(pagoId)
   }
 
   function handleMarcarCobrado(pagoId) {
-    storageService.update('pagos', pagoId, { estado: 'cobrado' })
-    setPagos(prev => prev.map(p => String(p.id) === String(pagoId) ? { ...p, estado: 'cobrado' } : p))
+    return actualizarPago(pagoId, { estado: 'cobrado' })
   }
 
   function handleAgregarNota(nota) {
@@ -771,7 +779,7 @@ export default function ClienteDetalle() {
       {tab === 'resumen'     && <TabResumen cliente={{ ...cliente, pagos, notas }} expedientes={expedientes} />}
       {tab === 'expedientes' && <TabExpedientes expedientes={expedientes} />}
       {tab === 'documentos'  && <TabDocumentos docsIniciales={cliente.documentos} clienteNombre={cliente.nombre} onToast={setToast} />}
-      {tab === 'pagos'       && <HistorialPagos pagos={pagos} onRegistrarPago={handleRegistrarPago} onMarcarCobrado={handleMarcarCobrado} mostrarBotonRegistrar />}
+      {tab === 'pagos'       && <HistorialPagos pagos={pagos} onRegistrar={handleRegistrarPago} onEditar={handleEditarPago} onEliminar={handleEliminarPago} onMarcarCobrado={handleMarcarCobrado} mostrarBotonRegistrar />}
       {tab === 'notas'       && <TabNotas notasIniciales={notas} onToast={setToast} onAgregar={handleAgregarNota} onEditar={handleEditarNota} onEliminar={handleEliminarNota} />}
       {tab === 'mensajes'    && <ChatMensajes mensajes={cliente.mensajes} nombreCliente={cliente.nombre} />}
 

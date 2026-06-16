@@ -18,3 +18,13 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS fecha_baja DATE;
 ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS tipo_asunto TEXT;
 ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS procurador  TEXT;
 ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS nig         TEXT;
+
+-- Movimientos: convertir la tabla en la fuente ÚNICA de pagos/cobros, compartida
+-- entre la ficha de cliente (pestaña Pagos) y Facturación. Un cobro es un
+-- movimiento de tipo 'ingreso' con cliente, método y estado (cobrado/pendiente).
+-- HASTA QUE ESTO SE EJECUTE, los pagos se guardan sin cliente/método/estado
+-- (la app descarta esas columnas) y no se enlazan al cliente correctamente.
+ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS cliente_id UUID REFERENCES clientes(id) ON DELETE SET NULL;
+ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS metodo     TEXT;
+ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS estado     TEXT NOT NULL DEFAULT 'cobrado';
+CREATE INDEX IF NOT EXISTS idx_movimientos_cliente_id ON movimientos(cliente_id);

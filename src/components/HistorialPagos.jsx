@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { ArrowLeftRight, CreditCard, Smartphone, Scale, DollarSign, Plus, CheckCircle, Clock } from 'lucide-react'
+import { ArrowLeftRight, CreditCard, Smartphone, Scale, DollarSign, Plus, CheckCircle, Clock, Pencil, Trash2 } from 'lucide-react'
 
 function fmtEuro(n) {
-  return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+  return Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
 }
 
 function fmtFecha(f) {
@@ -23,28 +23,44 @@ function MetodoIcon({ metodo }) {
   return <Ic size={13} color="var(--text-3)" />
 }
 
-function ModalPago({ onClose, onGuardar }) {
+function ModalPago({ pago, onClose, onGuardar }) {
   const hoy = new Date().toISOString().split('T')[0]
-  const [form, setForm] = useState({ concepto: '', importe: '', fecha: hoy, metodo: 'Transferencia', notas: '', estado: 'cobrado' })
+  const [form, setForm] = useState({
+    concepto: pago?.concepto || '',
+    importe:  pago?.importe != null ? String(pago.importe) : '',
+    fecha:    pago?.fecha || hoy,
+    metodo:   pago?.metodo || 'Transferencia',
+    notas:    pago?.notas || '',
+    estado:   pago?.estado || 'cobrado',
+  })
   const [error, setError] = useState({})
+  const [guardando, setGuardando] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState('')
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const err = {}
     if (!form.concepto.trim()) err.concepto = 'Campo obligatorio'
     if (!form.importe || isNaN(form.importe)) err.importe = 'Introduce un importe válido'
     if (!form.fecha) err.fecha = 'Campo obligatorio'
     if (Object.keys(err).length) { setError(err); return }
-    onGuardar({ ...form, importe: parseFloat(form.importe), id: Date.now() })
+    setGuardando(true)
+    setErrorGuardar('')
+    try {
+      await onGuardar({ ...form, importe: parseFloat(form.importe) })
+    } catch (err) {
+      setErrorGuardar(err.message || 'No se pudo guardar el pago.')
+      setGuardando(false)
+    }
   }
 
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Registrar pago</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{pago ? 'Editar pago' : 'Registrar pago'}</h2>
           <button onClick={onClose} style={closeBtn}>×</button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -88,9 +104,12 @@ function ModalPago({ onClose, onGuardar }) {
               ))}
             </div>
           </div>
+          {errorGuardar && <div style={errStyle}>{errorGuardar}</div>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
-            <button type="button" onClick={onClose} style={btnSec}>Cancelar</button>
-            <button type="submit" style={btnPri}>Registrar pago</button>
+            <button type="button" onClick={onClose} style={btnSec} disabled={guardando}>Cancelar</button>
+            <button type="submit" style={btnPri} disabled={guardando}>
+              {guardando ? 'Guardando…' : (pago ? 'Guardar cambios' : 'Registrar pago')}
+            </button>
           </div>
         </form>
       </div>
@@ -98,24 +117,40 @@ function ModalPago({ onClose, onGuardar }) {
   )
 }
 
-export default function HistorialPagos({ pagos: pagosIniciales = [], onRegistrarPago, onMarcarCobrado, mostrarBotonRegistrar = true }) {
-  const [pagos, setPagos] = useState(pagosIniciales)
-  const [showModal, setShowModal] = useState(false)
+function ModalConfirmarBorrar({ onConfirm, onClose }) {
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={{ ...modalStyle, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700 }}>¿Eliminar este pago?</h3>
+        <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>Esta acción no se puede deshacer.</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={btnSec}>Cancelar</button>
+          <button onClick={onConfirm} style={{ ...btnPri, background: '#F87171' }}>Eliminar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-  const totalFacturado = pagos.reduce((s, p) => s + p.importe, 0)
-  const totalCobrado   = pagos.filter(p => p.estado === 'cobrado').reduce((s, p) => s + p.importe, 0)
+export default function HistorialPagos({ pagos = [], onRegistrar, onEditar, onEliminar, onMarcarCobrado, mostrarBotonRegistrar = true }) {
+  const [showModal, setShowModal] = useState(false)
+  const [editando, setEditando]   = useState(null)
+  const [confirmar, setConfirmar] = useState(null)
+
+  const totalFacturado = pagos.reduce((s, p) => s + Number(p.importe || 0), 0)
+  const totalCobrado   = pagos.filter(p => p.estado === 'cobrado').reduce((s, p) => s + Number(p.importe || 0), 0)
   const pendiente      = totalFacturado - totalCobrado
 
-  function handleGuardar(pago) {
-    const nuevoPago = { ...pago, id: Date.now() }
-    setPagos(prev => [...prev, nuevoPago])
-    onRegistrarPago?.(nuevoPago)
+  async function handleGuardar(datos) {
+    if (editando) await onEditar?.(editando.id, datos)
+    else          await onRegistrar?.(datos)
     setShowModal(false)
+    setEditando(null)
   }
 
-  function marcarCobrado(id) {
-    setPagos(prev => prev.map(p => p.id === id ? { ...p, estado: 'cobrado', metodo: p.metodo || 'Transferencia' } : p))
-    onMarcarCobrado?.(id)
+  async function handleEliminar(id) {
+    await onEliminar?.(id)
+    setConfirmar(null)
   }
 
   return (
@@ -137,7 +172,7 @@ export default function HistorialPagos({ pagos: pagosIniciales = [], onRegistrar
       {/* Cabecera tabla */}
       {mostrarBotonRegistrar && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={() => setShowModal(true)} style={btnPri}>
+          <button onClick={() => { setEditando(null); setShowModal(true) }} style={btnPri}>
             <Plus size={13} /> Registrar pago
           </button>
         </div>
@@ -182,14 +217,18 @@ export default function HistorialPagos({ pagos: pagosIniciales = [], onRegistrar
                     </span>
                   </td>
                   <td style={{ padding: '11px 14px' }}>
-                    {p.estado === 'pendiente' && (
-                      <button
-                        onClick={() => marcarCobrado(p.id)}
-                        style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#34D399', whiteSpace: 'nowrap' }}
-                      >
-                        Marcar cobrado
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+                      {p.estado === 'pendiente' && (
+                        <button
+                          onClick={() => onMarcarCobrado?.(p.id)}
+                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#34D399', whiteSpace: 'nowrap' }}
+                        >
+                          Marcar cobrado
+                        </button>
+                      )}
+                      <button onClick={() => { setEditando(p); setShowModal(true) }} title="Editar" style={iconBtn}><Pencil size={13} /></button>
+                      <button onClick={() => setConfirmar(p.id)} title="Eliminar" style={{ ...iconBtn, color: '#F87171' }}><Trash2 size={13} /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -198,7 +237,8 @@ export default function HistorialPagos({ pagos: pagosIniciales = [], onRegistrar
         </div>
       )}
 
-      {showModal && <ModalPago onClose={() => setShowModal(false)} onGuardar={handleGuardar} />}
+      {showModal && <ModalPago pago={editando} onClose={() => { setShowModal(false); setEditando(null) }} onGuardar={handleGuardar} />}
+      {confirmar !== null && <ModalConfirmarBorrar onConfirm={() => handleEliminar(confirmar)} onClose={() => setConfirmar(null)} />}
     </div>
   )
 }
@@ -208,6 +248,7 @@ const errStyle   = { fontSize: 11, color: '#F87171', marginTop: 3 }
 const inStyle    = { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 10px', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit', outline: 'none', width: '100%' }
 const btnPri     = { height: 32, padding: '0 14px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, background: '#4F7EFF', border: 'none', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 5 }
 const btnSec     = { height: 32, padding: '0 14px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: 'transparent', border: '1px solid var(--border-2)', color: 'var(--text-2)', display: 'inline-flex', alignItems: 'center', gap: 5 }
+const iconBtn    = { width: 28, height: 26, display: 'grid', placeItems: 'center', borderRadius: 5, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', cursor: 'pointer' }
 const closeBtn   = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 20, lineHeight: 1, padding: '2px 4px' }
 const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(2px)' }
 const modalStyle   = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '24px', width: '100%', maxWidth: 520, boxShadow: '0 16px 48px rgba(0,0,0,0.4)' }

@@ -5,6 +5,7 @@ import {
   cambiarEstadoFactura, eliminarFactura,
   obtenerMovimientos, crearMovimiento, eliminarMovimiento,
   obtenerResumenFinanciero,
+  obtenerPagos, crearPago, actualizarPago, eliminarPago,
 } from '../services/facturacionService'
 
 export function useFacturas(filtros = {}) {
@@ -93,6 +94,56 @@ export function useMovimientos(filtros = {}) {
   resumen.beneficio = resumen.ingresos - resumen.gastos
 
   return { movimientos, cargando, error, recargar: cargar, crear, eliminar, resumen }
+}
+
+// ─── PAGOS / COBROS ─────────────────────────────────────────────────────────
+// Lee/escribe la fuente compartida (movimientos tipo='ingreso'). La usan tanto
+// la ficha de cliente como Facturación, de modo que un pago registrado en una
+// se refleja en la otra sin pasos manuales (basta con recargar/invalidar).
+
+export function usePagos(filtros = {}) {
+  const { despacho }      = useAuth()
+  const [pagos, setPagos] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError]       = useState(null)
+
+  const cargar = useCallback(async () => {
+    if (!despacho?.id) { setCargando(false); return }
+    setCargando(true); setError(null)
+    try { setPagos(await obtenerPagos(filtros)) }
+    catch (err) { setError(err.message); setPagos([]) }
+    finally { setCargando(false) }
+  }, [despacho?.id, filtros.clienteId])
+
+  useEffect(() => { cargar() }, [cargar])
+
+  const crear = useCallback(async (datos) => {
+    if (!despacho?.id) throw new Error('No hay despacho activo.')
+    const nuevo = await crearPago({ ...datos, despacho_id: despacho.id })
+    setPagos(prev => [nuevo, ...prev])
+    return nuevo
+  }, [despacho?.id])
+
+  const actualizar = useCallback(async (id, cambios) => {
+    const actualizado = await actualizarPago(id, cambios)
+    setPagos(prev => prev.map(p => p.id === id ? { ...p, ...actualizado } : p))
+    return actualizado
+  }, [])
+
+  const eliminar = useCallback(async (id) => {
+    await eliminarPago(id)
+    setPagos(prev => prev.filter(p => p.id !== id))
+  }, [])
+
+  const totales = pagos.reduce((acc, p) => {
+    const imp = Number(p.importe || 0)
+    acc.total += imp
+    if (p.estado === 'cobrado') acc.cobrado += imp
+    else                        acc.pendiente += imp
+    return acc
+  }, { total: 0, cobrado: 0, pendiente: 0 })
+
+  return { pagos, cargando, error, recargar: cargar, crear, actualizar, eliminar, totales }
 }
 
 export function useResumenFinanciero(año = new Date().getFullYear()) {

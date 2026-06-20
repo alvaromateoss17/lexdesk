@@ -28,3 +28,13 @@ ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS cliente_id UUID REFERENCES clie
 ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS metodo     TEXT;
 ALTER TABLE movimientos ADD COLUMN IF NOT EXISTS estado     TEXT NOT NULL DEFAULT 'cobrado';
 CREATE INDEX IF NOT EXISTS idx_movimientos_cliente_id ON movimientos(cliente_id);
+
+-- =============================================================================
+-- v3 (2026-06-20) — SEGURIDAD: cerrar fuga entre despachos en usuarios_insert
+-- Ejecutar en el SQL Editor de Supabase. Idempotente (DROP IF EXISTS + CREATE).
+-- El alta de cuentas pasa por setup_user_despacho() (SECURITY DEFINER), por lo que
+-- la inserción directa de perfiles ya NO necesita la rama auth_user_id = auth.uid().
+-- =============================================================================
+DROP POLICY IF EXISTS "usuarios_insert" ON usuarios;
+CREATE POLICY "usuarios_insert" ON usuarios
+  FOR INSERT WITH CHECK (despacho_id = get_my_despacho_id());

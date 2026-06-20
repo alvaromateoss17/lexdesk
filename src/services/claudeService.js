@@ -1,5 +1,7 @@
 // Comunicación con Groq (LLaMA) vía proxy serverless
 
+import { supabase } from '../lib/supabase';
+
 const API_URL = '/api/chat';
 const MODEL = 'llama-3.3-70b-versatile';
 const MAX_TOKENS = 2048;
@@ -90,9 +92,17 @@ export async function sendMessageStream({
   ];
 
   try {
+    // Adjuntamos el token de sesión para que el proxy verifique que quien
+    // llama es un usuario de Vincla (evita que gasten la clave desde fuera).
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
     const response = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         model: MODEL,
         max_tokens: MAX_TOKENS,

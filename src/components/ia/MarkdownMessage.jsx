@@ -1,11 +1,35 @@
 // Renderizador ligero de Markdown para respuestas de Claude
 
+// Neutraliza el HTML del texto ANTES de aplicar el markdown, para que la IA
+// no pueda inyectar etiquetas (p. ej. <img onerror=...>) y robar la sesión.
+function escapeHtml(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Solo se permiten enlaces http(s) y mailto; cualquier otro esquema
+// (javascript:, data:, ...) se descarta y se muestra como texto plano.
+function urlSegura(url) {
+  const u = url.trim();
+  return /^(https?:|mailto:)/i.test(u) ? u : null;
+}
+
 function inlineMarkdown(text) {
-  return text
+  let t = escapeHtml(text); // 1) neutralizar HTML antes de nada
+  t = t
     .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:500;color:var(--text)">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code style="background:rgba(79,126,255,0.15);color:var(--blue);padding:1px 5px;border-radius:4px;font-size:12px;font-family:\'JetBrains Mono\',monospace">$1</code>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:var(--blue);text-decoration:underline" target="_blank" rel="noopener noreferrer">$1</a>');
+    .replace(/\[(.+?)\]\((.+?)\)/g, (m, txt, url) => {
+      const u = urlSegura(url);
+      return u
+        ? `<a href="${u}" style="color:var(--blue);text-decoration:underline" target="_blank" rel="noopener noreferrer">${txt}</a>`
+        : txt; // enlace no permitido -> solo el texto
+    });
+  return t;
 }
 
 export default function MarkdownMessage({ content, isStreaming = false }) {

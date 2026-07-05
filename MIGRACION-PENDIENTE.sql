@@ -38,3 +38,41 @@ CREATE INDEX IF NOT EXISTS idx_movimientos_cliente_id ON movimientos(cliente_id)
 DROP POLICY IF EXISTS "usuarios_insert" ON usuarios;
 CREATE POLICY "usuarios_insert" ON usuarios
   FOR INSERT WITH CHECK (despacho_id = get_my_despacho_id());
+
+-- =============================================================================
+-- v4 (2026-07-05) — DOCUMENTOS DEL EXPEDIENTE en Supabase Storage
+-- Persistir documentos subidos dentro de un expediente en el bucket privado
+-- 'documentos' + tabla 'documentos', aislados por despacho vía RLS.
+-- Ejecutar en el SQL Editor de Supabase. Idempotente (DROP IF EXISTS + CREATE).
+-- =============================================================================
+
+-- ── Políticas RLS de la TABLA documentos (aislamiento por despacho) ──
+DROP POLICY IF EXISTS "documentos_select" ON documentos;
+DROP POLICY IF EXISTS "documentos_insert" ON documentos;
+DROP POLICY IF EXISTS "documentos_update" ON documentos;
+DROP POLICY IF EXISTS "documentos_delete" ON documentos;
+
+CREATE POLICY "documentos_select" ON documentos FOR SELECT
+  USING (despacho_id = get_my_despacho_id());
+CREATE POLICY "documentos_insert" ON documentos FOR INSERT
+  WITH CHECK (despacho_id = get_my_despacho_id());
+CREATE POLICY "documentos_update" ON documentos FOR UPDATE
+  USING (despacho_id = get_my_despacho_id());
+CREATE POLICY "documentos_delete" ON documentos FOR DELETE
+  USING (despacho_id = get_my_despacho_id());
+
+-- ── Políticas RLS del BUCKET 'documentos' en storage.objects ──
+-- El primer segmento de la ruta del objeto ES el despacho_id.
+DROP POLICY IF EXISTS "docs_storage_select" ON storage.objects;
+DROP POLICY IF EXISTS "docs_storage_insert" ON storage.objects;
+DROP POLICY IF EXISTS "docs_storage_delete" ON storage.objects;
+
+CREATE POLICY "docs_storage_select" ON storage.objects FOR SELECT
+  USING (bucket_id = 'documentos'
+         AND (storage.foldername(name))[1] = get_my_despacho_id()::text);
+CREATE POLICY "docs_storage_insert" ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'documentos'
+         AND (storage.foldername(name))[1] = get_my_despacho_id()::text);
+CREATE POLICY "docs_storage_delete" ON storage.objects FOR DELETE
+  USING (bucket_id = 'documentos'
+         AND (storage.foldername(name))[1] = get_my_despacho_id()::text);

@@ -1,12 +1,35 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Pin, Sparkles, Upload, Clock, Download, MoreHorizontal, Filter, FileText, Send, Baby, Home, Car, Building, ExternalLink } from 'lucide-react'
+import { ChevronLeft, Pin, Sparkles, Upload, Clock, Download, Trash2, Filter, FileText, Send, Baby, Home, Car, Building, ExternalLink } from 'lucide-react'
 import Badge from '../components/Badge'
 import AIPanel from '../components/AIPanel'
 import TimelineExpediente from '../components/TimelineExpediente'
-import { storageService } from '../services/storageService'
+import { Toast, useToast } from '../components/ui/Toast'
+import { subirDocumento, listarDocumentos, obtenerUrlDescarga, eliminarDocumento } from '../services/documentosService'
+import { useAuth } from '../contexts/AuthContext'
 import { formatCuantia } from '../utils/format'
 import { useExpediente } from '../hooks/useExpedientes'
+
+// Formatea bytes a KB/MB con locale es-ES.
+function formatearTamano(bytes) {
+  if (bytes == null) return ''
+  const kb = bytes / 1024
+  if (kb < 1024) return `${kb.toLocaleString('es-ES', { maximumFractionDigits: 0 })} KB`
+  return `${(kb / 1024).toLocaleString('es-ES', { maximumFractionDigits: 1 })} MB`
+}
+
+// Mapea una fila de la tabla 'documentos' a la forma que consume el JSX,
+// conservando los campos originales (url_storage, id) para el servicio.
+function docAUi(row) {
+  const nombre = row.nombre || row.nombre_archivo || ''
+  const ext = nombre.includes('.') ? nombre.split('.').pop().toUpperCase() : ''
+  return {
+    ...row,
+    size:  formatearTamano(row.tamano_bytes),
+    tipo:  ext,
+    fecha: row.created_at ? new Date(row.created_at).toLocaleDateString('es-ES') : '',
+  }
+}
 
 function KV({ label, value }) {
   return (
@@ -22,7 +45,11 @@ export default function ExpedienteDetalle() {
   const nav     = useNavigate()
 
   const { expediente: exp, cargando: loading, error: errorExp } = useExpediente(id)
+  const { despacho, profile } = useAuth()
+  const { toast, showToast } = useToast()
   const [docs,    setDocs]    = useState([])
+  const [docsLoading, setDocsLoading] = useState(true)
+  const [docsError,   setDocsError]   = useState(null)
   const [plazos,  setPlazos]  = useState([])
   const [tab,     setTab]     = useState('Documentos')
   const [showAI,     setShowAI]     = useState(false)
@@ -30,11 +57,17 @@ export default function ExpedienteDetalle() {
   const [aiContent,  setAiContent]  = useState(null)
   const [uploading,  setUploading]  = useState(false)
 
-  // Cargar documentos locales vinculados a este expediente
+  // Cargar documentos del expediente desde Supabase (Storage + tabla 'documentos')
   useEffect(() => {
-    const todosLosDocs = storageService.getAll('documentos')
-    setDocs(todosLosDocs.filter(d => String(d.expedienteId) === String(id)))
+    let activo = true
+    setDocsLoading(true)
+    setDocsError(null)
     setPlazos([])
+    listarDocumentos({ expedienteId: id })
+      .then(filas => { if (activo) setDocs(filas.map(docAUi)) })
+      .catch(err => { if (activo) { setDocs([]); setDocsError(err.message) } })
+      .finally(() => { if (activo) setDocsLoading(false) })
+    return () => { activo = false }
   }, [id])
 
   const handleSummarize = () => {
@@ -52,37 +85,52 @@ export default function ExpedienteDetalle() {
     }, 1500)
   }
 
-  function handleUpload(e) {
+  async function handleUpload(e) {
     const file = e.target.files?.[0]
+    e.target.value = '' // permite volver a subir el mismo archivo
     if (!file) return
     setUploading(true)
-    const objectUrl = URL.createObjectURL(file)
-    const nuevoDoc = storageService.create('documentos', {
-      nombre:       file.name,
-      tipo:         file.name.split('.').pop().toLowerCase(),
-      tamano:       file.size,
-      size:         `${(file.size / 1024).toFixed(0)} KB`,
-      categoria:    'Documento',
-      expedienteId: id,
-      clienteTexto: exp?.cliente ?? '',
-      fecha:        new Date().toISOString().split('T')[0],
-      url:          objectUrl,
-    })
-    setDocs(prev => [nuevoDoc, ...prev])
-    setUploading(false)
+    try {
+      await subirDocumento({
+        file,
+        expedienteId: id,
+        despachoId:   despacho?.id,
+        usuarioId:    profile?.id,
+      })
+      const filas = await listarDocumentos({ expedienteId: id })
+      setDocs(filas.map(docAUi))
+      showToast('Documento subido correctamente.')
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setUploading(false)
+    }
   }
 
-  function handleDownload(doc) {
-    if (doc.url) {
+  async function handleDownload(doc) {
+    try {
+      const url = await obtenerUrlDescarga(doc)
       const link = document.createElement('a')
-      link.href = doc.url
+      link.href = url
       link.target = '_blank'
+      link.rel = 'noopener'
       link.download = doc.nombre
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-    } else {
-      alert(`El archivo "${doc.nombre}" fue registrado en otra sesión. Por favor, vuelve a subirlo.`)
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
+  }
+
+  async function handleDelete(doc) {
+    if (!window.confirm(`¿Eliminar el documento "${doc.nombre}"? Esta acción no se puede deshacer.`)) return
+    try {
+      await eliminarDocumento(doc)
+      setDocs(prev => prev.filter(d => d.id !== doc.id))
+      showToast('Documento eliminado.')
+    } catch (err) {
+      showToast(err.message, 'error')
     }
   }
 
@@ -159,10 +207,14 @@ export default function ExpedienteDetalle() {
 
           {tab === 'Documentos' && (
             <div style={{ padding: '6px 0' }}>
-              {docs.length === 0 ? (
+              {docsLoading ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>Cargando documentos…</div>
+              ) : docsError ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#E24B4A', fontSize: 13 }}>{docsError}</div>
+              ) : docs.length === 0 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>No hay documentos. Usa "Añadir documento" para subir archivos.</div>
               ) : docs.map((d, i) => (
-                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', borderBottom: i < docs.length - 1 ? '1px solid var(--border)' : 0, cursor: 'pointer', transition: 'background 0.15s' }}
+                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', borderBottom: i < docs.length - 1 ? '1px solid var(--border)' : 0, transition: 'background 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.015)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--border-2)', display: 'grid', placeItems: 'center', color: 'var(--text-2)', flexShrink: 0 }}>
@@ -170,11 +222,11 @@ export default function ExpedienteDetalle() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="mono" style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nombre}</div>
-                    <div style={{ color: 'var(--text-2)', fontSize: 12, marginTop: 2 }}>{d.size} · subido por {d.subidoPor} · {d.fecha}</div>
+                    <div style={{ color: 'var(--text-2)', fontSize: 12, marginTop: 2 }}>{d.size} · {d.fecha}</div>
                   </div>
-                  <Badge>{d.tag}</Badge>
-                  <button style={ghostBtn} onClick={() => handleDownload(d)}><Download size={14} /></button>
-                  <button style={ghostBtn}><MoreHorizontal size={14} /></button>
+                  {d.tipo && <Badge>{d.tipo}</Badge>}
+                  <button style={ghostBtn} title="Descargar" onClick={() => handleDownload(d)}><Download size={14} /></button>
+                  <button style={ghostBtn} title="Eliminar" onClick={() => handleDelete(d)}><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>
@@ -274,6 +326,8 @@ export default function ExpedienteDetalle() {
         expRef={exp.ref}
         expName={exp.cliente}
       />
+
+      <Toast toast={toast} />
     </div>
   )
 }
